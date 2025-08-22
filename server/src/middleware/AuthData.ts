@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import UserData, { IUserData } from '@models/UserData';
+import UserData from '../models/UserData';
 import { Types } from 'mongoose';
 
 // Extend Express Request interface
