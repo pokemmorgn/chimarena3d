@@ -25,7 +25,7 @@ const gameServer = new Server({
 });
 
 // Environment variables
-const PORT = process.env.PORT || 2567;
+const PORT = parseInt(process.env.PORT || '2567', 10);
 const HOST = process.env.HOST || 'localhost';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/clash-royale-game';
@@ -113,8 +113,8 @@ function setupMiddleware(): void {
 
   // Request logging in development
   if (NODE_ENV === 'development') {
-    app.use((req, res, next) => {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    app.use((_req, _res, next) => {
+      console.log(`${new Date().toISOString()} - ${_req.method} ${_req.path}`);
       next();
     });
   }
@@ -125,7 +125,7 @@ function setupMiddleware(): void {
  */
 function setupRoutes(): void {
   // Health check endpoint
-  app.get('/api/health', (req, res) => {
+  app.get('/api/health', (_req, res) => {
     res.json({
       success: true,
       message: 'Server is healthy',
@@ -169,7 +169,7 @@ function setupRoutes(): void {
   });
 
   // 404 handler for API routes
-  app.use('/api/*', (req, res) => {
+  app.use('/api/*', (_req, res) => {
     res.status(404).json({
       success: false,
       message: 'API endpoint not found',
@@ -213,7 +213,7 @@ function setupDevelopmentTools(): void {
  */
 function setupErrorHandling(): void {
   // Global error handler
-  app.use((error: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Global error handler:', error);
     
     res.status(500).json({
