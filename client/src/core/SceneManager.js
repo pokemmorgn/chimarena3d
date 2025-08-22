@@ -35,21 +35,24 @@ class SceneManager {
   }
 
       // AJOUTEZ CETTE MÉTHODE :
-    async initialize() {
-        try {
-            console.log('🎬 Initializing SceneManager...');
-            
-            // Votre logique d'initialisation ici
-            this.setupDefaultScene();
-            
-            console.log('✅ SceneManager initialized successfully');
-            return true;
-        } catch (error) {
-            console.error('❌ Failed to initialize SceneManager:', error);
-            throw error;
-        }
+   async initialize() {
+    try {
+        console.log('🎬 Initializing SceneManager...');
+        
+        // Configuration basique de la scène (sans appeler une autre méthode)
+        const groundGeometry = new THREE.PlaneGeometry(50, 30);
+        const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x4a6741 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        this.gameEngine.scene.add(ground);
+        
+        console.log('✅ SceneManager initialized successfully');
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to initialize SceneManager:', error);
+        throw error;
     }
-
+}
   
   /**
    * Register a scene class
