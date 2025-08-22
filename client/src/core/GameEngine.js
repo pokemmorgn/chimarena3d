@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { TWEEN } from '@tweenjs/tween.js';
+// Option 1: Import par défaut (le plus courant)
+import TWEEN from '@tweenjs/tween.js';
 
 /**
  * Game Engine - Core Three.js setup and management
