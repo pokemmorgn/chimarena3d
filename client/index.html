@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Primary Meta Tags -->
+  <title>Clash Royale Game - Strategic Card Battle Arena</title>
+  <meta name="title" content="Clash Royale Game - Strategic Card Battle Arena">
+  <meta name="description" content="Experience the ultimate strategic card battle game built with cutting-edge web technologies. Battle players worldwide in real-time!">
+  <meta name="keywords" content="clash royale, card game, strategy, battle, multiplayer, web game, three.js">
+  <meta name="author" content="Clash Royale Game Team">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://your-domain.com/">
+  <meta property="og:title" content="Clash Royale Game - Strategic Card Battle Arena">
+  <meta property="og:description" content="Experience the ultimate strategic card battle game built with cutting-edge web technologies. Battle players worldwide in real-time!">
+  <meta property="og:image" content="https://your-domain.com/assets/og-image.jpg">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://your-domain.com/">
+  <meta property="twitter:title" content="Clash Royale Game - Strategic Card Battle Arena">
+  <meta property="twitter:description" content="Experience the ultimate strategic card battle game built with cutting-edge web technologies. Battle players worldwide in real-time!">
+  <meta property="twitter:image" content="https://your-domain.com/assets/twitter-image.jpg">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  
+  <!-- Performance and Security -->
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  
+  <!-- PWA Support -->
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Clash Royale">
+  
+  <!-- Fonts (Optional - can be loaded later) -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap"></noscript>
+  
+  <!-- Critical CSS for initial load -->
+  <style>
+    /* Critical styles for loading and layout */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Rajdhani', 'Arial', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    body {
+      position: relative;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+    
+    /* Loading state before app initialization */
+    body:not(.app-ready) {
+      cursor: wait;
+    }
+    
+    /* Canvas container */
+    #game-canvas {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background: #1a1a2e;
+    }
+    
+    /* Fallback loading screen (shown if JavaScript fails) */
+    #fallback-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      font-family: Arial, sans-serif;
+      color: white;
+      text-align: center;
+    }
+    
+    .app-ready #fallback-loading {
+      display: none;
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(74, 144, 226, 0.3);
+      border-top: 4px solid #4a90e2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Error styles */
+    .error-message {
+      background: rgba(231, 76, 60, 0.1);
+      border: 1px solid #e74c3c;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px;
+      max-width: 500px;
+    }
+    
+    .error-title {
+      color: #e74c3c;
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    
+    .retry-button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 15px;
+      transition: background 0.3s ease;
+    }
+    
+    .retry-button:hover {
+      background: #c0392b;
+    }
+    
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* High contrast mode support */
+    @media (prefers-contrast: high) {
+      body {
+        background: #000000;
+        color: #ffffff;
+      }
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      body {
+        font-size: 14px;
+      }
+      
+      #fallback-loading h1 {
+        font-size: 28px;
+      }
+      
+      .error-message {
+        margin: 10px;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Game Canvas (inserted by main.js) -->
+  
+  <!-- Fallback loading screen for non-JS users or initialization failures -->
+  <div id="fallback-loading">
+    <h1 style="font-size: 36px; margin-bottom: 20px; color: #4a90e2;">CLASH ROYALE</h1>
+    <div class="spinner"></div>
+    <p style="font-size: 18px; margin-top: 20px;">Loading Game Engine...</p>
+    <p style="font-size: 14px; color: #888; margin-top: 10px;">Please enable JavaScript to play</p>
+  </div>
+  
+  <!-- NoScript fallback -->
+  <noscript>
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: linear-gradient(135deg, #1a1a2e, #16213e);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 10000; font-family: Arial, sans-serif; color: white;">
+      <div class="error-message">
+        <div class="error-title">⚠️ JavaScript Required</div>
+        <p>This game requires JavaScript to run. Please enable JavaScript in your browser settings and refresh the page.</p>
+        <p style="margin-top: 15px; font-size: 14px; color: #ccc;">
+          Clash Royale uses advanced web technologies including WebGL and real-time networking.
+        </p>
+      </div>
+    </div>
+  </noscript>
+  
+  <!-- Browser compatibility check -->
+  <script>
+    (function() {
+      'use strict';
+      
+      // Check for critical browser features
+      const requiredFeatures = [
+        'WebGL',
+        'WebSocket',
+        'localStorage',
+        'Promise',
+        'fetch'
+      ];
+      
+      const missingFeatures = [];
+      
+      // WebGL check
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        if (!gl) {
+          missingFeatures.push('WebGL');
+        }
+      } catch (e) {
+        missingFeatures.push('WebGL');
+      }
+      
+      // WebSocket check
+      if (!window.WebSocket) {
+        missingFeatures.push('WebSocket');
+      }
+      
+      // localStorage check
+      try {
+        if (!window.localStorage) {
+          missingFeatures.push('localStorage');
+        }
+      } catch (e) {
+        missingFeatures.push('localStorage');
+      }
+      
+      // Promise check
+      if (!window.Promise) {
+        missingFeatures.push('Promise');
+      }
+      
+      // Fetch check
+      if (!window.fetch) {
+        missingFeatures.push('fetch');
+      }
+      
+      // Show compatibility error if needed
+      if (missingFeatures.length > 0) {
+        document.getElementById('fallback-loading').innerHTML = `
+          <div class="error-message">
+            <div class="error-title">🚫 Browser Not Supported</div>
+            <p>Your browser is missing required features:</p>
+            <ul style="text-align: left; margin: 15px 0;">
+              ${missingFeatures.map(feature => `<li>${feature}</li>`).join('')}
+            </ul>
+            <p>Please update your browser or try:</p>
+            <ul style="text-align: left; margin: 15px 0; font-size: 14px;">
+              <li>Chrome 60+ or Firefox 55+</li>
+              <li>Safari 14+ or Edge 79+</li>
+              <li>Enable hardware acceleration</li>
+            </ul>
+            <button class="retry-button" onclick="window.location.reload()">
+              Retry
+            </button>
+          </div>
+        `;
+        return;
+      }
+      
+      // Performance check for low-end devices
+      const isLowEndDevice = (
+        navigator.hardwareConcurrency < 4 ||
+        (navigator.deviceMemory && navigator.deviceMemory < 4) ||
+        /Android.*Chrome\/[1-6][0-9]/.test(navigator.userAgent)
+      );
+      
+      if (isLowEndDevice) {
+        console.warn('⚠️ Low-end device detected - performance may be limited');
+        // Could set default graphics quality to 'low'
+        localStorage.setItem('clash_royale_settings', JSON.stringify({
+          graphics: { quality: 'medium', shadows: false, particles: false }
+        }));
+      }
+      
+    })();
+  </script>
+  
+  <!-- Service Worker Registration (for PWA support) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('✅ SW registered:', registration);
+          })
+          .catch(registrationError => {
+            console.log('❌ SW registration failed:', registrationError);
+          });
+      });
+    }
+  </script>
+  
+  <!-- Global error handler -->
+  <script>
+    window.addEventListener('error', function(e) {
+      console.error('Global error:', e.error);
+      
+      // Show user-friendly error message
+      const fallbackEl = document.getElementById('fallback-loading');
+      if (fallbackEl && !document.body.classList.contains('app-ready')) {
+        fallbackEl.innerHTML = `
+          <div class="error-message">
+            <div class="error-title">❌ Initialization Error</div>
+            <p>The game failed to start properly.</p>
+            <p style="font-size: 14px; color: #888; margin: 15px 0;">
+              Error: ${e.error ? e.error.message : 'Unknown error'}
+            </p>
+            <button class="retry-button" onclick="window.location.reload()">
+              Retry
+            </button>
+          </div>
+        `;
+      }
+    });
+    
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('Unhandled promise rejection:', e.reason);
+    });
+  </script>
+  
+  <!-- Analytics placeholder (optional) -->
+  <script>
+    // Google Analytics, Mixpanel, or other analytics could go here
+    // window.gtag = window.gtag || function(){dataLayer.push(arguments);};
+  </script>
+  
+  <!-- Main application script (loaded by Vite) -->
+  <script type="module" src="/src/main.js"></script>
+  
+  <!-- Development helpers -->
+  <script>
+    if (import.meta.env && import.meta.env.DEV) {
+      // Development mode helpers
+      console.log('🚀 Development mode active');
+      
+      // Add debug utilities to window
+      window.DEBUG = true;
+      
+      // Performance monitoring
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.entryType === 'navigation') {
+            console.log(`📊 Page load time: ${Math.round(entry.loadEventEnd - entry.loadEventStart)}ms`);
+          }
+        }
+      });
+      observer.observe({entryTypes: ['navigation']});
+    }
+  </script>
+</body>
+</html>
