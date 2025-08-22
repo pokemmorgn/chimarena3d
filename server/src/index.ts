@@ -29,7 +29,7 @@ const gameServer = new Server({
 
 // Environment variables
 const PORT = parseInt(process.env.PORT || '2567', 10);
-const HOST = process.env.HOST || 'localhost';
+const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/clash-royale-game';
 
