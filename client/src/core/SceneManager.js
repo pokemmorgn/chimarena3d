@@ -34,6 +34,23 @@ class SceneManager {
     console.log('🎬 SceneManager initialized');
   }
 
+      // AJOUTEZ CETTE MÉTHODE :
+    async initialize() {
+        try {
+            console.log('🎬 Initializing SceneManager...');
+            
+            // Votre logique d'initialisation ici
+            this.setupDefaultScene();
+            
+            console.log('✅ SceneManager initialized successfully');
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to initialize SceneManager:', error);
+            throw error;
+        }
+    }
+
+  
   /**
    * Register a scene class
    */
