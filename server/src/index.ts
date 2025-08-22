@@ -8,6 +8,7 @@ import { Server } from 'colyseus';
 import { monitor } from '@colyseus/monitor';
 import { playground } from '@colyseus/playground';
 import mongoose from 'mongoose';
+import { WebSocketTransport } from '@colyseus/ws-transport';
 
 // Import routes
 import authRoutes from './routes/AuthRoutes';
@@ -19,9 +20,11 @@ import { authenticateOptional } from './middleware/AuthData';
 const app = express();
 const server = createServer(app);
 const gameServer = new Server({
-  server,
-  pingInterval: 3000,
-  pingMaxRetries: 3
+  transport: new WebSocketTransport({
+    server,
+    pingInterval: 3000,
+    pingMaxRetries: 3
+  })
 });
 
 // Environment variables
