@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import UserData from '../models/UserData';
 import { Types } from 'mongoose';
+import type { IUserData } from '../models/UserData';
 
 // Extend Express Request interface
 declare global {
