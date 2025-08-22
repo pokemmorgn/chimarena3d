@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import UserData, { IUserData } from '@models/UserData';
+import { Types } from 'mongoose';
 
 // Extend Express Request interface
 declare global {
@@ -41,7 +42,7 @@ export class TokenService {
    */
   static generateAccessToken(user: IUserData): string {
     const payload: Omit<IJWTPayload, 'iat' | 'exp'> = {
-      userId: user._id.toString(),
+      userId: (user._id as Types.ObjectId).toString(),
       username: user.username,
       email: user.email
     };
@@ -58,7 +59,7 @@ export class TokenService {
    */
   static generateRefreshToken(user: IUserData): string {
     const payload: Omit<IRefreshTokenPayload, 'iat' | 'exp'> = {
-      userId: user._id.toString(),
+      userId: (user._id as Types.ObjectId).toString(),
       tokenVersion: Date.now() // Simple version system
     };
 
@@ -143,7 +144,7 @@ export const authenticateToken = async (
 
     // Attach user to request
     req.user = user;
-    req.userId = user._id.toString();
+    req.userId = (user._id as Types.ObjectId).toString();
     
     next();
   } catch (error) {
@@ -179,7 +180,7 @@ export const authenticateToken = async (
  */
 export const authenticateOptional = async (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
@@ -201,7 +202,7 @@ export const authenticateOptional = async (
     const user = await UserData.findById(decoded.userId);
     if (user && user.isActive) {
       req.user = user;
-      req.userId = user._id.toString();
+      req.userId = (user._id as Types.ObjectId).toString();
     }
     
     next();
@@ -286,7 +287,7 @@ export const validateRefreshToken = async (
     }
 
     req.user = user;
-    req.userId = user._id.toString();
+    req.userId = (user._id as Types.ObjectId).toString();
     
     next();
   } catch (error) {
