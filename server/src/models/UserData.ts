@@ -163,8 +163,7 @@ const UserDataSchema = new Schema<IUserData>({
 });
 
 // Index for performance
-UserDataSchema.index({ email: 1 });
-UserDataSchema.index({ username: 1 });
+
 UserDataSchema.index({ 'stats.currentTrophies': -1 });
 UserDataSchema.index({ walletAddress: 1 });
 
