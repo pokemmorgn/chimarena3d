@@ -51,7 +51,7 @@ export class TokenService {
       expiresIn: this.JWT_EXPIRE_TIME,
       issuer: 'clash-royale-server',
       audience: 'clash-royale-client'
-    });
+    } as jwt.SignOptions);
   }
 
   /**
@@ -67,7 +67,7 @@ export class TokenService {
       expiresIn: this.JWT_REFRESH_EXPIRE_TIME,
       issuer: 'clash-royale-server',
       audience: 'clash-royale-client'
-    });
+    } as jwt.SignOptions);
   }
 
   /**
@@ -77,7 +77,7 @@ export class TokenService {
     return jwt.verify(token, this.JWT_SECRET, {
       issuer: 'clash-royale-server',
       audience: 'clash-royale-client'
-    }) as IJWTPayload;
+    } as jwt.VerifyOptions) as IJWTPayload;
   }
 
   /**
@@ -87,7 +87,7 @@ export class TokenService {
     return jwt.verify(token, this.JWT_REFRESH_SECRET, {
       issuer: 'clash-royale-server',
       audience: 'clash-royale-client'
-    }) as IRefreshTokenPayload;
+    } as jwt.VerifyOptions) as IRefreshTokenPayload;
   }
 
   /**
