@@ -6,8 +6,8 @@ import axios from 'axios';
  */
 class NetworkManager {
   constructor() {
-    this.apiUrl = __API_URL__ || 'http://localhost:2567/api';
-    this.serverUrl = __SERVER_URL__ || 'ws://localhost:2567';
+this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:2567/api';
+this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
     
     // Storage keys
     this.ACCESS_TOKEN_KEY = 'clash_royale_access_token';
