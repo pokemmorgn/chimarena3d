@@ -18,7 +18,7 @@ import { authenticateOptional } from './middleware/AuthData';
 
 // Server configuration
 const app = express();
-app.set('trust proxy', true);
+app.set('trust proxy', 'loopback');
 const server = createServer(app);
 const gameServer = new Server({
   transport: new WebSocketTransport({
