@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import Joi from 'joi';
 import rateLimit from 'express-rate-limit';
-import UserData from '@models/UserData';
-import { TokenService, authenticateToken, validateRefreshToken } from '@middleware/AuthData';
+import UserData from '../models/UserData';
+import { TokenService, authenticateToken, validateRefreshToken } from '../middleware/AuthData';
 
 const router = Router();
 
