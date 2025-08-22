@@ -52,8 +52,9 @@ export default defineConfig({
   // Environment variables
   define: {
     __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'),
-    __SERVER_URL__: JSON.stringify(process.env.VITE_SERVER_URL || 'ws://localhost:2567'),
-    __API_URL__: JSON.stringify(process.env.VITE_API_URL || 'http://localhost:2567/api')
+__API_URL__: JSON.stringify(process.env.VITE_API_URL),
+__SERVER_URL__: JSON.stringify(process.env.VITE_SERVER_URL)
+
   },
 
   // Optimizations
