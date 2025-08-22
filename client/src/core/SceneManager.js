@@ -1,4 +1,6 @@
-import { TWEEN } from '@tweenjs/tween.js';
+import * as THREE from 'three';
+// Option 1: Import par défaut (le plus courant)
+import TWEEN from '@tweenjs/tween.js';
 
 /**
  * Scene Manager - Handles scene transitions and lifecycle
