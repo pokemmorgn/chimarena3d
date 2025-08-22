@@ -49,6 +49,14 @@ export interface IUserData extends Document {
   clearRefreshTokens(): void;
 }
 
+// Define interface for transform function return type
+interface TransformReturnType {
+  [key: string]: any;
+  password?: string;
+  refreshTokens?: string[];
+  __v?: number;
+}
+
 // UserData Schema
 const UserDataSchema = new Schema<IUserData>({
   username: {
@@ -145,7 +153,7 @@ const UserDataSchema = new Schema<IUserData>({
 }, {
   timestamps: true,
   toJSON: {
-    transform: function(doc, ret) {
+    transform: function(_doc: any, ret: TransformReturnType) {
       delete ret.password;
       delete ret.refreshTokens;
       delete ret.__v;
@@ -214,7 +222,7 @@ UserDataSchema.methods.addRefreshToken = function(token: string): void {
 
 // Instance method to remove refresh token
 UserDataSchema.methods.removeRefreshToken = function(token: string): void {
-  this.refreshTokens = this.refreshTokens.filter(t => t !== token);
+  this.refreshTokens = this.refreshTokens.filter((t: string) => t !== token);
 };
 
 // Instance method to clear all refresh tokens
