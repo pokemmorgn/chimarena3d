@@ -76,14 +76,6 @@ const loginSchema = Joi.object({
     })
 });
 
-const refreshTokenSchema = Joi.object({
-  refreshToken: Joi.string()
-    .required()
-    .messages({
-      'any.required': 'Refresh token is required'
-    })
-});
-
 /**
  * POST /api/auth/register
  * Register a new user account
