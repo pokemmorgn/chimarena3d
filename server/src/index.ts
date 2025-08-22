@@ -10,10 +10,10 @@ import { playground } from '@colyseus/playground';
 import mongoose from 'mongoose';
 
 // Import routes
-import authRoutes from '@routes/AuthRoutes';
+import authRoutes from './routes/AuthRoutes';
 
 // Import middleware
-import { authenticateOptional } from '@middleware/AuthData';
+import { authenticateOptional } from './middleware/AuthData';
 
 // Server configuration
 const app = express();
