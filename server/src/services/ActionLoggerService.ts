@@ -423,10 +423,11 @@ class ActionLoggerService extends EventEmitter {
     return 1000; // Placeholder
   }
   
-  private async _getUserGold(_userId: string | Types.ObjectId): Promise<number> {
-    // TODO: Récupérer depuis PlayerCollection
-    return 500; // Placeholder
-  }
+  // TODO: Implémenter quand nécessaire
+  // private async _getUserGold(_userId: string | Types.ObjectId): Promise<number> {
+  //   // TODO: Récupérer depuis PlayerCollection
+  //   return 500; // Placeholder
+  // }
 
   /**
    * Méthodes publiques pour gestion du service
