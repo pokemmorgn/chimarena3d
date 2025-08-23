@@ -342,7 +342,7 @@ router.get('/search/:query', authenticateOptional, async (req: Request, res: Res
  * GET /api/cards/stats/summary
  * Récupérer les statistiques générales des cartes
  */
-router.get('/stats/summary', authenticateOptional, async (req: Request, res: Response): Promise<void> => {
+router.get('/stats/summary', authenticateOptional, async (_req: Request, res: Response): Promise<void> => {
   try {
     // Statistiques par type
     const cardsByType = await CardData.aggregate([
