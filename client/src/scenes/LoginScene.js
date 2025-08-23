@@ -514,6 +514,14 @@ class LoginScene {
     // Network events
     this.networkManager.on('auth:login_success', this.handleLoginSuccess.bind(this));
     this.networkManager.on('auth:register_success', this.handleRegisterSuccess.bind(this));
+
+    // Colyseus specific events
+const colyseusManager = this.networkManager.getColyseusManager();
+colyseusManager.on('connection:connected', this.handleColyseusConnected.bind(this));
+colyseusManager.on('connection:error', this.handleColyseusError.bind(this));
+colyseusManager.on('auth:required', this.handleAuthRequired.bind(this));
+colyseusManager.on('auth:timeout', this.handleAuthTimeout.bind(this));
+    
   }
 
   /**
@@ -577,8 +585,13 @@ class LoginScene {
     this.hideError();
     
     try {
-      const result = await this.networkManager.login(identifier, password);
-      
+const colyseusManager = this.networkManager.getColyseusManager();
+if (!colyseusManager.isConnectedToAuth()) {
+  this.showError('Not connected to game server. Please refresh and try again.');
+  return;
+}
+
+const result = await this.networkManager.login(identifier, password);      
       if (result.success) {
         this.handleLoginSuccess(result.user);
       } else {
@@ -692,6 +705,53 @@ class LoginScene {
   }
 
   /**
+ * NEW: Handle Colyseus events
+ */
+handleColyseusConnected(data) {
+  console.log('🔌 Colyseus connected in LoginScene:', data);
+  this.showConnectionStatus('Connected to game server', 'success');
+}
+
+handleColyseusError(data) {
+  console.warn('⚠️ Colyseus error in LoginScene:', data);
+  this.showConnectionStatus('Connection error - some features may not work', 'error');
+}
+
+handleAuthRequired(data) {
+  console.log('🔑 Auth required:', data.message);
+}
+
+handleAuthTimeout(data) {
+  console.warn('⏰ Auth timeout:', data.message);
+  this.showError('Authentication timeout. Please try again.');
+  this.showLoading(false);
+}
+
+showConnectionStatus(message, type = 'info') {
+  console.log(`📡 ${type}: ${message}`);
+  // Pour l'instant juste console.log, plus tard affichage UI
+}
+
+checkColyseusConnection() {
+  const colyseusManager = this.networkManager.getColyseusManager();
+  const status = colyseusManager.getConnectionStatus();
+  
+  if (!status.hasAuthRoom) {
+    console.warn('⚠️ Not connected to AuthRoom, attempting connection...');
+    colyseusManager.connectToAuthRoom()
+      .then(() => {
+        this.showConnectionStatus('Connected to game server!', 'success');
+      })
+      .catch((error) => {
+        console.error('❌ Failed to connect to AuthRoom:', error);
+        this.showConnectionStatus('Connection failed. Some features may not work.', 'error');
+      });
+  } else {
+    this.showConnectionStatus('Connected to game server', 'success');
+  }
+}
+
+  /**
    * Show loading state
    */
   showLoading(show) {
@@ -739,6 +799,8 @@ class LoginScene {
     this.startBackgroundAnimations();
     
     console.log('🔐 LoginScene activated');
+    this.checkColyseusConnection();
+
   }
 
   /**
