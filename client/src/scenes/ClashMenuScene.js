@@ -61,18 +61,19 @@ class ClashMenuScene {
   }
 
   /**
-   * Create animated background for clash theme
+   * Create animated background for clash theme (compatible mobile + PC)
    */
   createBackground() {
-    // Arena-style gradient background
-    const geometry = new THREE.PlaneGeometry(120, 80);
+    // Responsive background - adapts to screen size
+    const geometry = new THREE.PlaneGeometry(150, 100);
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        color1: { value: new THREE.Color(0x0f1419) }, // Dark blue
-        color2: { value: new THREE.Color(0x1a237e) }, // Royal blue
-        color3: { value: new THREE.Color(0x3949ab) }, // Lighter blue
-        color4: { value: new THREE.Color(0x1565c0) }  // Arena blue
+        resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        color1: { value: new THREE.Color(0x1a1a2e) }, // Dark blue (comme WelcomeScene)
+        color2: { value: new THREE.Color(0x16213e) }, // Royal blue
+        color3: { value: new THREE.Color(0x0f3460) }, // Arena blue
+        color4: { value: new THREE.Color(0x1565c0) }  // Accent blue
       },
       vertexShader: `
         varying vec2 vUv;
@@ -83,6 +84,7 @@ class ClashMenuScene {
       `,
       fragmentShader: `
         uniform float time;
+        uniform vec2 resolution;
         uniform vec3 color1;
         uniform vec3 color2;
         uniform vec3 color3;
@@ -90,14 +92,22 @@ class ClashMenuScene {
         varying vec2 vUv;
         
         void main() {
-          // Arena-like pattern
-          float wave1 = sin(vUv.x * 12.0 + time * 0.4) * 0.05;
-          float wave2 = cos(vUv.y * 8.0 + time * 0.3) * 0.05;
-          float radial = distance(vUv, vec2(0.5, 0.5));
+          // Responsive waves based on screen ratio
+          float aspect = resolution.x / resolution.y;
+          vec2 uv = vUv;
+          uv.x *= aspect;
           
-          vec3 color = mix(color1, color2, vUv.y + wave1);
-          color = mix(color, color3, radial * 0.8);
-          color = mix(color, color4, wave2 + radial * 0.3);
+          // Animated waves (similar to WelcomeScene but more dynamic)
+          float wave1 = sin(uv.x * 8.0 + time * 0.6) * 0.15;
+          float wave2 = cos(uv.y * 6.0 + time * 0.4) * 0.1;
+          float wave3 = sin(distance(uv, vec2(0.5 * aspect, 0.5)) * 10.0 + time * 0.8) * 0.05;
+          
+          float pattern = wave1 + wave2 + wave3;
+          
+          // Gradient mixing (cohérent avec le style global)
+          vec3 color = mix(color1, color2, vUv.y + pattern);
+          color = mix(color, color3, vUv.x * 0.3 + pattern);
+          color = mix(color, color4, wave3);
           
           gl_FragColor = vec4(color, 1.0);
         }
@@ -105,62 +115,97 @@ class ClashMenuScene {
     });
     
     this.backgroundPlane = new THREE.Mesh(geometry, material);
-    this.backgroundPlane.position.z = -15;
-    this.backgroundPlane.name = 'ArenaBackground';
+    this.backgroundPlane.position.z = -20;
+    this.backgroundPlane.name = 'ResponsiveBackground';
     this.rootObject.add(this.backgroundPlane);
     
-    console.log('🏟️ Arena background created');
+    // Listen for window resize to update shader
+    window.addEventListener('resize', () => {
+      material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+    });
+    
+    console.log('🌌 Responsive background created');
   }
 
   /**
-   * Create ambient elements (floating crystals, particles)
+   * Create ambient elements (floating orbs like WelcomeScene + crystals)
    */
   createAmbientElements() {
-    // Floating gems/crystals for Clash theme
+    // Floating orbs (similar to WelcomeScene for consistency)
     for (let i = 0; i < 8; i++) {
-      const geometry = new THREE.OctahedronGeometry(0.2 + Math.random() * 0.3, 2);
+      const geometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 16, 16);
       const material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color().setHSL(0.7 + Math.random() * 0.2, 0.8, 0.6),
+        color: new THREE.Color().setHSL(0.6 + Math.random() * 0.3, 0.7, 0.6),
         transparent: true,
-        opacity: 0.3 + Math.random() * 0.4
+        opacity: 0.4 + Math.random() * 0.4
+      });
+      
+      const orb = new THREE.Mesh(geometry, material);
+      orb.position.set(
+        (Math.random() - 0.5) * 45,
+        (Math.random() - 0.5) * 30,
+        (Math.random() - 0.5) * 12
+      );
+      
+      this.ambientElements.push(orb);
+      this.rootObject.add(orb);
+    }
+    
+    // Floating gems/crystals for Clash theme
+    for (let i = 0; i < 6; i++) {
+      const geometry = new THREE.OctahedronGeometry(0.15 + Math.random() * 0.2, 2);
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL(0.7 + Math.random() * 0.2, 0.8, 0.7),
+        transparent: true,
+        opacity: 0.5 + Math.random() * 0.3
       });
       
       const crystal = new THREE.Mesh(geometry, material);
       crystal.position.set(
-        (Math.random() - 0.5) * 40,
+        (Math.random() - 0.5) * 35,
         (Math.random() - 0.5) * 25,
-        (Math.random() - 0.5) * 10
+        (Math.random() - 0.5) * 8
       );
       
       this.ambientElements.push(crystal);
       this.rootObject.add(crystal);
     }
     
-    console.log('💎 Ambient crystals created');
+    console.log('✨ Ambient elements created (orbs + crystals)');
   }
 
   /**
-   * Setup animations
+   * Setup animations (responsive and smooth)
    */
   setupAnimations() {
-    // Background animation
+    // Background animation (responsive)
     this.animationLoops.push(() => {
       if (this.backgroundPlane) {
-        this.backgroundPlane.material.uniforms.time.value += 0.005;
+        this.backgroundPlane.material.uniforms.time.value += 0.008; // Slightly faster than WelcomeScene
       }
     });
     
-    // Crystal animations
+    // Ambient elements animation (consistent with WelcomeScene)
     this.ambientElements.forEach((element, index) => {
       const originalPosition = { ...element.position };
       const speed = 0.0008 + index * 0.0002;
-      const amplitude = 1.2 + Math.random() * 0.8;
+      const amplitude = 0.8 + Math.random() * 0.6;
       
       this.animationLoops.push(() => {
+        // Floating motion
         element.position.y = originalPosition.y + Math.sin(Date.now() * speed) * amplitude;
-        element.rotation.x += 0.003;
-        element.rotation.y += 0.004;
-        element.rotation.z += 0.002;
+        
+        // Rotation (crystals rotate more, orbs less)
+        if (element.geometry.type === 'OctahedronGeometry') {
+          // Crystals - more rotation
+          element.rotation.x += 0.004;
+          element.rotation.y += 0.005;
+          element.rotation.z += 0.003;
+        } else {
+          // Orbs - subtle rotation like WelcomeScene
+          element.rotation.x += 0.002;
+          element.rotation.y += 0.001;
+        }
       });
     });
   }
