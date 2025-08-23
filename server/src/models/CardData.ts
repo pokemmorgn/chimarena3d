@@ -4,12 +4,12 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ICardData extends Document {
   // === IDENTIFIANTS ===
   id: string;                    // "knight", "fireball", "cannon"
-  name: string;                  // "Knight", "Fireball", "Cannon"
+  nameKey: string;               // "card.knight.name" (clé de localisation)
   scriptName: string;            // "Knight" (pour les scripts de gameplay)
   
   // === VISUEL ===
   sprite: string;                // "knight.png"
-  description: string;           // Description de la carte
+  descriptionKey: string;        // "card.knight.description" (clé de localisation)
   
   // === TYPE ET CATÉGORIE ===
   type: 'troop' | 'spell' | 'building';
@@ -113,6 +113,10 @@ export interface ICardData extends Document {
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
+  
+  // Methods
+  getStatsForLevel(level: number): any;
+  getUpgradeCost(toLevel: number): any;
 }
 
 // CardData Schema
@@ -125,11 +129,10 @@ const CardDataSchema = new Schema<ICardData>({
     lowercase: true
   },
   
-  name: {
+  nameKey: {
     type: String,
-    required: [true, 'Card name is required'],
-    trim: true,
-    maxlength: [50, 'Card name cannot exceed 50 characters']
+    required: [true, 'Card name key is required'],
+    trim: true
   },
   
   scriptName: {
@@ -144,10 +147,10 @@ const CardDataSchema = new Schema<ICardData>({
     trim: true
   },
   
-  description: {
+  descriptionKey: {
     type: String,
-    required: [true, 'Description is required'],
-    maxlength: [200, 'Description cannot exceed 200 characters']
+    required: [true, 'Description key is required'],
+    trim: true
   },
   
   type: {
