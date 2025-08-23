@@ -7,6 +7,7 @@ import ColyseusManager from '@services/ColyseusManager';
 // Import scenes
 import LoginScene from '@scenes/LoginScene';
 import WelcomeMenuScene from '@scenes/WelcomeMenuScene';
+import ClashMenuScene from '@scenes/ClashMenuScene';
 
 /**
  * Application Entry Point - Version avec Colyseus
@@ -158,15 +159,22 @@ class ClashRoyaleApp {
       transition: 'fade'
     });
     
-    // Register welcome menu scene
-    this.sceneManager.registerScene('welcomeMenu', WelcomeMenuScene, {
-      preload: true,
-      persistent: true,
-      transition: 'fade'
-    });
-    
-    // Preload the welcome menu scene for faster transitions
-    await this.sceneManager.preloadScene('welcomeMenu');
+// Register welcome menu scene
+this.sceneManager.registerScene('welcomeMenu', WelcomeMenuScene, {
+  preload: true,
+  persistent: true,
+  transition: 'fade'
+});
+
+// Register clash menu scene (main game menu)
+this.sceneManager.registerScene('clashMenu', ClashMenuScene, {
+  preload: false,
+  persistent: true,
+  transition: 'slide'
+});
+
+// Preload the welcome menu scene for faster transitions
+await this.sceneManager.preloadScene('welcomeMenu');
     
     console.log('✅ Scenes registered and preloaded');
     this.logInitStep('Scenes', 'Login and WelcomeMenu scenes ready');
@@ -435,6 +443,10 @@ class ClashRoyaleApp {
       case 'login':
         break;
       case 'welcomeMenu':
+        break;
+       case 'clashMenu':
+        // Return to welcome menu from clash menu
+        this.sceneManager.switchToScene('welcomeMenu', {}, 'slide');
         break;
     }
   }
