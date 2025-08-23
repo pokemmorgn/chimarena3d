@@ -78,7 +78,7 @@ class AuthFlowTester {
       console.log('\n📦 Testing collection endpoints...');
       
       // Test collection
-      const collection = await this.makeAuthenticatedRequest('/collection');
+      const collection = await this.makeAuthenticatedRequest('collection');
       if (collection.success) {
         console.log('✅ Collection retrieved');
         console.log(`   Gold: ${collection.data.collection.gold}`);
@@ -87,14 +87,14 @@ class AuthFlowTester {
       }
       
       // Test cards
-      const cards = await this.makeAuthenticatedRequest('/collection/cards');
+      const cards = await this.makeAuthenticatedRequest('collection/cards');
       if (cards.success) {
         console.log('✅ Cards retrieved');
         console.log(`   Total collected: ${cards.data.stats.totalCardsCollected}`);
       }
       
       // Test decks
-      const decks = await this.makeAuthenticatedRequest('/collection/decks');
+      const decks = await this.makeAuthenticatedRequest('collection/decks');
       if (decks.success) {
         console.log('✅ Decks retrieved');
         console.log(`   Active deck: ${decks.data.currentDeckIndex}`);
@@ -147,7 +147,7 @@ class AuthFlowTester {
     console.log(`   Authenticating user: ${TEST_USER.identifier}`);
     
     try {
-      const response = await this.makeRequest('/auth/login', 'POST', TEST_USER);
+      const response = await this.makeRequest('auth/login', 'POST', TEST_USER);
       
       if (response.success && response.data) {
         this.accessToken = response.data.tokens.accessToken;
@@ -176,7 +176,7 @@ class AuthFlowTester {
       return false;
     }
 
-    const response = await this.makeAuthenticatedRequest('/auth/verify-token');
+    const response = await this.makeAuthenticatedRequest('auth/verify-token');
     
     if (response.success) {
       console.log('✅ Token verification successful');
@@ -190,7 +190,7 @@ class AuthFlowTester {
 
   private async testAuthenticatedEndpoints(): Promise<boolean> {
     // Test profile
-    const profile = await this.makeAuthenticatedRequest('/auth/profile');
+    const profile = await this.makeAuthenticatedRequest('auth/profile');
     if (profile.success) {
       console.log('✅ Profile endpoint working');
     } else {
@@ -199,7 +199,7 @@ class AuthFlowTester {
     }
 
     // Test game endpoint
-    const game = await this.makeAuthenticatedRequest('/game', 'GET');
+    const game = await this.makeAuthenticatedRequest('game', 'GET');
     if (game.success) {
       console.log('✅ Game endpoint working');
     } else {
@@ -216,7 +216,7 @@ class AuthFlowTester {
       return false;
     }
 
-    const response = await this.makeRequest('/auth/refresh', 'POST', {
+    const response = await this.makeRequest('auth/refresh', 'POST', {
       refreshToken: this.refreshToken
     });
 
@@ -236,7 +236,7 @@ class AuthFlowTester {
   }
 
   private async testLogout(): Promise<boolean> {
-    const response = await this.makeAuthenticatedRequest('/auth/logout', 'POST', {
+    const response = await this.makeAuthenticatedRequest('auth/logout', 'POST', {
       refreshToken: this.refreshToken
     });
 
