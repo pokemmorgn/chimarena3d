@@ -1,8 +1,7 @@
-import { Room, Client, ServerError } from 'colyseus';
+import { Room, Client } from 'colyseus';
 import { Schema, MapSchema, type } from '@colyseus/schema';
 import { getActionLogger, ActionLoggerService } from '../services/ActionLoggerService';
 import UserData from '../models/UserData';
-import PlayerCollection from '../models/PlayerCollection';
 import { TokenService } from '../middleware/AuthData';
 
 // État d'un utilisateur connecté
@@ -87,7 +86,7 @@ export class AuthRoom extends Room<AuthRoomState> {
     });
   }
 
-  async onJoin(client: Client, options: any, auth?: any) {
+  async onJoin(client: Client, _options: any, _auth?: any) {
     console.log(`🔑 Client ${client.sessionId} connecting to AuthRoom`);
     
     // Pas d'authentification automatique ici
@@ -203,7 +202,7 @@ export class AuthRoom extends Room<AuthRoomState> {
           code: 'INVALID_CREDENTIALS'
         });
         
-        await this.logger.logNavigation('login_failed', 'unknown', {
+        await this.logger.logNavigation('screen_viewed', 'unknown', {
           identifier: identifier.substring(0, 3) + '***', // Partiel pour sécurité
           reason: 'invalid_credentials'
         });
@@ -218,7 +217,7 @@ export class AuthRoom extends Room<AuthRoomState> {
           code: 'INVALID_CREDENTIALS'
         });
         
-        await this.logger.logNavigation('login_failed', user._id.toString(), {
+        await this.logger.logNavigation('screen_viewed', (user._id as any).toString(), {
           reason: 'wrong_password'
         });
         return;
@@ -332,7 +331,7 @@ export class AuthRoom extends Room<AuthRoomState> {
     await user.save();
     
     // Logger l'authentification réussie
-    await this.logger.logNavigation('login_success', user._id.toString(), {
+    await this.logger.logNavigation('app_opened', (user._id as any).toString(), {
       scene: 'auth_room',
       username: user.username,
       level: user.level,
@@ -380,7 +379,7 @@ export class AuthRoom extends Room<AuthRoomState> {
     if (!user) return;
     
     // Logger la déconnexion volontaire
-    await this.logger.logNavigation('logout', user.userId, {
+    await this.logger.logNavigation('app_closed', user.userId, {
       scene: 'auth_room',
       sessionDuration: Date.now() - user.loginTime
     });
@@ -407,7 +406,7 @@ export class AuthRoom extends Room<AuthRoomState> {
     }
     
     // Logger la transition vers le monde
-    await this.logger.logNavigation('world_join_requested', user.userId, {
+    await this.logger.logNavigation('screen_viewed', user.userId, {
       scene: 'auth_room',
       targetScene: 'world_room'
     });
@@ -432,6 +431,7 @@ export class AuthRoom extends Room<AuthRoomState> {
    */
   private async loadUserCollection(userId: string) {
     try {
+      // Import dynamique pour éviter les dépendances circulaires
       const PlayerCollection = (await import('../models/PlayerCollection')).default;
       let collection = await PlayerCollection.findOne({ userId });
       
