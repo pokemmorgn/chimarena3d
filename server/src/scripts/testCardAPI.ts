@@ -172,7 +172,7 @@ async function testSearchCards() {
   try {
     console.log('\n🔍 Testing GET /api/cards/search/knight...');
     
-    const response = await api.get('/cards/search/knight');
+    const response = await makeRequest('/cards/search/knight');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -186,7 +186,7 @@ async function testSearchCards() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ GET /api/cards/search/knight failed:', error.response?.data || error.message);
+    console.error('❌ GET /api/cards/search/knight failed:', error.message);
     return false;
   }
 }
@@ -198,7 +198,7 @@ async function testGetCardStatsSummary() {
   try {
     console.log('\n📈 Testing GET /api/cards/stats/summary...');
     
-    const response = await api.get('/cards/stats/summary');
+    const response = await makeRequest('/cards/stats/summary');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -210,7 +210,7 @@ async function testGetCardStatsSummary() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ GET /api/cards/stats/summary failed:', error.response?.data || error.message);
+    console.error('❌ GET /api/cards/stats/summary failed:', error.message);
     return false;
   }
 }
@@ -223,7 +223,7 @@ async function testCardFilters() {
     console.log('\n🎛️ Testing GET /api/cards with filters...');
     
     // Test filtrage par type
-    const response = await api.get('/cards?type=spell&limit=10');
+    const response = await makeRequest('/cards?type=spell&limit=10');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -236,7 +236,7 @@ async function testCardFilters() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ Card filters test failed:', error.response?.data || error.message);
+    console.error('❌ Card filters test failed:', error.message);
     return false;
   }
 }
