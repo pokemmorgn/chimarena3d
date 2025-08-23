@@ -51,13 +51,13 @@ interface ChatMessage {
  * Gère les connexions, matchmaking, chat global, annonces
  */
 export class WorldRoom extends Room<WorldRoomState> {
-  private matchmaking: MatchmakingService;
-  private logger: ActionLoggerService;
+  private matchmaking!: MatchmakingService;
+  private logger!: ActionLoggerService;
   private heartbeatTimer?: NodeJS.Timeout;
   private statsUpdateTimer?: NodeJS.Timeout;
   
   // Cache des données utilisateur
-  private userDataCache = new Map<string, { userData: any, collection: any }>();
+  private userDataCache = new Map<string, { user: any, collection: any }>();
   
   // Configuration
   private config = {
@@ -92,7 +92,8 @@ export class WorldRoom extends Room<WorldRoomState> {
     // Annonce de bienvenue
     this.state.announcement = "Welcome to Clash Royale! Ready to battle?";
     
-    await this.logger.log('system', 'world_room_created', {
+    await this.logger.log('system', 'session_started', {
+      roomType: 'world_room',
       maxClients: this.maxClients,
       roomId: this.roomId
     });
@@ -120,7 +121,7 @@ export class WorldRoom extends Room<WorldRoomState> {
       
       // Créer l'état du joueur
       const playerState = new PlayerState();
-      playerState.userId = userData.user._id.toString();
+      playerState.userId = (userData.user._id as any).toString();
       playerState.username = userData.user.username;
       playerState.displayName = userData.user.displayName;
       playerState.level = userData.user.level;
@@ -135,7 +136,7 @@ export class WorldRoom extends Room<WorldRoomState> {
       this.state.totalPlayers = this.state.players.size;
       
       // Cache des données
-      this.userDataCache.set(client.sessionId, userData);
+      this.userDataCache.set(client.sessionId, { user: userData.user, collection: userData.collection });
       
       // Logger l'action
       await this.logger.logNavigation('app_opened', playerState.userId, {
