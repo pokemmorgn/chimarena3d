@@ -319,19 +319,16 @@ class MatchmakingService extends EventEmitter {
       },
       maxWaitTime: 0, // Les bots n'attendent pas
       
-      region: player.region // Même région que le joueur
+      region: player.region || undefined // Gérer le cas undefined
     };
   }
 
   /**
    * Créer un deck aléatoire pour un bot basé sur son niveau
    */
-  createBotDeck(bot: IQueuedPlayer): string[] {
+  createBotDeck(_bot: IQueuedPlayer): string[] {
     // Deck de base similaire aux cartes starter
-    const availableCards = [
-      'knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon',
-      // TODO: Ajouter plus de cartes selon le niveau du bot
-    ];
+    // TODO: Ajouter plus de cartes selon le niveau du bot et utiliser le paramètre bot
     
     // Pour l'instant, deck fixe (à améliorer plus tard)
     return ['knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon', 'knight', 'archers'];
