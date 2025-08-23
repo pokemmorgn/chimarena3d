@@ -12,7 +12,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 
 // Import routes
 import authRoutes from './routes/AuthRoutes';
-
+import cardRoutes from './routes/CardRoutes';
 // Import middleware
 import { authenticateOptional } from './middleware/AuthData';
 
@@ -144,7 +144,7 @@ function setupRoutes(): void {
 
   // Authentication routes
   app.use('/api/auth', authRoutes);
-
+  app.use('/api/cards', cardRoutes);
   // Game API routes (for future expansion)
   app.use('/api/game', authenticateOptional, (req, res) => {
     res.json({
