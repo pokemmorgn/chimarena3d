@@ -9,12 +9,16 @@ import { monitor } from '@colyseus/monitor';
 import { playground } from '@colyseus/playground';
 import mongoose from 'mongoose';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-// Ipmport Rooms
+
+// Import Rooms
+import { AuthRoom } from './rooms/AuthRoom';
 import { WorldRoom } from './rooms/WorldRoom';
+
 // Import routes
 import authRoutes from './routes/AuthRoutes';
 import cardRoutes from './routes/CardRoutes';
 import collectionRoutes from './routes/CollectionRoutes';
+
 // Import middleware
 import { authenticateOptional } from './middleware/AuthData';
 
@@ -34,7 +38,7 @@ const gameServer = new Server({
 const PORT = parseInt(process.env.PORT || '2567', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/clash-royale-game';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/chimarena3d';
 
 /**
  * Database connection
@@ -139,15 +143,20 @@ function setupRoutes(): void {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: NODE_ENV,
-        version: '1.0.0'
+        version: '1.0.0',
+        rooms: {
+          auth: 'Available for authentication',
+          world: 'Available after authentication'
+        }
       }
     });
   });
 
-  // Authentication routes
+  // Authentication routes (REST API)
   app.use('/api/auth', authRoutes);
   app.use('/api/cards', cardRoutes);
   app.use('/api/collection', collectionRoutes);
+
   // Game API routes (for future expansion)
   app.use('/api/game', authenticateOptional, (req, res) => {
     res.json({
@@ -159,7 +168,11 @@ function setupRoutes(): void {
           id: req.user._id,
           username: req.user.username,
           level: req.user.level
-        } : null
+        } : null,
+        availableRooms: {
+          auth: 'ws://localhost:2567',
+          world: 'Available after authentication in AuthRoom'
+        }
       }
     });
   });
@@ -171,6 +184,39 @@ function setupRoutes(): void {
       message: 'User API endpoint',
       data: {
         authenticated: !!req.user
+      }
+    });
+  });
+
+  // Rooms info endpoint
+  app.get('/api/rooms', (_req, res) => {
+    res.json({
+      success: true,
+      message: 'Available game rooms',
+      data: {
+        rooms: [
+          {
+            name: 'auth',
+            description: 'Authentication room - First connection point',
+            maxClients: 1000,
+            requiresAuth: false,
+            purpose: 'User authentication and initial connection'
+          },
+          {
+            name: 'world', 
+            description: 'Main lobby and matchmaking',
+            maxClients: 500,
+            requiresAuth: true,
+            purpose: 'Lobby, chat, matchmaking, and social features'
+          }
+        ],
+        flow: [
+          'Connect to AuthRoom',
+          'Authenticate with credentials', 
+          'Receive auth token',
+          'Join WorldRoom with token',
+          'Access matchmaking and battles'
+        ]
       }
     });
   });
@@ -189,11 +235,26 @@ function setupRoutes(): void {
  * Colyseus game server setup
  */
 function setupGameServer(): void {
-  // Register game rooms (to be implemented later)
-  // gameServer.define('lobby', LobbyRoom);
-  // gameServer.define('game', GameRoom);
-  gameServer.define('world', WorldRoom);
-  console.log('🎮 Game server configured (rooms will be added later)');
+  // Register rooms in order of connection flow
+  
+  // 1. AuthRoom - First connection point for authentication
+  gameServer.define('auth', AuthRoom)
+    .filterBy(['region']) // Allow filtering by region if needed
+    .maxClients(1000);   // High limit for authentication
+  
+  // 2. WorldRoom - Main lobby after authentication  
+  gameServer.define('world', WorldRoom)
+    .filterBy(['authenticated']) // Only authenticated users
+    .maxClients(500);            // Lobby limit
+  
+  // Future rooms can be added here:
+  // gameServer.define('battle', BattleRoom);
+  // gameServer.define('tournament', TournamentRoom);
+  
+  console.log('🎮 Game rooms configured:');
+  console.log('   📝 AuthRoom - Authentication and login');
+  console.log('   🌍 WorldRoom - Main lobby and matchmaking');
+  console.log('   🎯 Connection flow: auth → world → battle');
 }
 
 /**
@@ -212,6 +273,33 @@ function setupDevelopmentTools(): void {
       app.use('/playground', playground);
       console.log('🎮 Colyseus playground available at /playground');
     }
+
+    // Development info page
+    app.get('/dev', (_req, res) => {
+      res.json({
+        development: true,
+        server: {
+          host: HOST,
+          port: PORT,
+          mongodb: MONGODB_URI
+        },
+        rooms: {
+          auth: `ws://${HOST}:${PORT}`,
+          world: `ws://${HOST}:${PORT}` 
+        },
+        tools: {
+          monitor: process.env.COLYSEUS_MONITOR === 'true' ? `http://${HOST}:${PORT}/colyseus` : null,
+          playground: process.env.COLYSEUS_PLAYGROUND === 'true' ? `http://${HOST}:${PORT}/playground` : null
+        },
+        apis: {
+          health: `http://${HOST}:${PORT}/api/health`,
+          rooms: `http://${HOST}:${PORT}/api/rooms`,
+          auth: `http://${HOST}:${PORT}/api/auth`,
+          cards: `http://${HOST}:${PORT}/api/cards`,
+          collection: `http://${HOST}:${PORT}/api/collection`
+        }
+      });
+    });
   }
 }
 
@@ -319,6 +407,11 @@ async function startServer(): Promise<void> {
     console.log(`   • API Base URL: http://${HOST}:${PORT}/api`);
     console.log(`   • Database: ${MONGODB_URI}`);
     
+    console.log('\n🎮 Game Rooms:');
+    console.log(`   • AuthRoom: ws://${HOST}:${PORT} (room: "auth")`);
+    console.log(`   • WorldRoom: ws://${HOST}:${PORT} (room: "world")`);
+    console.log('   • Flow: Connect to "auth" → authenticate → join "world"');
+    
     if (NODE_ENV === 'development') {
       console.log('\n🛠️ Development Tools:');
       if (process.env.COLYSEUS_MONITOR === 'true') {
@@ -327,6 +420,8 @@ async function startServer(): Promise<void> {
       if (process.env.COLYSEUS_PLAYGROUND === 'true') {
         console.log(`   • Playground: http://${HOST}:${PORT}/playground`);
       }
+      console.log(`   • Dev Info: http://${HOST}:${PORT}/dev`);
+      console.log(`   • Rooms Info: http://${HOST}:${PORT}/api/rooms`);
     }
     
     console.log('\n✅ Server started successfully!');
