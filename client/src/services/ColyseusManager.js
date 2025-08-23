@@ -97,60 +97,51 @@ class ColyseusManager {
   /**
    * Authentification via l'AuthRoom
    */
-  async login(identifier, password) {
-    if (!this.authRoom) {
-      throw new Error('Not connected to AuthRoom. Call connectToAuthRoom() first.');
-    }
-
-    return new Promise((resolve, reject) => {
-      // Timeout pour la réponse
-      const timeout = setTimeout(() => {
-        reject(new Error('Authentication timeout'));
-      }, 10000);
-
-      // Handler pour le succès
-      const handleAuthSuccess = (data) => {
-        clearTimeout(timeout);
-        this.authRoom.off('auth_success', handleAuthSuccess);
-        this.authRoom.off('auth_error', handleAuthError);
-        
-        // Stocker les données utilisateur
-        this.currentUser = data.user;
-        this.accessToken = data.tokens.accessToken;
-        
-        this.emit('auth:login_success', data.user);
-        resolve({
-          success: true,
-          user: data.user,
-          tokens: data.tokens,
-          collection: data.collection
-        });
-      };
-
-      // Handler pour l'erreur
-      const handleAuthError = (error) => {
-        clearTimeout(timeout);
-        this.authRoom.off('auth_success', handleAuthSuccess);
-        this.authRoom.off('auth_error', handleAuthError);
-        
-        this.emit('auth:login_error', error);
-        resolve({
-          success: false,
-          message: error.message,
-          code: error.code
-        });
-      };
-
-      // Écouter les réponses
-      this.authRoom.onMessage('auth_success', handleAuthSuccess);
-      this.authRoom.onMessage('auth_error', handleAuthError);
-
-      // Envoyer la demande de login
-      this.authRoom.send('login', { identifier, password });
-      
-      console.log('🔑 Sending login request...');
-    });
+async login(identifier, password) {
+  if (!this.authRoom) {
+    throw new Error('Not connected to AuthRoom. Call connectToAuthRoom() first.');
   }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Authentication timeout'));
+    }, 10000);
+
+    const handleAuthSuccess = (data) => {
+      clearTimeout(timeout);
+      // ✅ Supprimé: this.authRoom.off('auth_success', handleAuthSuccess);
+      // ✅ Supprimé: this.authRoom.off('auth_error', handleAuthError);
+      
+      this.currentUser = data.user;
+      this.accessToken = data.tokens.accessToken;
+      
+      this.emit('auth:login_success', data.user);
+      resolve({
+        success: true,
+        user: data.user,
+        tokens: data.tokens,
+        collection: data.collection
+      });
+    };
+
+    const handleAuthError = (error) => {
+      clearTimeout(timeout);
+      // ✅ Supprimé: this.authRoom.off('auth_success', handleAuthSuccess);  
+      // ✅ Supprimé: this.authRoom.off('auth_error', handleAuthError);
+      
+      this.emit('auth:login_error', error);
+      resolve({
+        success: false,
+        message: error.message,
+        code: error.code
+      });
+    };
+
+    this.authRoom.onMessage('auth_success', handleAuthSuccess);
+    this.authRoom.onMessage('auth_error', handleAuthError);
+    this.authRoom.send('login', { identifier, password });
+  });
+}
 
   /**
    * Authentification avec refresh token
@@ -167,8 +158,7 @@ class ColyseusManager {
 
       const handleSuccess = (data) => {
         clearTimeout(timeout);
-        this.authRoom.off('auth_success', handleSuccess);
-        this.authRoom.off('auth_error', handleError);
+
         
         this.currentUser = data.user;
         this.accessToken = data.tokens.accessToken;
@@ -183,8 +173,7 @@ class ColyseusManager {
 
       const handleError = (error) => {
         clearTimeout(timeout);
-        this.authRoom.off('auth_success', handleSuccess);
-        this.authRoom.off('auth_error', handleError);
+
         
         this.emit('auth:token_error', error);
         resolve({
