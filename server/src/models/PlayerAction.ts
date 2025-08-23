@@ -424,15 +424,19 @@ PlayerActionSchema.methods.markProcessed = function(batchId?: string) {
  * Obtenir un résumé lisible de l'action
  */
 PlayerActionSchema.methods.getSummary = function(): string {
-  const actionDescriptions: Record<ActionType, string> = {
+  const actionDescriptions: Partial<Record<ActionType, string>> = {
     queue_joined: 'Joined matchmaking queue',
     match_found: 'Match found',
     card_upgraded: 'Upgraded a card',
     battle_started: 'Started a battle',
-    // ... autres descriptions
-  } as any;
+    battle_ended: 'Battle finished',
+    card_played: 'Played a card',
+    gold_spent: 'Spent gold',
+    chest_opened: 'Opened chest'
+    // ... autres descriptions seront ajoutées au besoin
+  };
   
-  const description = actionDescriptions[this.action] || this.action;
+  const description = actionDescriptions[this.action as ActionType] || String(this.action);
   const timestamp = this.timestamp.toISOString();
   
   return `[${timestamp}] ${description}`;
