@@ -77,15 +77,21 @@ class TabNavigation {
   }
 
   /**
-   * Create navigation container
+   * Create navigation container (responsive)
    */
   createNavigation() {
     this.navElement = document.createElement('div');
     this.navElement.className = 'tab-navigation';
     this.navElement.id = 'clash-tab-navigation';
     
+    // Add responsive attributes
+    if (this.isMobile) {
+      this.navElement.style.touchAction = 'manipulation';
+      this.navElement.style.userSelect = 'none';
+    }
+    
     this.container.appendChild(this.navElement);
-    console.log('📱 Navigation container created');
+    console.log('📱 Responsive navigation container created');
   }
 
   /**
@@ -102,7 +108,7 @@ class TabNavigation {
   }
 
   /**
-   * Create individual tab button
+   * Create individual tab button (mobile-optimized)
    */
   createTabButton(tab) {
     const button = document.createElement('button');
@@ -110,48 +116,206 @@ class TabNavigation {
     button.id = `tab-${tab.id}`;
     button.dataset.tab = tab.id;
     
+    // Mobile optimization
+    if (this.isMobile || this.hasTouch) {
+      button.style.touchAction = 'manipulation';
+      button.style.webkitTapHighlightColor = 'transparent';
+      button.style.webkitUserSelect = 'none';
+    }
+    
+    // Responsive button content
+    const iconSize = window.innerWidth <= 480 ? '20px' : '22px';
+    const labelSize = window.innerWidth <= 480 ? '10px' : '11px';
+    const comingSoonSize = window.innerWidth <= 480 ? '8px' : '9px';
+    
     // Button content
     button.innerHTML = `
-      <span class="tab-icon">${tab.icon}</span>
-      <span class="tab-label">${tab.label}</span>
-      ${tab.comingSoon ? '<span class="tab-coming-soon">Soon</span>' : ''}
+      <span class="tab-icon" style="font-size: ${iconSize};">${tab.icon}</span>
+      <span class="tab-label" style="font-size: ${labelSize};">${tab.label}</span>
+      ${tab.comingSoon ? `<span class="tab-coming-soon" style="font-size: ${comingSoonSize};">Soon</span>` : ''}
     `;
     
-    // Add click handler
+    // Add click/touch handlers
     if (tab.enabled) {
-      button.addEventListener('click', () => {
+      // Use both touch and click for better mobile support
+      if (this.hasTouch) {
+        button.addEventListener('touchstart', (e) => {
+          this.handleTouchStart(e, tab.id);
+        }, { passive: true });
+        
+        button.addEventListener('touchend', (e) => {
+          this.handleTouchEnd(e, tab.id);
+        }, { passive: true });
+        
+        button.addEventListener('touchcancel', (e) => {
+          this.handleTouchCancel(e, tab.id);
+        }, { passive: true });
+      }
+      
+      // Click handler for mouse/keyboard
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
         this.handleTabClick(tab.id);
       });
+      
+      // Keyboard support
+      button.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.handleTabClick(tab.id);
+        }
+      });
+      
     } else {
-      button.addEventListener('click', () => {
+      // Disabled tab handlers
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
         this.handleDisabledTabClick(tab.id);
       });
+      
+      if (this.hasTouch) {
+        button.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          this.handleDisabledTabClick(tab.id);
+        }, { passive: false });
+      }
     }
     
     return button;
   }
 
   /**
-   * Setup event listeners
+   * Setup event listeners (mobile-optimized)
    */
   setupEventListeners() {
-    // Add ripple effect on click
+    // Responsive resize handler
+    window.addEventListener('resize', this.handleResize.bind(this));
+    
+    // Orientation change handler for mobile
+    if (this.isMobile) {
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+          this.handleOrientationChange();
+        }, 100);
+      });
+    }
+    
+    // Enhanced ripple effect (mobile-friendly)
     this.navElement.addEventListener('click', (event) => {
-      if (event.target.closest('.tab-button') && !event.target.closest('.tab-button').classList.contains('disabled')) {
-        this.createRippleEffect(event);
+      const tabButton = event.target.closest('.tab-button');
+      if (tabButton && !tabButton.classList.contains('disabled')) {
+        this.createEnhancedRippleEffect(event, tabButton);
       }
     });
     
-    console.log('📱 Event listeners setup');
+    // Touch feedback for mobile
+    if (this.hasTouch) {
+      this.navElement.addEventListener('touchstart', (event) => {
+        const tabButton = event.target.closest('.tab-button');
+        if (tabButton && !tabButton.classList.contains('disabled')) {
+          this.addTouchFeedback(tabButton);
+        }
+      }, { passive: true });
+    }
+    
+    console.log('📱 Enhanced mobile event listeners setup');
   }
 
   /**
-   * Create ripple effect on button click
+   * Enhanced mobile touch handlers
    */
-  createRippleEffect(event) {
-    const button = event.target.closest('.tab-button');
-    if (!button) return;
+  handleTouchStart(event, tabId) {
+    const button = this.tabButtons.get(tabId);
+    if (button) {
+      button.dataset.touchStartTime = Date.now();
+      button.style.transform = button.style.transform.replace('scale(1)', 'scale(0.95)');
+    }
+  }
+
+  handleTouchEnd(event, tabId) {
+    const button = this.tabButtons.get(tabId);
+    if (button) {
+      const touchStartTime = parseInt(button.dataset.touchStartTime) || 0;
+      const touchDuration = Date.now() - touchStartTime;
+      
+      // Only trigger if it was a short touch (not a scroll)
+      if (touchDuration < 500) {
+        setTimeout(() => {
+          this.handleTabClick(tabId);
+        }, 50);
+      }
+      
+      // Reset scale
+      button.style.transform = button.style.transform.replace('scale(0.95)', 'scale(1)');
+      delete button.dataset.touchStartTime;
+    }
+  }
+
+  handleTouchCancel(event, tabId) {
+    const button = this.tabButtons.get(tabId);
+    if (button) {
+      button.style.transform = button.style.transform.replace('scale(0.95)', 'scale(1)');
+      delete button.dataset.touchStartTime;
+    }
+  }
+
+  /**
+   * Handle window resize for responsive behavior
+   */
+  handleResize() {
+    // Update button sizes based on screen width
+    this.tabButtons.forEach((button, tabId) => {
+      const icon = button.querySelector('.tab-icon');
+      const label = button.querySelector('.tab-label');
+      const comingSoon = button.querySelector('.tab-coming-soon');
+      
+      if (window.innerWidth <= 360) {
+        if (icon) icon.style.fontSize = '18px';
+        if (label) label.style.fontSize = '9px';
+        if (comingSoon) comingSoon.style.fontSize = '7px';
+      } else if (window.innerWidth <= 480) {
+        if (icon) icon.style.fontSize = '20px';
+        if (label) label.style.fontSize = '10px';
+        if (comingSoon) comingSoon.style.fontSize = '8px';
+      } else {
+        if (icon) icon.style.fontSize = '22px';
+        if (label) label.style.fontSize = '11px';
+        if (comingSoon) comingSoon.style.fontSize = '9px';
+      }
+    });
+  }
+
+  /**
+   * Handle orientation change (mobile)
+   */
+  handleOrientationChange() {
+    // Slight delay for orientation change to complete
+    setTimeout(() => {
+      this.handleResize();
+      
+      // Adjust navigation height for landscape on mobile
+      if (window.innerHeight < 500 && window.innerWidth > window.innerHeight) {
+        this.navElement.style.height = '60px';
+      } else {
+        this.navElement.style.height = this.isMobile ? '70px' : '80px';
+      }
+    }, 200);
+  }
+
+  /**
+   * Add touch feedback for mobile
+   */
+  addTouchFeedback(button) {
+    button.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
     
+    setTimeout(() => {
+      button.style.backgroundColor = '';
+    }, 150);
+  }
+  /**
+   * Create enhanced ripple effect (mobile-optimized)
+   */
+  createEnhancedRippleEffect(event, button) {
     const rect = button.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height);
     const x = event.clientX - rect.left - size / 2;
@@ -164,25 +328,35 @@ class TabNavigation {
       height: ${size}px;
       left: ${x}px;
       top: ${y}px;
-      background: rgba(255, 255, 255, 0.3);
+      background: radial-gradient(circle, rgba(0, 188, 212, 0.6) 0%, rgba(0, 188, 212, 0.1) 70%, transparent 100%);
       border-radius: 50%;
       transform: scale(0);
-      animation: ripple 0.6s linear;
+      animation: rippleEffect 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       pointer-events: none;
+      z-index: 1;
     `;
     
-    // Add ripple animation if not exists
-    if (!document.querySelector('#ripple-animation')) {
-      const style = document.createElement('style');
-      style.id = 'ripple-animation';
-      style.textContent = `
-        @keyframes ripple {
-          to {
-            transform: scale(2);
-            opacity: 0;
-          }
+    // Enhanced animation for mobile
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes rippleEffect {
+        0% {
+          transform: scale(0);
+          opacity: 1;
         }
-      `;
+        50% {
+          transform: scale(0.8);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(2);
+          opacity: 0;
+        }
+      }
+    `;
+    
+    if (!document.querySelector('#ripple-effect-animation')) {
+      style.id = 'ripple-effect-animation';
       document.head.appendChild(style);
     }
     
@@ -191,8 +365,10 @@ class TabNavigation {
     button.appendChild(ripple);
     
     setTimeout(() => {
-      ripple.remove();
-    }, 600);
+      if (ripple.parentNode) {
+        ripple.remove();
+      }
+    }, 800);
   }
 
   /**
@@ -219,7 +395,7 @@ class TabNavigation {
   }
 
   /**
-   * Show notification for disabled tabs
+   * Show notification for disabled tabs (mobile-optimized)
    */
   showTabNotification(tab) {
     // Remove existing notification
@@ -228,39 +404,65 @@ class TabNavigation {
       existingNotification.remove();
     }
     
-    // Create notification
+    // Create responsive notification
     const notification = document.createElement('div');
     notification.id = 'tab-notification';
+    
+    // Responsive positioning and sizing
+    const isMobileView = window.innerWidth <= 768;
+    const bottomOffset = isMobileView ? '85px' : '95px';
+    const fontSize = isMobileView ? '12px' : '14px';
+    const padding = isMobileView ? '12px 20px' : '15px 25px';
+    
     notification.style.cssText = `
       position: fixed;
-      bottom: 100px;
+      bottom: ${bottomOffset};
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(255, 152, 0, 0.9);
+      background: linear-gradient(135deg, rgba(255, 152, 0, 0.95), rgba(255, 152, 0, 0.85));
       color: white;
-      padding: 15px 25px;
+      padding: ${padding};
       border-radius: 25px;
       font-weight: bold;
-      font-size: 14px;
-      z-index: 10001;
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(255, 152, 0, 0.3);
-      animation: slideUp 0.3s ease-out;
+      font-size: ${fontSize};
+      z-index: 10002;
+      backdrop-filter: blur(15px);
+      border: 2px solid rgba(255, 152, 0, 0.4);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      max-width: ${isMobileView ? '280px' : '320px'};
+      text-align: center;
+      animation: slideUpNotification 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      user-select: none;
     `;
     
     notification.textContent = `${tab.icon} ${tab.label} coming soon!`;
     
-    // Add animation
+    // Enhanced animation for mobile
     const style = document.createElement('style');
     style.textContent = `
-      @keyframes slideUp {
-        from {
+      @keyframes slideUpNotification {
+        0% {
           opacity: 0;
-          transform: translateX(-50%) translateY(20px);
+          transform: translateX(-50%) translateY(30px) scale(0.8);
         }
-        to {
+        60% {
           opacity: 1;
-          transform: translateX(-50%) translateY(0);
+          transform: translateX(-50%) translateY(-5px) scale(1.05);
+        }
+        100% {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0) scale(1);
+        }
+      }
+      
+      @keyframes slideDownNotification {
+        0% {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(-50%) translateY(20px) scale(0.9);
         }
       }
     `;
@@ -268,16 +470,38 @@ class TabNavigation {
     
     document.body.appendChild(notification);
     
-    // Auto remove after 2 seconds
+    // Add touch interaction for mobile
+    if (this.hasTouch) {
+      notification.addEventListener('touchstart', () => {
+        notification.style.transform = 'translateX(-50%) translateY(0) scale(0.95)';
+      }, { passive: true });
+      
+      notification.addEventListener('touchend', () => {
+        notification.style.transform = 'translateX(-50%) translateY(0) scale(1)';
+        // Hide on touch for mobile
+        this.hideNotification(notification);
+      }, { passive: true });
+    }
+    
+    // Auto remove with enhanced animation
+    const hideTimeout = isMobileView ? 3000 : 2500;
     setTimeout(() => {
-      notification.style.animation = 'slideUp 0.3s ease-out reverse';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-        style.remove();
-      }, 300);
-    }, 2000);
+      this.hideNotification(notification);
+    }, hideTimeout);
+  }
+
+  /**
+   * Hide notification with animation
+   */
+  hideNotification(notification) {
+    if (!notification || !notification.parentNode) return;
+    
+    notification.style.animation = 'slideDownNotification 0.3s ease-out forwards';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
   }
 
   /**
@@ -376,7 +600,7 @@ class TabNavigation {
   }
 
   /**
-   * Activate navigation
+   * Activate navigation (responsive entrance)
    */
   activate() {
     this.isActive = true;
@@ -384,15 +608,35 @@ class TabNavigation {
     if (this.navElement) {
       this.navElement.style.display = 'flex';
       
-      // Animate entrance
+      // Responsive entrance animation
+      const animationDuration = this.isMobile ? '0.4s' : '0.5s';
+      const easing = 'cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      
       this.navElement.style.transform = 'translateY(100%)';
+      this.navElement.style.opacity = '0';
+      
       setTimeout(() => {
-        this.navElement.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        this.navElement.style.transition = `transform ${animationDuration} ${easing}, opacity 0.3s ease`;
         this.navElement.style.transform = 'translateY(0)';
-      }, 100);
+        this.navElement.style.opacity = '1';
+      }, 50);
+      
+      // Staggered button animation for better mobile experience
+      setTimeout(() => {
+        this.tabButtons.forEach((button, index) => {
+          button.style.opacity = '0';
+          button.style.transform = 'translateY(20px)';
+          
+          setTimeout(() => {
+            button.style.transition = 'opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            button.style.opacity = '1';
+            button.style.transform = 'translateY(0)';
+          }, index * 80);
+        });
+      }, 200);
     }
     
-    console.log('📱 TabNavigation activated');
+    console.log('📱 Responsive TabNavigation activated');
   }
 
   /**
