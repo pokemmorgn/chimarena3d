@@ -140,7 +140,7 @@ class MatchmakingService extends EventEmitter {
   /**
    * Ajouter un joueur en file d'attente
    */
-  addPlayerToQueue(player: Omit<IQueuedPlayer, 'joinTime' | 'waitTime' | 'trophyRange' | 'maxWaitTime'>): boolean {
+  async addPlayerToQueue(player: Omit<IQueuedPlayer, 'joinTime' | 'waitTime' | 'trophyRange' | 'maxWaitTime'>): Promise<boolean> {
     if (this.queue.has(player.sessionId)) {
       console.warn(`Player ${player.sessionId} is already in queue`);
       return false;
@@ -173,7 +173,7 @@ class MatchmakingService extends EventEmitter {
   /**
    * Retirer un joueur de la file d'attente
    */
-  removePlayerFromQueue(sessionId: string): boolean {
+  async removePlayerFromQueue(sessionId: string): Promise<boolean> {
     const player = this.queue.get(sessionId);
     if (!player) {
       return false;
@@ -219,15 +219,15 @@ class MatchmakingService extends EventEmitter {
    * Démarrer la boucle de matchmaking
    */
   private startMatchmakingLoop(): void {
-    this.matchmakingTimer = setInterval(() => {
-      this.processMatchmaking();
+    this.matchmakingTimer = setInterval(async () => {
+      await this.processMatchmaking();
     }, this.config.matchmakingTickRate);
   }
 
   /**
    * Processus principal de matchmaking
    */
-  private processMatchmaking(): void {
+  private async processMatchmaking(): Promise<void> {
     if (this.queue.size === 0) return;
 
     // Mettre à jour les temps d'attente et critères
@@ -235,7 +235,7 @@ class MatchmakingService extends EventEmitter {
 
     // Vérifier les matches avec bots si activés
     if (this.config.enableBots) {
-      this.checkForBotMatches();
+      await this.checkForBotMatches();
     }
 
     // Trouver des matchs entre joueurs réels (si au moins 2)
@@ -277,7 +277,7 @@ class MatchmakingService extends EventEmitter {
   /**
    * Vérifier et créer des matches avec des bots
    */
-  private checkForBotMatches(): void {
+  private async checkForBotMatches(): Promise<void> {
     const now = Date.now();
     const playersReadyForBot = Array.from(this.queue.values()).filter(player => 
       !player.isBot && // Seulement les vrais joueurs
@@ -517,15 +517,15 @@ class MatchmakingService extends EventEmitter {
    * Boucle de nettoyage
    */
   private startCleanupLoop(): void {
-    this.cleanupTimer = setInterval(() => {
-      this.cleanupQueue();
+    this.cleanupTimer = setInterval(async () => {
+      await this.cleanupQueue();
     }, this.config.queueCleanupInterval);
   }
 
   /**
-   * Nettoyer la file d'attente (joueurs qui attendent trop longtemps)
+   * Boucle de nettoyage
    */
-  private cleanupQueue(): void {
+  private async cleanupQueue(): Promise<void> {
     const now = Date.now();
     let removedCount = 0;
 
@@ -601,7 +601,7 @@ class MatchmakingService extends EventEmitter {
   /**
    * Arrêter le service de matchmaking
    */
-  stop(): void {
+  async stop(): Promise<void> {
     if (this.matchmakingTimer) {
       clearInterval(this.matchmakingTimer);
       this.matchmakingTimer = null;
