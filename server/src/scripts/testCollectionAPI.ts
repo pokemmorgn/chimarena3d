@@ -118,8 +118,8 @@ async function authenticateUser() {
     console.log('🔐 Authenticating user...');
     
     const response = await makeRequest('POST', '/auth/login', {
-      identifier: 'test', // Utilise un utilisateur existant
-      password: 'test123'
+      identifier: 'Greg', // ou 'Gregs' si tu préfères
+      password: 'f674478165E!' // Remplace par le vrai mot de passe
     });
     
     if (response.data.success) {
