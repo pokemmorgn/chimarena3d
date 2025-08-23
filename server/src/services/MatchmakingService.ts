@@ -20,7 +20,7 @@ export interface IQueuedPlayer {
   // Métadonnées
   joinTime: number;          // Timestamp d'entrée en file
   waitTime: number;          // Temps d'attente actuel
-  region?: string;           // Région géographique
+  region?: string;           // Région géographique (optionnelle)
   
   // Critères de recherche (s'élargissent avec le temps)
   trophyRange: {
@@ -301,7 +301,7 @@ class MatchmakingService extends EventEmitter {
     // Nom aléatoire
     const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
     
-    return {
+    const bot: IQueuedPlayer = {
       sessionId: `bot_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       userId: `bot_user_${Date.now()}`,
       username: botName,
@@ -317,10 +317,15 @@ class MatchmakingService extends EventEmitter {
         min: botTrophies - 50,
         max: botTrophies + 50
       },
-      maxWaitTime: 0, // Les bots n'attendent pas
-      
-      region: player.region || undefined // Gérer le cas undefined
+      maxWaitTime: 0 // Les bots n'attendent pas
     };
+    
+    // Ajouter la région seulement si le joueur en a une
+    if (player.region) {
+      bot.region = player.region;
+    }
+    
+    return bot;
   }
 
   /**
