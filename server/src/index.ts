@@ -9,7 +9,8 @@ import { monitor } from '@colyseus/monitor';
 import { playground } from '@colyseus/playground';
 import mongoose from 'mongoose';
 import { WebSocketTransport } from '@colyseus/ws-transport';
-
+// Ipmport Rooms
+import { WorldRoom } from './rooms/WorldRoom';
 // Import routes
 import authRoutes from './routes/AuthRoutes';
 import cardRoutes from './routes/CardRoutes';
@@ -191,7 +192,7 @@ function setupGameServer(): void {
   // Register game rooms (to be implemented later)
   // gameServer.define('lobby', LobbyRoom);
   // gameServer.define('game', GameRoom);
-  
+  gameServer.define('world', WorldRoom);
   console.log('🎮 Game server configured (rooms will be added later)');
 }
 
