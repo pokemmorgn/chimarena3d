@@ -1,6 +1,6 @@
 /**
- * Clash Menu Styles - CSS compilé en JavaScript
- * Styles inspirés de Clash Royale avec thème sombre et couleurs vives
+ * Clash Menu Styles - CSS en JavaScript (version corrigée)
+ * Tous les styles sont dans des strings JavaScript pour éviter les erreurs de parsing
  */
 class ClashMenuStyles {
   
@@ -149,218 +149,6 @@ class ClashMenuStyles {
         font-size: 10px;
         color: ${orange};
         margin-top: 2px;
-      }
-    `;
-  }
-
-  /**
-   * Styles pour les messages "Coming Soon"
-   */
-  static getComingSoonStyles() {
-    const { white, orange, darkBlue, royalBlue, neonBlue } = this.colors;
-    
-    return `
-      .coming-soon-message {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: calc(100% - 80px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, ${darkBlue}dd, ${royalBlue}dd);
-        backdrop-filter: blur(10px);
-        z-index: 100;
-      }
-      
-      .coming-soon-content {
-        text-align: center;
-        background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-        border: 2px solid ${neonBlue}44;
-        border-radius: 20px;
-        padding: 50px;
-        max-width: 400px;
-        backdrop-filter: blur(20px);
-      }
-      
-      .coming-soon-content h2 {
-        color: ${orange};
-        font-size: 36px;
-        margin-bottom: 20px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-      }
-      
-      .coming-soon-content p {
-        color: ${white};
-        font-size: 18px;
-        margin-bottom: 30px;
-        opacity: 0.9;
-      }
-      
-      .back-to-battle-btn {
-        padding: 15px 30px;
-        background: linear-gradient(135deg, ${neonBlue}, #00acc1);
-        color: ${white};
-        border: none;
-        border-radius: 10px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      
-      .back-to-battle-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px ${neonBlue}44;
-      }
-    `;
-  }
-
-  /**
-   * Animations CSS
-   */
-  static getAnimationStyles() {
-    return `
-      @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.7; transform: scale(1.05); }
-      }
-      
-      @keyframes shimmer {
-        0% { background-position: -200px 0; }
-        100% { background-position: calc(200px + 100%) 0; }
-      }
-      
-      @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-      }
-      
-      @keyframes glow {
-        0%, 100% { box-shadow: 0 0 5px currentColor; }
-        50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
-      }
-      
-      .animate-float {
-        animation: float 3s ease-in-out infinite;
-      }
-      
-      .animate-glow {
-        animation: glow 2s ease-in-out infinite;
-      }
-      
-      .animate-shimmer {
-        background: linear-gradient(90deg, 
-          transparent, 
-          rgba(255, 255, 255, 0.2), 
-          transparent);
-        background-size: 200px 100%;
-        animation: shimmer 2s infinite;
-      }
-    `;
-  }
-
-  /**
-   * Classes utilitaires
-   */
-  static getUtilityStyles() {
-    const { white, gold, green, red, orange, neonBlue } = this.colors;
-    
-    return `
-      .text-center { text-align: center; }
-      .text-left { text-align: left; }
-      .text-right { text-align: right; }
-      
-      .text-white { color: ${white}; }
-      .text-gold { color: ${gold}; }
-      .text-green { color: ${green}; }
-      .text-red { color: ${red}; }
-      .text-orange { color: ${orange}; }
-      .text-blue { color: ${neonBlue}; }
-      
-      .font-bold { font-weight: bold; }
-      .font-normal { font-weight: normal; }
-      
-      .uppercase { text-transform: uppercase; }
-      .lowercase { text-transform: lowercase; }
-      .capitalize { text-transform: capitalize; }
-      
-      .hidden { display: none !important; }
-      .visible { display: block !important; }
-      
-      .fade-in {
-        opacity: 0;
-        animation: fadeIn 0.5s ease-in-out forwards;
-      }
-      
-      .fade-out {
-        opacity: 1;
-        animation: fadeOut 0.5s ease-in-out forwards;
-      }
-      
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      
-      @keyframes fadeOut {
-        from { opacity: 1; transform: translateY(0); }
-        to { opacity: 0; transform: translateY(-20px); }
-      }
-      
-      /* Responsive design */
-      @media (max-width: 768px) {
-        .battle-header {
-          padding: 20px 15px;
-        }
-        
-        .player-stats {
-          gap: 20px;
-        }
-        
-        .stat-value {
-          font-size: 20px;
-        }
-        
-        .battle-button {
-          padding: 15px 25px;
-          font-size: 18px;
-        }
-        
-        .battle-modes {
-          grid-template-columns: 1fr;
-        }
-        
-        .coming-soon-content {
-          padding: 30px;
-          margin: 20px;
-        }
-      }
-      
-      @media (max-width: 480px) {
-        .tab-navigation {
-          height: 70px;
-          padding: 0 10px;
-        }
-        
-        .tab-button {
-          padding: 8px 12px;
-          min-width: 50px;
-        }
-        
-        .tab-icon {
-          font-size: 20px;
-        }
-        
-        .tab-label {
-          font-size: 10px;
-        }
-        
-        .battle-tab {
-          padding: 15px;
-          height: calc(100% - 70px);
-        }
       }
     `;
   }
@@ -586,3 +374,220 @@ class ClashMenuStyles {
         font-size: 12px;
         line-height: 1.4;
       }
+    `;
+  }
+
+  /**
+   * Styles pour les messages "Coming Soon"
+   */
+  static getComingSoonStyles() {
+    const { white, orange, darkBlue, royalBlue, neonBlue } = this.colors;
+    
+    return `
+      .coming-soon-message {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: calc(100% - 80px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, ${darkBlue}dd, ${royalBlue}dd);
+        backdrop-filter: blur(10px);
+        z-index: 100;
+      }
+      
+      .coming-soon-content {
+        text-align: center;
+        background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
+        border: 2px solid ${neonBlue}44;
+        border-radius: 20px;
+        padding: 50px;
+        max-width: 400px;
+        backdrop-filter: blur(20px);
+      }
+      
+      .coming-soon-content h2 {
+        color: ${orange};
+        font-size: 36px;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      
+      .coming-soon-content p {
+        color: ${white};
+        font-size: 18px;
+        margin-bottom: 30px;
+        opacity: 0.9;
+      }
+      
+      .back-to-battle-btn {
+        padding: 15px 30px;
+        background: linear-gradient(135deg, ${neonBlue}, #00acc1);
+        color: ${white};
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .back-to-battle-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px ${neonBlue}44;
+      }
+    `;
+  }
+
+  /**
+   * Animations CSS
+   */
+  static getAnimationStyles() {
+    return `
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.05); }
+      }
+      
+      @keyframes shimmer {
+        0% { background-position: -200px 0; }
+        100% { background-position: calc(200px + 100%) 0; }
+      }
+      
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+      }
+      
+      @keyframes glow {
+        0%, 100% { box-shadow: 0 0 5px currentColor; }
+        50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+      }
+      
+      .animate-float {
+        animation: float 3s ease-in-out infinite;
+      }
+      
+      .animate-glow {
+        animation: glow 2s ease-in-out infinite;
+      }
+      
+      .animate-shimmer {
+        background: linear-gradient(90deg, 
+          transparent, 
+          rgba(255, 255, 255, 0.2), 
+          transparent);
+        background-size: 200px 100%;
+        animation: shimmer 2s infinite;
+      }
+    `;
+  }
+
+  /**
+   * Classes utilitaires
+   */
+  static getUtilityStyles() {
+    const { white, gold, green, red, orange, neonBlue } = this.colors;
+    
+    return `
+      .text-center { text-align: center; }
+      .text-left { text-align: left; }
+      .text-right { text-align: right; }
+      
+      .text-white { color: ${white}; }
+      .text-gold { color: ${gold}; }
+      .text-green { color: ${green}; }
+      .text-red { color: ${red}; }
+      .text-orange { color: ${orange}; }
+      .text-blue { color: ${neonBlue}; }
+      
+      .font-bold { font-weight: bold; }
+      .font-normal { font-weight: normal; }
+      
+      .uppercase { text-transform: uppercase; }
+      .lowercase { text-transform: lowercase; }
+      .capitalize { text-transform: capitalize; }
+      
+      .hidden { display: none !important; }
+      .visible { display: block !important; }
+      
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.5s ease-in-out forwards;
+      }
+      
+      .fade-out {
+        opacity: 1;
+        animation: fadeOut 0.5s ease-in-out forwards;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      @keyframes fadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(-20px); }
+      }
+      
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .battle-header {
+          padding: 20px 15px;
+        }
+        
+        .player-stats {
+          gap: 20px;
+        }
+        
+        .stat-value {
+          font-size: 20px;
+        }
+        
+        .battle-button {
+          padding: 15px 25px;
+          font-size: 18px;
+        }
+        
+        .battle-modes {
+          grid-template-columns: 1fr;
+        }
+        
+        .coming-soon-content {
+          padding: 30px;
+          margin: 20px;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .tab-navigation {
+          height: 70px;
+          padding: 0 10px;
+        }
+        
+        .tab-button {
+          padding: 8px 12px;
+          min-width: 50px;
+        }
+        
+        .tab-icon {
+          font-size: 20px;
+        }
+        
+        .tab-label {
+          font-size: 10px;
+        }
+        
+        .battle-tab {
+          padding: 15px;
+          height: calc(100% - 70px);
+        }
+      }
+    `;
+  }
+}
+
+export default ClashMenuStyles;
