@@ -4,24 +4,6 @@ import http from 'http';
 const API_BASE_URL = 'http://localhost:2567/api';
 const TEST_USER = { identifier: 'test', password: 'testtest' };
 
-interface AuthResponse {
-  success: boolean;
-  data?: {
-    user: {
-      id: string;
-      username: string;
-      displayName: string;
-      level: number;
-      trophies: number;
-    };
-    tokens: {
-      accessToken: string;
-      refreshToken: string;
-    };
-  };
-  message?: string;
-}
-
 class AuthFlowTester {
   private accessToken: string = '';
   private refreshToken: string = '';
