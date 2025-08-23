@@ -238,14 +238,14 @@ function setupGameServer(): void {
   // Register rooms in order of connection flow
   
   // 1. AuthRoom - First connection point for authentication
-  gameServer.define('auth', AuthRoom)
-    .filterBy(['region']) // Allow filtering by region if needed
-    .maxClients(1000);   // High limit for authentication
+  gameServer.define('auth', AuthRoom, {
+    maxClients: 1000  // High limit for authentication
+  });
   
   // 2. WorldRoom - Main lobby after authentication  
-  gameServer.define('world', WorldRoom)
-    .filterBy(['authenticated']) // Only authenticated users
-    .maxClients(500);            // Lobby limit
+  gameServer.define('world', WorldRoom, {
+    maxClients: 500   // Lobby limit
+  });
   
   // Future rooms can be added here:
   // gameServer.define('battle', BattleRoom);
