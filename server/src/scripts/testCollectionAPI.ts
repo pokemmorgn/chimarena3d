@@ -1,409 +1,445 @@
-import 'dotenv/config';
 import http from 'http';
 
+/**
+ * Script de test pour l'API Collection
+ * Teste toutes les routes avec authentification
+ */
+
 const API_BASE_URL = 'http://localhost:2567/api';
-const TEST_USER = { identifier: 'test', password: 'testtest' };
 
-interface AuthResponse {
-  success: boolean;
-  data?: {
-    user: {
-      id: string;
-      username: string;
-      displayName: string;
-      level: number;
-      trophies: number;
+// Variables globales pour les tests
+let accessToken = '';
+let testUserId = '';
+
+/**
+ * Fonction helper pour faire des requêtes HTTP avec auth
+ */
+function makeAuthenticatedRequest(method: string, path: string, data?: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(`${API_BASE_URL}${path}`);
+    
+    const options: any = {
+      hostname: url.hostname,
+      port: url.port || 80,
+      path: url.pathname + url.search,
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      }
     };
-    tokens: {
-      accessToken: string;
-      refreshToken: string;
-    };
-  };
-  message?: string;
-}
-
-class AuthFlowTester {
-  private accessToken: string = '';
-  private refreshToken: string = '';
-  private userData: any = null;
-
-  async testFullFlow(): Promise<boolean> {
-    console.log('🧪 Testing Auth Flow');
-    console.log('====================');
-
-    try {
-      console.log('\n1️⃣ Testing server health...');
-      const health = await this.checkHealth();
-      if (!health) throw new Error('Server unhealthy');
-
-      console.log('\n2️⃣ Testing authentication...');
-      const authSuccess = await this.testAuthentication();
-      if (!authSuccess) throw new Error('Authentication failed');
-
-      console.log('\n3️⃣ Testing token verification...');
-      const verifySuccess = await this.testTokenVerification();
-      if (!verifySuccess) throw new Error('Token verification failed');
-
-      console.log('\n4️⃣ Testing authenticated endpoints...');
-      const endpointsSuccess = await this.testAuthenticatedEndpoints();
-      if (!endpointsSuccess) throw new Error('Authenticated endpoints failed');
-
-      console.log('\n5️⃣ Testing token refresh...');
-      const refreshSuccess = await this.testTokenRefresh();
-      if (!refreshSuccess) throw new Error('Token refresh failed');
-
-      console.log('\n6️⃣ Testing logout...');
-      const logoutSuccess = await this.testLogout();
-      if (!logoutSuccess) throw new Error('Logout failed');
-
-      console.log('\n✅ All authentication tests passed!');
-      return true;
-
-    } catch (error: any) {
-      console.error('❌ Test failed:', error.message);
-      return false;
-    }
-  }
-
-  async testAuthOnly(): Promise<boolean> {
-    console.log('🧪 Testing Auth API only');
-    console.log('=========================');
-
-    try {
-      await this.testAuthentication();
+    
+    const req = http.request(options, (res) => {
+      let responseData = '';
       
-      console.log('✅ Auth successful');
-      console.log(`   User: ${this.userData?.username}`);
-      console.log(`   Level: ${this.userData?.level}`);
-      console.log(`   Trophies: ${this.userData?.trophies}`);
-      console.log(`   Token length: ${this.accessToken.length} chars`);
-      
-      return true;
-    } catch (error: any) {
-      console.error('❌ Auth failed:', error.message);
-      return false;
-    }
-  }
-
-  async testCollection(): Promise<boolean> {
-    console.log('🧪 Testing Collection API');
-    console.log('==========================');
-
-    try {
-      // D'abord s'authentifier
-      await this.testAuthentication();
-      
-      console.log('\n📦 Testing collection endpoints...');
-      
-      // Test collection
-      const collection = await this.makeAuthenticatedRequest('/collection');
-      if (collection.success) {
-        console.log('✅ Collection retrieved');
-        console.log(`   Gold: ${collection.data.collection.gold}`);
-        console.log(`   Gems: ${collection.data.collection.gems}`);
-        console.log(`   Cards: ${collection.data.collection.cards.length} types`);
-      }
-      
-      // Test cards
-      const cards = await this.makeAuthenticatedRequest('/collection/cards');
-      if (cards.success) {
-        console.log('✅ Cards retrieved');
-        console.log(`   Total collected: ${cards.data.stats.totalCardsCollected}`);
-      }
-      
-      // Test decks
-      const decks = await this.makeAuthenticatedRequest('/collection/decks');
-      if (decks.success) {
-        console.log('✅ Decks retrieved');
-        console.log(`   Active deck: ${decks.data.currentDeckIndex}`);
-      }
-      
-      return true;
-    } catch (error: any) {
-      console.error('❌ Collection test failed:', error.message);
-      return false;
-    }
-  }
-
-  private async checkHealth(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const req = http.get(`${API_BASE_URL}/health`, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data);
-            if (response.success) {
-              console.log('✅ Server healthy');
-              console.log(`   Uptime: ${Math.round(response.data.uptime)}s`);
-              resolve(true);
-            } else {
-              console.log('❌ Server unhealthy');
-              resolve(false);
-            }
-          } catch {
-            console.log('❌ Invalid health response');
-            resolve(false);
-          }
-        });
+      res.on('data', (chunk) => {
+        responseData += chunk;
       });
       
-      req.on('error', () => {
-        console.log('❌ Server unreachable');
-        resolve(false);
-      });
-      
-      req.setTimeout(5000, () => {
-        req.destroy();
-        console.log('❌ Health check timeout');
-        resolve(false);
+      res.on('end', () => {
+        try {
+          const jsonData = JSON.parse(responseData);
+          resolve({
+            status: res.statusCode,
+            data: jsonData
+          });
+        } catch (error) {
+          reject(new Error(`Failed to parse JSON: ${error}`));
+        }
       });
     });
-  }
+    
+    req.on('error', (error) => {
+      reject(error);
+    });
+    
+    if (data) {
+      req.write(JSON.stringify(data));
+    }
+    
+    req.end();
+  });
+}
 
-  private async testAuthentication(): Promise<boolean> {
-    console.log(`   Authenticating user: ${TEST_USER.identifier}`);
+/**
+ * Fonction pour faire du POST sans auth (login)
+ */
+function makeRequest(method: string, path: string, data?: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(`${API_BASE_URL}${path}`);
     
-    const response = await this.makeRequest('/auth/login', 'POST', TEST_USER);
+    const options: any = {
+      hostname: url.hostname,
+      port: url.port || 80,
+      path: url.pathname + url.search,
+      method: method,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
     
-    if (response.success && response.data) {
-      this.accessToken = response.data.tokens.accessToken;
-      this.refreshToken = response.data.tokens.refreshToken;
-      this.userData = response.data.user;
+    const req = http.request(options, (res) => {
+      let responseData = '';
       
-      console.log('✅ Authentication successful');
-      console.log(`   Welcome ${response.data.user.displayName}!`);
-      console.log(`   Level: ${response.data.user.level}`);
-      console.log(`   Trophies: ${response.data.user.trophies}`);
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
       
-      return true;
-    } else {
-      console.log('❌ Authentication failed:', response.message);
-      return false;
-    }
-  }
-
-  private async testTokenVerification(): Promise<boolean> {
-    if (!this.accessToken) {
-      console.log('❌ No access token available');
-      return false;
-    }
-
-    const response = await this.makeAuthenticatedRequest('/auth/verify-token');
+      res.on('end', () => {
+        try {
+          const jsonData = JSON.parse(responseData);
+          resolve({
+            status: res.statusCode,
+            data: jsonData
+          });
+        } catch (error) {
+          reject(new Error(`Failed to parse JSON: ${error}`));
+        }
+      });
+    });
     
-    if (response.success) {
-      console.log('✅ Token verification successful');
-      console.log(`   User ID: ${response.data.userId}`);
+    req.on('error', (error) => {
+      reject(error);
+    });
+    
+    if (data) {
+      req.write(JSON.stringify(data));
+    }
+    
+    req.end();
+  });
+}
+
+/**
+ * Étape 1: Login pour obtenir un token
+ */
+async function authenticateUser() {
+  try {
+    console.log('🔐 Authenticating user...');
+    
+    const response = await makeRequest('POST', '/auth/login', {
+      identifier: 'test', // ou 'Gregs' si tu préfères
+      password: 'testtest' // Remplace par le vrai mot de passe
+    });
+    
+    if (response.data.success) {
+      accessToken = response.data.data.tokens.accessToken;
+      testUserId = response.data.data.user.id;
+      console.log(`✅ Authenticated as user: ${response.data.data.user.username}`);
+      console.log(`✅ User ID: ${testUserId}`);
       return true;
-    } else {
-      console.log('❌ Token verification failed:', response.message);
-      return false;
     }
+    
+    console.log('❌ Authentication failed:', response.data.message);
+    return false;
+  } catch (error: any) {
+    console.error('❌ Authentication error:', error.message);
+    return false;
   }
+}
 
-  private async testAuthenticatedEndpoints(): Promise<boolean> {
-    // Test profile
-    const profile = await this.makeAuthenticatedRequest('/auth/profile');
-    if (profile.success) {
-      console.log('✅ Profile endpoint working');
-    } else {
-      console.log('❌ Profile endpoint failed');
-      return false;
-    }
-
-    // Test game endpoint
-    const game = await this.makeAuthenticatedRequest('/game', 'GET');
-    if (game.success) {
-      console.log('✅ Game endpoint working');
-    } else {
-      console.log('❌ Game endpoint failed');
-      return false;
-    }
-
+/**
+ * Test 1: GET /api/collection (collection complète)
+ */
+async function testGetCollection() {
+  try {
+    console.log('\n🎒 Testing GET /api/collection...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Cards types: ${data.data.collection.cards.length}`);
+    console.log(`✅ Gold: ${data.data.collection.gold}`);
+    console.log(`✅ Gems: ${data.data.collection.gems}`);
+    console.log(`✅ Active deck: ${data.data.collection.currentDeckIndex}`);
+    console.log(`✅ Chests: ${data.data.collection.chests.length}`);
+    
     return true;
-  }
-
-  private async testTokenRefresh(): Promise<boolean> {
-    if (!this.refreshToken) {
-      console.log('❌ No refresh token available');
-      return false;
-    }
-
-    const response = await this.makeRequest('/auth/refresh', 'POST', {
-      refreshToken: this.refreshToken
-    });
-
-    if (response.success && response.data) {
-      const oldToken = this.accessToken;
-      this.accessToken = response.data.tokens.accessToken;
-      this.refreshToken = response.data.tokens.refreshToken;
-      
-      console.log('✅ Token refresh successful');
-      console.log(`   Token changed: ${oldToken !== this.accessToken}`);
-      
-      return true;
-    } else {
-      console.log('❌ Token refresh failed:', response.message);
-      return false;
-    }
-  }
-
-  private async testLogout(): Promise<boolean> {
-    const response = await this.makeAuthenticatedRequest('/auth/logout', 'POST', {
-      refreshToken: this.refreshToken
-    });
-
-    if (response.success) {
-      console.log('✅ Logout successful');
-      this.accessToken = '';
-      this.refreshToken = '';
-      this.userData = null;
-      return true;
-    } else {
-      console.log('❌ Logout failed:', response.message);
-      return false;
-    }
-  }
-
-  private async makeRequest(endpoint: string, method: string = 'GET', data?: any): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const url = new URL(endpoint, API_BASE_URL);
-      const postData = data ? JSON.stringify(data) : null;
-      
-      const options: any = {
-        hostname: url.hostname,
-        port: url.port || 80,
-        path: url.pathname,
-        method: method,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      };
-
-      if (postData) {
-        options.headers['Content-Length'] = Buffer.byteLength(postData);
-      }
-
-      const req = http.request(options, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            const jsonData = JSON.parse(responseData);
-            resolve(jsonData);
-          } catch (error) {
-            reject(new Error('Invalid JSON response'));
-          }
-        });
-      });
-
-      req.on('error', (error) => reject(error));
-      req.setTimeout(10000, () => {
-        req.destroy();
-        reject(new Error('Request timeout'));
-      });
-
-      if (postData) {
-        req.write(postData);
-      }
-      
-      req.end();
-    });
-  }
-
-  private async makeAuthenticatedRequest(endpoint: string, method: string = 'GET', data?: any): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const url = new URL(endpoint, API_BASE_URL);
-      const postData = data ? JSON.stringify(data) : null;
-      
-      const options: any = {
-        hostname: url.hostname,
-        port: url.port || 80,
-        path: url.pathname,
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`
-        }
-      };
-
-      if (postData) {
-        options.headers['Content-Length'] = Buffer.byteLength(postData);
-      }
-
-      const req = http.request(options, (res) => {
-        let responseData = '';
-        res.on('data', chunk => responseData += chunk);
-        res.on('end', () => {
-          try {
-            const jsonData = JSON.parse(responseData);
-            resolve(jsonData);
-          } catch (error) {
-            reject(new Error('Invalid JSON response'));
-          }
-        });
-      });
-
-      req.on('error', (error) => reject(error));
-      req.setTimeout(10000, () => {
-        req.destroy();
-        reject(new Error('Request timeout'));
-      });
-
-      if (postData) {
-        req.write(postData);
-      }
-      
-      req.end();
-    });
+  } catch (error: any) {
+    console.error('❌ GET /api/collection failed:', error.message);
+    return false;
   }
 }
 
-async function main() {
-  const command = process.argv[2] || 'full';
-  const tester = new AuthFlowTester();
-
-  console.log('🚀 Authentication Test Suite');
-  console.log('=============================');
-
-  let success = false;
-
-  switch (command) {
-    case 'full':
-      success = await tester.testFullFlow();
-      break;
-    case 'auth':
-      success = await tester.testAuthOnly();
-      break;
-    case 'collection':
-      success = await tester.testCollection();
-      break;
-    default:
-      console.log('Usage: npx ts-node src/scripts/testAuthFlow.ts [command]');
-      console.log('');
-      console.log('Commands:');
-      console.log('  full       - Test complete auth flow (default)');
-      console.log('  auth       - Test authentication only');
-      console.log('  collection - Test collection API with auth');
-      console.log('');
-      console.log('Examples:');
-      console.log('  npx ts-node src/scripts/testAuthFlow.ts full');
-      console.log('  npx ts-node src/scripts/testAuthFlow.ts auth');
-      console.log('  npx ts-node src/scripts/testAuthFlow.ts collection');
-      process.exit(0);
+/**
+ * Test 2: GET /api/collection/cards (cartes enrichies)
+ */
+async function testGetCollectionCards() {
+  try {
+    console.log('\n🃏 Testing GET /api/collection/cards...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/cards');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Cards: ${data.data.cards.length}`);
+    
+    // Afficher quelques cartes
+    data.data.cards.slice(0, 3).forEach((card: any) => {
+      console.log(`   - ${card.cardId}: ${card.count} cards, level ${card.level} (${card.cardInfo?.rarity})`);
+    });
+    
+    console.log(`✅ Total collected: ${data.data.stats.totalCardsCollected}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/cards failed:', error.message);
+    return false;
   }
+}
 
-  if (success) {
-    console.log('\n🎉 All tests passed!');
-    process.exit(0);
+/**
+ * Test 3: GET /api/collection/decks (tous les decks)
+ */
+async function testGetDecks() {
+  try {
+    console.log('\n🎴 Testing GET /api/collection/decks...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/decks');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Decks: ${data.data.decks.length}`);
+    console.log(`✅ Current deck: ${data.data.currentDeckIndex}`);
+    
+    // Afficher le deck actif
+    const activeDeck = data.data.decks.find((deck: any) => deck.isActive);
+    if (activeDeck) {
+      console.log(`✅ Active deck (${activeDeck.deckIndex}): ${activeDeck.totalElixirCost} total elixir`);
+      activeDeck.cards.forEach((slot: any, i: number) => {
+        console.log(`     ${i + 1}. ${slot.cardId} (${slot.cardInfo?.elixirCost} elixir)`);
+      });
+    }
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/decks failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 4: GET /api/collection/deck/0 (deck spécifique)
+ */
+async function testGetSpecificDeck() {
+  try {
+    console.log('\n🎯 Testing GET /api/collection/deck/0...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/deck/0');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Deck index: ${data.data.deckIndex}`);
+    console.log(`✅ Is active: ${data.data.isActive}`);
+    console.log(`✅ Total elixir: ${data.data.totalElixirCost}`);
+    console.log(`✅ Cards: ${data.data.cards.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/deck/0 failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 5: PUT /api/collection/deck (modifier un deck)
+ */
+async function testUpdateDeck() {
+  try {
+    console.log('\n✏️ Testing PUT /api/collection/deck...');
+    
+    // Essayer de modifier le deck 1 avec les mêmes cartes que le deck 0
+    const response = await makeAuthenticatedRequest('PUT', '/collection/deck', {
+      deckIndex: 1,
+      cardIds: ['knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon', 'knight', 'archers']
+    });
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Updated deck: ${data.data.deckIndex}`);
+    console.log(`✅ Cards in deck: ${data.data.cards.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ PUT /api/collection/deck failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 6: PUT /api/collection/active-deck/1 (changer deck actif)
+ */
+async function testSetActiveDeck() {
+  try {
+    console.log('\n🎯 Testing PUT /api/collection/active-deck/1...');
+    
+    const response = await makeAuthenticatedRequest('PUT', '/collection/active-deck/1');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ New active deck: ${data.data.currentDeckIndex}`);
+    console.log(`✅ Deck cards: ${data.data.deck.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ PUT /api/collection/active-deck/1 failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 7: POST /api/collection/add-cards (ajouter des cartes)
+ */
+async function testAddCards() {
+  try {
+    console.log('\n➕ Testing POST /api/collection/add-cards...');
+    
+    const response = await makeAuthenticatedRequest('POST', '/collection/add-cards', {
+      cardId: 'knight',
+      count: 5
+    });
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Updated card: ${data.data.card.cardId}`);
+    console.log(`✅ New count: ${data.data.card.count}`);
+    console.log(`✅ Total collected: ${data.data.newStats.totalCardsCollected}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ POST /api/collection/add-cards failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 8: POST /api/collection/upgrade-card (améliorer une carte)
+ */
+async function testUpgradeCard() {
+  try {
+    console.log('\n⬆️ Testing POST /api/collection/upgrade-card...');
+    
+    const response = await makeAuthenticatedRequest('POST', '/collection/upgrade-card', {
+      cardId: 'knight'
+    });
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Upgraded card: ${data.data.card.cardId}`);
+    console.log(`✅ New level: ${data.data.card.level}`);
+    console.log(`✅ Remaining cards: ${data.data.card.count}`);
+    console.log(`✅ Gold remaining: ${data.data.newGold}`);
+    console.log(`✅ Total upgrades: ${data.data.newStats.totalCardsUpgraded}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ POST /api/collection/upgrade-card failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 9: GET /api/collection/stats (statistiques)
+ */
+async function testGetStats() {
+  try {
+    console.log('\n📊 Testing GET /api/collection/stats...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/stats');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Total collected: ${data.data.stats.totalCardsCollected}`);
+    console.log(`✅ Upgrades made: ${data.data.stats.totalCardsUpgraded}`);
+    console.log(`✅ Gold spent: ${data.data.stats.totalGoldSpent}`);
+    console.log(`✅ Average level: ${data.data.stats.averageCardLevel}`);
+    console.log(`✅ Current gold: ${data.data.resources.gold}`);
+    console.log(`✅ Current gems: ${data.data.resources.gems}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/stats failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Fonction principale de test
+ */
+async function runAllTests() {
+  console.log('🚀 Starting Collection API Tests...');
+  console.log('=====================================');
+  
+  // D'abord s'authentifier
+  const authSuccess = await authenticateUser();
+  if (!authSuccess) {
+    console.log('❌ Authentication failed, stopping tests');
+    return;
+  }
+  
+  const tests = [
+    { name: 'Get Collection', fn: testGetCollection },
+    { name: 'Get Collection Cards', fn: testGetCollectionCards },
+    { name: 'Get All Decks', fn: testGetDecks },
+    { name: 'Get Specific Deck', fn: testGetSpecificDeck },
+    { name: 'Update Deck', fn: testUpdateDeck },
+    { name: 'Set Active Deck', fn: testSetActiveDeck },
+    { name: 'Add Cards', fn: testAddCards },
+    { name: 'Upgrade Card', fn: testUpgradeCard },
+    { name: 'Get Stats', fn: testGetStats }
+  ];
+  
+  let passed = 0;
+  let failed = 0;
+  
+  for (const test of tests) {
+    try {
+      const success = await test.fn();
+      if (success) {
+        passed++;
+      } else {
+        failed++;
+      }
+    } catch (error) {
+      console.error(`💥 Test "${test.name}" crashed:`, error);
+      failed++;
+    }
+    
+    // Petite pause entre les tests
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
+  console.log('\n=====================================');
+  console.log('🎯 TEST RESULTS:');
+  console.log(`✅ Passed: ${passed}`);
+  console.log(`❌ Failed: ${failed}`);
+  console.log(`📊 Success Rate: ${Math.round((passed / (passed + failed)) * 100)}%`);
+  
+  if (failed === 0) {
+    console.log('🎉 All tests passed! Collection API is working perfectly!');
   } else {
-    console.log('\n💥 Tests failed!');
-    process.exit(1);
+    console.log('⚠️ Some tests failed. Check the logs above.');
   }
 }
 
+// Exécuter les tests si ce script est lancé directement
 if (require.main === module) {
-  main();
+  runAllTests()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('💥 Test suite crashed:', error);
+      process.exit(1);
+    });
 }
 
-export { AuthFlowTester };
+export { runAllTests };
