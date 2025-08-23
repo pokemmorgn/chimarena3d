@@ -177,7 +177,7 @@ class ActionLoggerService extends EventEmitter {
     return this.logMatchmaking('match_found', userId, {
       matchId,
       opponentTrophies,
-      trophyDifference: Math.abs(opponentTrophies - (await this.getUserTrophies(userId))),
+      trophyDifference: Math.abs(opponentTrophies - (await this._getUserTrophies(userId))),
       waitTime,
       success: true
     });
@@ -333,8 +333,8 @@ class ActionLoggerService extends EventEmitter {
     const enriched: IActionMetadata = {
       ...metadata,
       sessionId: metadata.sessionId || `session_${userId}_${Date.now()}`,
-      // goldAtTime: await this.getUserGold(userId),
-      // trophiesAtTime: await this.getUserTrophies(userId),
+      // goldAtTime: await this._getUserGold(userId),
+      // trophiesAtTime: await this._getUserTrophies(userId),
       ...cachedContext
     };
     
@@ -418,12 +418,12 @@ class ActionLoggerService extends EventEmitter {
    * Méthodes utilitaires pour récupérer les données utilisateur
    * TODO: Implémenter en se basant sur UserData et PlayerCollection
    */
-  private async getUserTrophies(userId: string | Types.ObjectId): Promise<number> {
+  private async _getUserTrophies(_userId: string | Types.ObjectId): Promise<number> {
     // TODO: Récupérer depuis UserData
     return 1000; // Placeholder
   }
   
-  private async getUserGold(userId: string | Types.ObjectId): Promise<number> {
+  private async _getUserGold(_userId: string | Types.ObjectId): Promise<number> {
     // TODO: Récupérer depuis PlayerCollection
     return 500; // Placeholder
   }
