@@ -1,8 +1,10 @@
 import http from 'http';
+import UserData from '../models/UserData';
+import mongoose from 'mongoose';
 
 /**
  * Script de test pour l'API Collection
- * Teste toutes les routes avec authentification
+ * Crée un utilisateur temporaire, teste l'API, puis nettoie
  */
 
 const API_BASE_URL = 'http://localhost:2567/api';
@@ -10,6 +12,7 @@ const API_BASE_URL = 'http://localhost:2567/api';
 // Variables globales pour les tests
 let accessToken = '';
 let testUserId = '';
+let tempUserCreated = false;
 
 /**
  * Fonction helper pour faire des requêtes HTTP avec auth
@@ -111,15 +114,426 @@ function makeRequest(method: string, path: string, data?: any): Promise<any> {
 }
 
 /**
- * Étape 1: Login pour obtenir un token
+ * Créer un utilisateur temporaire pour les tests
+ */
+async function createTempUser(): Promise<boolean> {
+  try {
+    console.log('👤 Creating temporary test user...');
+    
+    // Se connecter à MongoDB
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chimarena3d');
+    
+    // Générer un nom d'utilisateur unique
+    const timestamp = Date.now();
+    const tempUsername = `test_${timestamp}`;
+    const tempEmail = `test_${timestamp}@temp.com`;
+    
+    // Créer l'utilisateur temporaire
+    const tempUser = new UserData({
+      username: tempUsername,
+      email: tempEmail,
+      password: 'temp123', // Sera hashé automatiquement
+      displayName: `Test User ${timestamp}`
+    });
+    
+    await tempUser.save();
+    tempUserCreated = true;
+    
+    console.log(`✅ Temporary user created: ${tempUsername}`);
+    
+    // Maintenant se connecter via l'API
+    const response = await makeRequest('POST', '/auth/register', {
+      username: `api_${timestamp}`,
+      email: `api_${timestamp}@temp.com`,
+      password: 'temp123',
+      displayName: `API Test User ${timestamp}`
+    });
+    
+    if (response.data.success) {
+      accessToken = response.data.data.tokens.accessToken;
+      testUserId = response.data.data.user.id;
+      console.log(`✅ Authenticated with temp user: ${response.data.data.user.username}`);
+      console.log(`✅ User ID: ${testUserId}`);
+      return true;
+    }
+    
+    console.log('❌ Failed to authenticate temp user:', response.data.message);
+    return false;
+  } catch (error: any) {
+    console.error('❌ Failed to create temp user:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Nettoyer l'utilisateur temporaire
+ */
+async function cleanupTempUser(): Promise<void> {
+  try {
+    console.log('\n🧹 Cleaning up temporary user...');
+    
+    if (!testUserId) {
+      console.log('⚠️ No temp user to cleanup');
+      return;
+    }
+    
+    // Supprimer la collection
+    const PlayerCollection = (await import('../models/PlayerCollection')).default;
+    await PlayerCollection.deleteOne({ userId: testUserId });
+    console.log('✅ Deleted temporary collection');
+    
+    // Supprimer l'utilisateur
+    await UserData.deleteOne({ _id: testUserId });
+    console.log('✅ Deleted temporary user');
+    
+    // Supprimer tous les users de test qui traînent (nettoyage général)
+    const result = await UserData.deleteMany({ 
+      username: { $regex: '^(test_|api_)\\d+
+async function authenticateUser() {
+  return await createTempUser();
+}
+
+/**
+ * Test 1: GET /api/collection (collection complète)
+ */
+async function testGetCollection() {
+  try {
+    console.log('\n🎒 Testing GET /api/collection...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Cards types: ${data.data.collection.cards.length}`);
+    console.log(`✅ Gold: ${data.data.collection.gold}`);
+    console.log(`✅ Gems: ${data.data.collection.gems}`);
+    console.log(`✅ Active deck: ${data.data.collection.currentDeckIndex}`);
+    console.log(`✅ Chests: ${data.data.collection.chests.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 2: GET /api/collection/cards (cartes enrichies)
+ */
+async function testGetCollectionCards() {
+  try {
+    console.log('\n🃏 Testing GET /api/collection/cards...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/cards');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Cards: ${data.data.cards.length}`);
+    
+    // Afficher quelques cartes
+    data.data.cards.slice(0, 3).forEach((card: any) => {
+      console.log(`   - ${card.cardId}: ${card.count} cards, level ${card.level} (${card.cardInfo?.rarity})`);
+    });
+    
+    console.log(`✅ Total collected: ${data.data.stats.totalCardsCollected}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/cards failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 3: GET /api/collection/decks (tous les decks)
+ */
+async function testGetDecks() {
+  try {
+    console.log('\n🎴 Testing GET /api/collection/decks...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/decks');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Decks: ${data.data.decks.length}`);
+    console.log(`✅ Current deck: ${data.data.currentDeckIndex}`);
+    
+    // Afficher le deck actif
+    const activeDeck = data.data.decks.find((deck: any) => deck.isActive);
+    if (activeDeck) {
+      console.log(`✅ Active deck (${activeDeck.deckIndex}): ${activeDeck.totalElixirCost} total elixir`);
+      activeDeck.cards.forEach((slot: any, i: number) => {
+        console.log(`     ${i + 1}. ${slot.cardId} (${slot.cardInfo?.elixirCost} elixir)`);
+      });
+    }
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/decks failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 4: GET /api/collection/deck/0 (deck spécifique)
+ */
+async function testGetSpecificDeck() {
+  try {
+    console.log('\n🎯 Testing GET /api/collection/deck/0...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/deck/0');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Deck index: ${data.data.deckIndex}`);
+    console.log(`✅ Is active: ${data.data.isActive}`);
+    console.log(`✅ Total elixir: ${data.data.totalElixirCost}`);
+    console.log(`✅ Cards: ${data.data.cards.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/deck/0 failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 5: PUT /api/collection/deck (modifier un deck)
+ */
+async function testUpdateDeck() {
+  try {
+    console.log('\n✏️ Testing PUT /api/collection/deck...');
+    
+    // Essayer de modifier le deck 1 avec les mêmes cartes que le deck 0
+    const response = await makeAuthenticatedRequest('PUT', '/collection/deck', {
+      deckIndex: 1,
+      cardIds: ['knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon', 'knight', 'archers']
+    });
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Updated deck: ${data.data.deckIndex}`);
+    console.log(`✅ Cards in deck: ${data.data.cards.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ PUT /api/collection/deck failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 6: PUT /api/collection/active-deck/1 (changer deck actif)
+ */
+async function testSetActiveDeck() {
+  try {
+    console.log('\n🎯 Testing PUT /api/collection/active-deck/1...');
+    
+    const response = await makeAuthenticatedRequest('PUT', '/collection/active-deck/1');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ New active deck: ${data.data.currentDeckIndex}`);
+    console.log(`✅ Deck cards: ${data.data.deck.length}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ PUT /api/collection/active-deck/1 failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 7: POST /api/collection/add-cards (ajouter des cartes)
+ */
+async function testAddCards() {
+  try {
+    console.log('\n➕ Testing POST /api/collection/add-cards...');
+    
+    const response = await makeAuthenticatedRequest('POST', '/collection/add-cards', {
+      cardId: 'knight',
+      count: 5
+    });
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Updated card: ${data.data.card.cardId}`);
+    console.log(`✅ New count: ${data.data.card.count}`);
+    console.log(`✅ Total collected: ${data.data.newStats.totalCardsCollected}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ POST /api/collection/add-cards failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 8: POST /api/collection/upgrade-card (améliorer une carte)
+ */
+async function testUpgradeCard() {
+  try {
+    console.log('\n⬆️ Testing POST /api/collection/upgrade-card...');
+    
+    const response = await makeAuthenticatedRequest('POST', '/collection/upgrade-card', {
+      cardId: 'knight'
+    });
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Upgraded card: ${data.data.card.cardId}`);
+    console.log(`✅ New level: ${data.data.card.level}`);
+    console.log(`✅ Remaining cards: ${data.data.card.count}`);
+    console.log(`✅ Gold remaining: ${data.data.newGold}`);
+    console.log(`✅ Total upgrades: ${data.data.newStats.totalCardsUpgraded}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ POST /api/collection/upgrade-card failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Test 9: GET /api/collection/stats (statistiques)
+ */
+async function testGetStats() {
+  try {
+    console.log('\n📊 Testing GET /api/collection/stats...');
+    
+    const response = await makeAuthenticatedRequest('GET', '/collection/stats');
+    const data = response.data;
+    
+    console.log(`✅ Status: ${response.status}`);
+    console.log(`✅ Success: ${data.success}`);
+    console.log(`✅ Total collected: ${data.data.stats.totalCardsCollected}`);
+    console.log(`✅ Upgrades made: ${data.data.stats.totalCardsUpgraded}`);
+    console.log(`✅ Gold spent: ${data.data.stats.totalGoldSpent}`);
+    console.log(`✅ Average level: ${data.data.stats.averageCardLevel}`);
+    console.log(`✅ Current gold: ${data.data.resources.gold}`);
+    console.log(`✅ Current gems: ${data.data.resources.gems}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error('❌ GET /api/collection/stats failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Fonction principale de test
+ */
+async function runAllTests() {
+  console.log('🚀 Starting Collection API Tests with Temporary User...');
+  console.log('=======================================================');
+  
+  let authSuccess = false;
+  
+  try {
+    // D'abord créer et s'authentifier avec un utilisateur temporaire
+    authSuccess = await authenticateUser();
+    if (!authSuccess) {
+      console.log('❌ Authentication failed, stopping tests');
+      return;
+    }
+    
+    const tests = [
+      { name: 'Get Collection', fn: testGetCollection },
+      { name: 'Get Collection Cards', fn: testGetCollectionCards },
+      { name: 'Get All Decks', fn: testGetDecks },
+      { name: 'Get Specific Deck', fn: testGetSpecificDeck },
+      { name: 'Update Deck', fn: testUpdateDeck },
+      { name: 'Set Active Deck', fn: testSetActiveDeck },
+      { name: 'Add Cards', fn: testAddCards },
+      { name: 'Upgrade Card', fn: testUpgradeCard },
+      { name: 'Get Stats', fn: testGetStats }
+    ];
+    
+    let passed = 0;
+    let failed = 0;
+    
+    for (const test of tests) {
+      try {
+        const success = await test.fn();
+        if (success) {
+          passed++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`💥 Test "${test.name}" crashed:`, error);
+        failed++;
+      }
+      
+      // Petite pause entre les tests
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    console.log('\n=======================================================');
+    console.log('🎯 TEST RESULTS:');
+    console.log(`✅ Passed: ${passed}`);
+    console.log(`❌ Failed: ${failed}`);
+    console.log(`📊 Success Rate: ${Math.round((passed / (passed + failed)) * 100)}%`);
+    
+    if (failed === 0) {
+      console.log('🎉 All tests passed! Collection API is working perfectly!');
+    } else {
+      console.log('⚠️ Some tests failed. Check the logs above.');
+    }
+    
+  } catch (error) {
+    console.error('💥 Test suite crashed:', error);
+  } finally {
+    // Toujours nettoyer, même en cas d'erreur
+    if (authSuccess) {
+      await cleanupTempUser();
+    }
+  }
+}
+
+// Exécuter les tests si ce script est lancé directement
+if (require.main === module) {
+  runAllTests()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('💥 Test suite crashed:', error);
+      process.exit(1);
+    });
+}
+
+export { runAllTests }; } 
+    });
+    if (result.deletedCount > 0) {
+      console.log(`✅ Cleaned up ${result.deletedCount} old test users`);
+    }
+    
+    await mongoose.disconnect();
+    console.log('✅ Cleanup completed');
+    
+  } catch (error: any) {
+    console.error('❌ Cleanup failed:', error.message);
+    await mongoose.disconnect();
+  }
+}
+
+/**
+ * Étape 1: Créer et authentifier un utilisateur temporaire
  */
 async function authenticateUser() {
   try {
     console.log('🔐 Authenticating user...');
     
     const response = await makeRequest('POST', '/auth/login', {
-      identifier: 'Greg', // ou 'Gregs' si tu préfères
-      password: 'f674478165E!' // Remplace par le vrai mot de passe
+      identifier: 'Logan', // ou 'Gregs' si tu préfères
+      password: 'MOT_DE_PASSE_ICI' // Remplace par le vrai mot de passe
     });
     
     if (response.data.success) {
