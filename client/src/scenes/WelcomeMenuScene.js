@@ -131,115 +131,130 @@ class WelcomeMenuScene {
   /**
    * Create HTML interface overlay
    */
-  createHTMLInterface() {
-    // Create main overlay container
-    this.htmlOverlay = document.createElement('div');
-    this.htmlOverlay.id = 'welcome-overlay';
-    this.htmlOverlay.style.cssText = `
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: auto;
-  z-index: 1000;
-  font-family: 'Arial', sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-    
-    // Create welcome container
-    const welcomeContainer = document.createElement('div');
-    welcomeContainer.style.cssText = `
-      background: rgba(26, 26, 46, 0.9);
-      border: 2px solid rgba(74, 144, 226, 0.5);
-      border-radius: 20px;
-      padding: 60px 80px;
-      backdrop-filter: blur(15px);
-      pointer-events: auto;
-      text-align: center;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      max-width: 500px;
-      width: 90%;
-    `;
-    
-    welcomeContainer.innerHTML = `
-      <!-- Welcome Message -->
-      <div style="margin-bottom: 50px;">
-        <h1 id="welcome-title" style="color: #ffffff; font-size: 48px; margin: 0 0 20px 0; 
-                                     text-shadow: 2px 2px 4px rgba(0,0,0,0.7);">
-          Welcome Back!
-        </h1>
-        <h2 id="user-name" style="color: #4a90e2; font-size: 32px; margin: 0; font-weight: 300;">
-          Loading...
-        </h2>
-      </div>
-      
-      <!-- Action Buttons -->
-      <div style="display: flex; flex-direction: column; gap: 20px;">
-        <button id="play-btn" style="
-          padding: 20px 40px;
-          background: linear-gradient(45deg, #2ecc71, #27ae60);
-          border: none;
-          border-radius: 15px;
-          color: #ffffff;
-          font-size: 24px;
-          font-weight: bold;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-          box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
-        ">
-          ▶ Play Game
-        </button>
-        
-        <button id="wallet-btn" style="
-          padding: 15px 40px;
-          background: linear-gradient(45deg, #f6851b, #e2761b);
-          border: none;
-          border-radius: 15px;
-          color: #ffffff;
-          font-size: 18px;
-          font-weight: bold;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          opacity: 0.8;
-          box-shadow: 0 6px 15px rgba(246, 133, 27, 0.3);
-        ">
-          🦊 Connect Wallet (Coming Soon)
-        </button>
-      </div>
-      
-      <!-- User Info -->
-      <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(74, 144, 226, 0.3);">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="text-align: left;">
-            <p style="color: #a0a0a0; margin: 0; font-size: 14px;">Logged in as</p>
-            <p id="user-email" style="color: #ffffff; margin: 5px 0 0 0; font-size: 16px;">user@example.com</p>
-          </div>
-          
-          <button id="logout-btn" style="
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid #e74c3c;
-            border-radius: 8px;
-            color: #e74c3c;
-            padding: 8px 16px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-          ">
-            Logout
-          </button>
-        </div>
-      </div>
-    `;
-    
-    this.htmlOverlay.appendChild(welcomeContainer);
-    document.body.appendChild(this.htmlOverlay);
+createHTMLInterface() {
+  // Remove any existing overlay first
+  const existingOverlay = document.getElementById('welcome-overlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
   }
-
+  
+  // Create main overlay container
+  this.htmlOverlay = document.createElement('div');
+  this.htmlOverlay.id = 'welcome-overlay';
+  this.htmlOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+    z-index: 10000;
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+  
+  // Create welcome container avec pointer-events auto
+  const welcomeContainer = document.createElement('div');
+  welcomeContainer.style.cssText = `
+    background: rgba(26, 26, 46, 0.9);
+    border: 2px solid rgba(74, 144, 226, 0.5);
+    border-radius: 20px;
+    padding: 60px 80px;
+    backdrop-filter: blur(15px);
+    pointer-events: auto;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    max-width: 500px;
+    width: 90%;
+    z-index: 10001;
+    position: relative;
+  `;
+  
+  welcomeContainer.innerHTML = `
+    <!-- Le même HTML qu'avant mais avec un bouton qui marche -->
+    <div style="margin-bottom: 50px;">
+      <h1 id="welcome-title" style="color: #ffffff; font-size: 48px; margin: 0 0 20px 0; 
+                                   text-shadow: 2px 2px 4px rgba(0,0,0,0.7);">
+        Welcome Back!
+      </h1>
+      <h2 id="user-name" style="color: #4a90e2; font-size: 32px; margin: 0; font-weight: 300;">
+        Loading...
+      </h2>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <button id="play-btn" style="
+        padding: 20px 40px;
+        background: linear-gradient(45deg, #2ecc71, #27ae60);
+        border: none;
+        border-radius: 15px;
+        color: #ffffff;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
+        pointer-events: auto;
+        z-index: 10002;
+        position: relative;
+      ">
+        ▶ Play Game
+      </button>
+      
+      <button id="wallet-btn" style="
+        padding: 15px 40px;
+        background: linear-gradient(45deg, #f6851b, #e2761b);
+        border: none;
+        border-radius: 15px;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        opacity: 0.8;
+        box-shadow: 0 6px 15px rgba(246, 133, 27, 0.3);
+        pointer-events: auto;
+        z-index: 10002;
+        position: relative;
+      ">
+        🦊 Connect Wallet (Coming Soon)
+      </button>
+    </div>
+    
+    <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(74, 144, 226, 0.3);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="text-align: left;">
+          <p style="color: #a0a0a0; margin: 0; font-size: 14px;">Logged in as</p>
+          <p id="user-email" style="color: #ffffff; margin: 5px 0 0 0; font-size: 16px;">user@example.com</p>
+        </div>
+        
+        <button id="logout-btn" style="
+          background: rgba(231, 76, 60, 0.2);
+          border: 1px solid #e74c3c;
+          border-radius: 8px;
+          color: #e74c3c;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.3s ease;
+          pointer-events: auto;
+          z-index: 10002;
+          position: relative;
+        ">
+          Logout
+        </button>
+      </div>
+    </div>
+  `;
+  
+  this.htmlOverlay.appendChild(welcomeContainer);
+  document.body.appendChild(this.htmlOverlay);
+}
+  
   /**
    * Setup event listeners
    */
