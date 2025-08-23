@@ -146,21 +146,26 @@ class AuthFlowTester {
   private async testAuthentication(): Promise<boolean> {
     console.log(`   Authenticating user: ${TEST_USER.identifier}`);
     
-    const response = await this.makeRequest('/auth/login', 'POST', TEST_USER);
-    
-    if (response.success && response.data) {
-      this.accessToken = response.data.tokens.accessToken;
-      this.refreshToken = response.data.tokens.refreshToken;
-      this.userData = response.data.user;
+    try {
+      const response = await this.makeRequest('/auth/login', 'POST', TEST_USER);
       
-      console.log('✅ Authentication successful');
-      console.log(`   Welcome ${response.data.user.displayName}!`);
-      console.log(`   Level: ${response.data.user.level}`);
-      console.log(`   Trophies: ${response.data.user.trophies}`);
-      
-      return true;
-    } else {
-      console.log('❌ Authentication failed:', response.message);
+      if (response.success && response.data) {
+        this.accessToken = response.data.tokens.accessToken;
+        this.refreshToken = response.data.tokens.refreshToken;
+        this.userData = response.data.user;
+        
+        console.log('✅ Authentication successful');
+        console.log(`   Welcome ${response.data.user.displayName}!`);
+        console.log(`   Level: ${response.data.user.level}`);
+        console.log(`   Trophies: ${response.data.user.trophies}`);
+        
+        return true;
+      } else {
+        console.log('❌ Authentication failed:', response.message);
+        return false;
+      }
+    } catch (error: any) {
+      console.log('❌ Authentication request failed:', error.message);
       return false;
     }
   }
@@ -270,11 +275,17 @@ class AuthFlowTester {
         let responseData = '';
         res.on('data', chunk => responseData += chunk);
         res.on('end', () => {
+          console.log(`   Response status: ${res.statusCode}`);
+          console.log(`   Response headers:`, res.headers['content-type']);
+          console.log(`   Response body: ${responseData.substring(0, 200)}...`);
+          
           try {
             const jsonData = JSON.parse(responseData);
             resolve(jsonData);
           } catch (error) {
-            reject(new Error('Invalid JSON response'));
+            console.log(`   Failed to parse JSON. Raw response:`);
+            console.log(`   ${responseData}`);
+            reject(new Error(`Invalid JSON response. Status: ${res.statusCode}`));
           }
         });
       });
@@ -286,6 +297,7 @@ class AuthFlowTester {
       });
 
       if (postData) {
+        console.log(`   Sending POST data: ${postData}`);
         req.write(postData);
       }
       
