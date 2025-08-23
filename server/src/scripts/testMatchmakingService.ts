@@ -2,25 +2,28 @@ import { MatchmakingService, IQueuedPlayer, IMatch } from '../services/Matchmaki
 import { getActionLogger } from '../services/ActionLoggerService';
 import mongoose from 'mongoose';
 
+// Générer des ObjectId valides pour les tests
+const generateTestUserId = () => new mongoose.Types.ObjectId().toString();
+
 const TEST_PLAYERS: Omit<IQueuedPlayer, 'joinTime' | 'waitTime' | 'trophyRange' | 'maxWaitTime'>[] = [
   {
-    sessionId: 'player1', userId: 'user1', username: 'TestPlayer1',
+    sessionId: 'player1', userId: generateTestUserId(), username: 'TestPlayer1',
     trophies: 1000, level: 5, averageCardLevel: 3.2, region: 'EU'
   },
   {
-    sessionId: 'player2', userId: 'user2', username: 'TestPlayer2',
+    sessionId: 'player2', userId: generateTestUserId(), username: 'TestPlayer2',
     trophies: 1050, level: 6, averageCardLevel: 3.5, region: 'EU'
   },
   {
-    sessionId: 'player3', userId: 'user3', username: 'TestPlayer3',
+    sessionId: 'player3', userId: generateTestUserId(), username: 'TestPlayer3',
     trophies: 1200, level: 7, averageCardLevel: 4.0, region: 'US'
   },
   {
-    sessionId: 'player4', userId: 'user4', username: 'TestPlayer4',
+    sessionId: 'player4', userId: generateTestUserId(), username: 'TestPlayer4',
     trophies: 950, level: 4, averageCardLevel: 2.8, region: 'EU'
   },
   {
-    sessionId: 'player5', userId: 'user5', username: 'HighTrophyPlayer',
+    sessionId: 'player5', userId: generateTestUserId(), username: 'HighTrophyPlayer',
     trophies: 2000, level: 10, averageCardLevel: 8.0, region: 'ASIA'
   }
 ];
@@ -148,7 +151,7 @@ class MatchmakingTester {
     const tempPlayer = {
       ...TEST_PLAYERS[0],
       sessionId: 'timeout_test',
-      userId: 'timeout_user'
+      userId: generateTestUserId()
     };
     
     await this.matchmaking.addPlayerToQueue(tempPlayer);
