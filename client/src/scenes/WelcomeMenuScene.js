@@ -353,12 +353,15 @@ class WelcomeMenuScene {
   /**
    * Event handlers
    */
-  handlePlay() {
-    console.log('🎮 Play button clicked');
-    // TODO: Navigate to game lobby or matchmaking
-    alert('Game lobby coming soon!');
-  }
-
+handlePlay() {
+  console.log('🎮 Play button clicked - navigating to Clash Menu');
+  
+  // Navigate to clash menu scene
+  this.sceneManager.switchToScene('clashMenu', {
+    user: this.currentUser
+  }, 'slide');
+}
+  
   handleWallet() {
     console.log('🦊 Connect Wallet clicked');
     alert('MetaMask wallet integration coming in next update!');
