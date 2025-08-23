@@ -243,24 +243,43 @@ class WelcomeMenuScene {
   /**
    * Setup event listeners
    */
-  setupEventListeners() {
-    // Bind handlers
-    this.boundHandlers.set('play', this.handlePlay.bind(this));
-    this.boundHandlers.set('wallet', this.handleWallet.bind(this));
-    this.boundHandlers.set('logout', this.handleLogout.bind(this));
-    
-    // Add event listeners
+ setupEventListeners() {
+  // Bind handlers
+  this.boundHandlers.set('play', this.handlePlay.bind(this));
+  this.boundHandlers.set('wallet', this.handleWallet.bind(this));
+  this.boundHandlers.set('logout', this.handleLogout.bind(this));
+  
+  // SOLUTION FORCÉE : Attacher les listeners avec un délai et forcer les styles
+  setTimeout(() => {
     const playBtn = document.getElementById('play-btn');
     const walletBtn = document.getElementById('wallet-btn');
     const logoutBtn = document.getElementById('logout-btn');
     
-    playBtn?.addEventListener('click', this.boundHandlers.get('play'));
-    walletBtn?.addEventListener('click', this.boundHandlers.get('wallet'));
-    logoutBtn?.addEventListener('click', this.boundHandlers.get('logout'));
+    if (playBtn) {
+      // Forcer les styles pour s'assurer que le bouton est cliquable
+      playBtn.style.pointerEvents = 'auto';
+      playBtn.style.zIndex = '10001';
+      playBtn.style.position = 'relative';
+      
+      // Utiliser onclick au lieu d'addEventListener
+      playBtn.onclick = this.boundHandlers.get('play');
+      console.log('✅ Play button listener attached with onclick');
+    }
     
-    // Add hover effects
-    this.setupHoverEffects();
-  }
+    if (walletBtn) {
+      walletBtn.style.pointerEvents = 'auto';
+      walletBtn.onclick = this.boundHandlers.get('wallet');
+    }
+    
+    if (logoutBtn) {
+      logoutBtn.style.pointerEvents = 'auto';
+      logoutBtn.onclick = this.boundHandlers.get('logout');
+    }
+  }, 100);
+  
+  // Add hover effects
+  this.setupHoverEffects();
+}
 
   /**
    * Setup hover effects for buttons
