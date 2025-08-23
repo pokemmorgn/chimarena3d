@@ -232,10 +232,12 @@ async login(identifier, password) {
           
           try {
             // Se connecter à la WorldRoom avec le token
-            this.worldRoom = await this.client.joinOrCreate('world', {
-              authToken: data.authToken,
-              userData: data.userData
-            });
+this.worldRoom = await this.client.joinOrCreate('world', {
+  auth: {
+    userId: data.userData?.userId // <-- nécessaire pour onAuth côté serveur
+  },
+  region: data.userData?.region || 'eu' // optionnel, si utilisé
+});
             
             this.currentRoom = this.worldRoom;
             this.setupWorldRoomEvents();
