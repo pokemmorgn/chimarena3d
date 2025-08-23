@@ -239,15 +239,6 @@ const PlayerActionSchema = new Schema<IPlayerAction>({
   // Options du schema
   timestamps: false, // On gère manuellement timestamp et serverTimestamp
   
-  // Configuration d'index composés pour performance
-  index: [
-    { userId: 1, timestamp: -1 },           // Actions d'un user par date
-    { category: 1, timestamp: -1 },         // Actions par catégorie
-    { action: 1, timestamp: -1 },           // Actions spécifiques par date
-    { processed: 1, timestamp: 1 },         // Actions non traitées
-    { userId: 1, category: 1, timestamp: -1 } // User + catégorie + date
-  ],
-  
   toJSON: {
     transform: function(_doc: any, ret: any) {
       delete ret.__v;
@@ -255,6 +246,13 @@ const PlayerActionSchema = new Schema<IPlayerAction>({
     }
   }
 });
+
+// Configuration d'index composés pour performance
+PlayerActionSchema.index({ userId: 1, timestamp: -1 });           // Actions d'un user par date
+PlayerActionSchema.index({ category: 1, timestamp: -1 });         // Actions par catégorie
+PlayerActionSchema.index({ action: 1, timestamp: -1 });           // Actions spécifiques par date
+PlayerActionSchema.index({ processed: 1, timestamp: 1 });         // Actions non traitées
+PlayerActionSchema.index({ userId: 1, category: 1, timestamp: -1 }); // User + catégorie + date
 
 // Index TTL pour auto-suppression des anciennes actions (optionnel)
 // Garder les logs 90 jours pour l'IA, puis supprimer automatiquement
@@ -276,7 +274,7 @@ PlayerActionSchema.statics.createAction = function(
   action: ActionType,
   data: IActionData = {},
   metadata: IActionMetadata = {}
-): Promise<IPlayerAction> {
+) {
   
   // Auto-déterminer la catégorie selon l'action
   const categoryMapping: Record<string, ActionCategory> = {
