@@ -1,5 +1,4 @@
 import http from 'http';
-import querystring from 'querystring';
 
 /**
  * Script de test pour l'API Collection
