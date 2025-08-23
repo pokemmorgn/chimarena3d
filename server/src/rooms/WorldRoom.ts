@@ -51,7 +51,7 @@ export class WorldRoom extends Room<WorldRoomState> {
     autoKickAfterSeconds: 300,
   };
 
-  async onAuth(client: Client, options: any, request?: http.IncomingMessage) {
+async onAuth(_client: Client, options: any, _request?: http.IncomingMessage) {
     const userId = options?.auth?.userId;
     if (!userId) throw new ServerError(401, 'Authentication required');
     return { userId }; // 🔧 Injecte userId dans client.auth
