@@ -1,23 +1,28 @@
 import axios from 'axios';
+import ColyseusManager from './ColyseusManager';
 
 /**
- * Network Manager for Client
- * Centralized network communication, token management, and API calls
+ * Network Manager - Version hybride REST + Colyseus
+ * Gère l'authentification via Colyseus et les autres API via REST
  */
 class NetworkManager {
   constructor() {
-this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:2567/api';
-this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
+    this.apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:2567/api';
+    this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
     
     // Storage keys
     this.ACCESS_TOKEN_KEY = 'clash_royale_access_token';
     this.REFRESH_TOKEN_KEY = 'clash_royale_refresh_token';
     this.USER_DATA_KEY = 'clash_royale_user_data';
     
-    // Create axios instances for different endpoints
-    this.authAPI = this.createAPIInstance('/auth');
+    // Colyseus Manager
+    this.colyseusManager = ColyseusManager;
+    
+    // Create axios instances for non-auth endpoints
     this.gameAPI = this.createAPIInstance('/game');
     this.userAPI = this.createAPIInstance('/user');
+    this.cardAPI = this.createAPIInstance('/cards');
+    this.collectionAPI = this.createAPIInstance('/collection');
     
     // Network state
     this.isOnline = navigator.onLine;
@@ -31,6 +36,29 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
     // Initialize
     this.setupNetworkMonitoring();
     this.setupRequestInterceptors();
+    this.setupColyseusEventListeners();
+  }
+
+  /**
+   * Initialiser les connexions
+   */
+  async initialize() {
+    try {
+      console.log('🌐 Initializing NetworkManager...');
+      
+      // Initialiser Colyseus
+      await this.colyseusManager.initialize();
+      
+      // Se connecter à l'AuthRoom
+      await this.colyseusManager.connectToAuthRoom();
+      
+      console.log('✅ NetworkManager initialized with Colyseus');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize NetworkManager:', error);
+      throw error;
+    }
   }
 
   /**
@@ -65,10 +93,10 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
   }
 
   /**
-   * Setup request/response interceptors for all API instances
+   * Setup request/response interceptors for REST API instances
    */
   setupRequestInterceptors() {
-    const apis = [this.authAPI, this.gameAPI, this.userAPI];
+    const apis = [this.gameAPI, this.userAPI, this.cardAPI, this.collectionAPI];
     
     apis.forEach(api => {
       // Request interceptor
@@ -101,24 +129,27 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
           return response;
         },
         async (error) => {
-          const originalRequest = error.config;
-          
-          // Handle token refresh
+          // Handle token refresh via Colyseus
           if (error.response?.status === 401 && 
-              error.response?.data?.code === 'TOKEN_EXPIRED' && 
-              !originalRequest._retry) {
-            
-            originalRequest._retry = true;
+              error.response?.data?.code === 'TOKEN_EXPIRED') {
             
             try {
-              await this.refreshToken();
-              const newToken = this.getAccessToken();
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              return api(originalRequest);
+              const refreshToken = this.getRefreshToken();
+              if (refreshToken) {
+                const result = await this.colyseusManager.refreshToken(refreshToken);
+                if (result.success) {
+                  this.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
+                  this.setUserData(result.user);
+                  
+                  // Retry original request
+                  const originalRequest = error.config;
+                  originalRequest.headers.Authorization = `Bearer ${result.tokens.accessToken}`;
+                  return api(originalRequest);
+                }
+              }
             } catch (refreshError) {
               this.clearTokens();
               this.emit('auth:token_expired');
-              return Promise.reject(refreshError);
             }
           }
           
@@ -131,6 +162,51 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
           return Promise.reject(error);
         }
       );
+    });
+  }
+
+  /**
+   * Setup Colyseus event listeners
+   */
+  setupColyseusEventListeners() {
+    // Auth events from ColyseusManager
+    this.colyseusManager.on('auth:login_success', (user) => {
+      this.emit('auth:login_success', user);
+    });
+    
+    this.colyseusManager.on('auth:login_error', (error) => {
+      this.emit('auth:login_error', error);
+    });
+    
+    this.colyseusManager.on('auth:logout', () => {
+      this.clearTokens();
+      this.emit('auth:logout');
+    });
+    
+    this.colyseusManager.on('auth:token_refreshed', (user) => {
+      this.emit('auth:token_refreshed', user);
+    });
+    
+    // Connection events
+    this.colyseusManager.on('connection:connected', (data) => {
+      this.setConnectionStatus('connected');
+    });
+    
+    this.colyseusManager.on('connection:error', (data) => {
+      this.setConnectionStatus('disconnected');
+    });
+    
+    this.colyseusManager.on('connection:connecting', (data) => {
+      this.setConnectionStatus('connecting');
+    });
+    
+    // User events
+    this.colyseusManager.on('user:connected', (data) => {
+      this.emit('user:connected', data);
+    });
+    
+    this.colyseusManager.on('user:disconnected', (data) => {
+      this.emit('user:disconnected', data);
     });
   }
 
@@ -166,7 +242,8 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
    * Token management
    */
   getAccessToken() {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    // Priorité : ColyseusManager > localStorage
+    return this.colyseusManager.getAccessToken() || localStorage.getItem(this.ACCESS_TOKEN_KEY);
   }
 
   getRefreshToken() {
@@ -195,22 +272,59 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
   }
 
   getUserData() {
-    const data = localStorage.getItem(this.USER_DATA_KEY);
-    return data ? JSON.parse(data) : null;
+    // Priorité : ColyseusManager > localStorage
+    return this.colyseusManager.getCurrentUser() || 
+           (localStorage.getItem(this.USER_DATA_KEY) ? 
+            JSON.parse(localStorage.getItem(this.USER_DATA_KEY)) : null);
   }
 
   /**
-   * Authentication API calls
+   * Authentication via Colyseus AuthRoom
+   */
+  async login(identifier, password) {
+    try {
+      console.log('🔑 Logging in via Colyseus...');
+      
+      // Ensure connected to AuthRoom
+      if (!this.colyseusManager.isConnectedToAuth()) {
+        await this.colyseusManager.connectToAuthRoom();
+      }
+      
+      // Login via Colyseus
+      const result = await this.colyseusManager.login(identifier, password);
+      
+      if (result.success) {
+        // Store tokens locally
+        this.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
+        this.setUserData(result.user);
+        
+        console.log('✅ Login successful via Colyseus');
+      }
+      
+      return this.formatResponse(result);
+      
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      return this.handleError(error, 'LOGIN_ERROR');
+    }
+  }
+
+  /**
+   * Register - Still via REST API for now
    */
   async register(userData) {
     try {
-      const response = await this.authAPI.post('/register', userData);
+      // Create a temporary auth API instance for registration
+      const authAPI = this.createAPIInstance('/auth');
+      const response = await authAPI.post('/register', userData);
       
       if (response.data.success) {
-        const { user, tokens } = response.data.data;
-        this.setTokens(tokens.accessToken, tokens.refreshToken);
-        this.setUserData(user);
-        this.emit('auth:register_success', user);
+        // After successful registration, login via Colyseus
+        const loginResult = await this.login(userData.username, userData.password);
+        if (loginResult.success) {
+          this.emit('auth:register_success', loginResult.user);
+        }
+        return loginResult;
       }
       
       return this.formatResponse(response.data);
@@ -219,87 +333,74 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
     }
   }
 
-  async login(identifier, password) {
-    try {
-      const response = await this.authAPI.post('/login', {
-        identifier,
-        password
-      });
-      
-      if (response.data.success) {
-        const { user, tokens } = response.data.data;
-        this.setTokens(tokens.accessToken, tokens.refreshToken);
-        this.setUserData(user);
-        this.emit('auth:login_success', user);
-      }
-      
-      return this.formatResponse(response.data);
-    } catch (error) {
-      return this.handleError(error, 'LOGIN_ERROR');
-    }
-  }
-
+  /**
+   * Logout via Colyseus
+   */
   async logout() {
     try {
-      const refreshToken = this.getRefreshToken();
-      if (refreshToken) {
-        await this.authAPI.post('/logout', { refreshToken });
-      }
+      await this.colyseusManager.logout();
+      console.log('✅ Logged out via Colyseus');
     } catch (error) {
-      console.warn('Logout request failed:', error);
+      console.warn('Logout error:', error);
     } finally {
       this.clearTokens();
-      this.emit('auth:logout');
     }
   }
 
-  async refreshToken() {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
+  /**
+   * Join World Room
+   */
+  async joinWorldRoom() {
     try {
-      const response = await this.authAPI.post('/refresh', { refreshToken });
-      
-      if (response.data.success) {
-        const { tokens } = response.data.data;
-        this.setTokens(tokens.accessToken, tokens.refreshToken);
-        this.emit('auth:token_refreshed');
-        return tokens;
-      }
-      
-      throw new Error('Token refresh failed');
+      const worldRoom = await this.colyseusManager.joinWorldRoom();
+      this.emit('world:joined', worldRoom);
+      return worldRoom;
     } catch (error) {
-      this.clearTokens();
-      this.emit('auth:refresh_failed');
+      console.error('❌ Failed to join world room:', error);
       throw error;
     }
   }
 
-  async getProfile() {
+  /**
+   * Verify token via Colyseus
+   */
+  async verifyToken() {
     try {
-      const response = await this.authAPI.get('/profile');
-      
-      if (response.data.success) {
-        const user = response.data.data.user;
-        this.setUserData(user);
-        return this.formatResponse(response.data);
+      // If we have an active Colyseus connection, consider token valid
+      if (this.colyseusManager.isConnectedToAuth() && this.colyseusManager.getCurrentUser()) {
+        return true;
       }
       
-      return this.formatResponse(response.data);
+      // Try to refresh with stored refresh token
+      const refreshToken = this.getRefreshToken();
+      if (refreshToken) {
+        const result = await this.colyseusManager.refreshToken(refreshToken);
+        if (result.success) {
+          this.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
+          this.setUserData(result.user);
+          return true;
+        }
+      }
+      
+      return false;
+      
     } catch (error) {
-      return this.handleError(error, 'PROFILE_ERROR');
+      console.warn('Token verification failed:', error);
+      return false;
     }
   }
 
-  async verifyToken() {
-    try {
-      const response = await this.authAPI.get('/verify-token');
-      return response.data.success;
-    } catch (error) {
-      return false;
-    }
+  /**
+   * Set connection status
+   */
+  setConnectionStatus(status) {
+    const previousStatus = this.connectionStatus;
+    this.connectionStatus = status;
+    
+    this.emit('connection:status_changed', {
+      current: status,
+      previous: previousStatus
+    });
   }
 
   /**
@@ -310,37 +411,28 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
       this.connectionStatus = 'connecting';
       this.emit('connection:checking');
       
-      const response = await axios.get(`${this.apiUrl}/health`, { timeout: 5000 });
+      // Check both REST API and Colyseus
+      const [restCheck, colyseusCheck] = await Promise.allSettled([
+        axios.get(`${this.apiUrl}/health`, { timeout: 5000 }),
+        this.colyseusManager.isConnectedToAuth() ? Promise.resolve(true) : this.colyseusManager.connectToAuthRoom()
+      ]);
       
-      if (response.status === 200) {
+      const restOK = restCheck.status === 'fulfilled' && restCheck.value.status === 200;
+      const colyseusOK = colyseusCheck.status === 'fulfilled';
+      
+      if (restOK && colyseusOK) {
         this.connectionStatus = 'connected';
         this.retryAttempts = 0;
         this.emit('connection:established');
         return true;
       }
       
-      throw new Error('Health check failed');
+      throw new Error('Connection check failed');
     } catch (error) {
       this.connectionStatus = 'disconnected';
       this.emit('connection:failed', error);
       return false;
     }
-  }
-
-  async retryConnection() {
-    if (this.retryAttempts >= this.maxRetryAttempts) {
-      this.emit('connection:max_retries_reached');
-      return false;
-    }
-
-    this.retryAttempts++;
-    this.emit('connection:retrying', this.retryAttempts);
-    
-    // Exponential backoff
-    const delay = Math.pow(2, this.retryAttempts) * 1000;
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    return this.checkConnection();
   }
 
   /**
@@ -351,7 +443,10 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
       success: data.success,
       message: data.message,
       data: data.data || null,
-      code: data.code || null
+      code: data.code || null,
+      user: data.user || null,
+      tokens: data.tokens || null,
+      collection: data.collection || null
     };
   }
 
@@ -378,18 +473,85 @@ this.serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
   }
 
   /**
+   * REST API methods (for non-auth endpoints)
+   */
+  async getProfile() {
+    try {
+      const response = await this.userAPI.get('/profile');
+      
+      if (response.data.success) {
+        const user = response.data.data.user;
+        this.setUserData(user);
+        return this.formatResponse(response.data);
+      }
+      
+      return this.formatResponse(response.data);
+    } catch (error) {
+      return this.handleError(error, 'PROFILE_ERROR');
+    }
+  }
+
+  async getCards() {
+    try {
+      const response = await this.cardAPI.get('/');
+      return this.formatResponse(response.data);
+    } catch (error) {
+      return this.handleError(error, 'CARDS_ERROR');
+    }
+  }
+
+  async getCollection() {
+    try {
+      const response = await this.collectionAPI.get('/');
+      return this.formatResponse(response.data);
+    } catch (error) {
+      return this.handleError(error, 'COLLECTION_ERROR');
+    }
+  }
+
+  /**
    * Utility methods
    */
   isAuthenticated() {
-    return !!this.getAccessToken();
+    return this.colyseusManager.getCurrentUser() !== null && !!this.getAccessToken();
   }
 
   getConnectionStatus() {
     return {
       isOnline: this.isOnline,
       connectionStatus: this.connectionStatus,
-      retryAttempts: this.retryAttempts
+      retryAttempts: this.retryAttempts,
+      colyseus: this.colyseusManager.getConnectionStatus()
     };
+  }
+
+  /**
+   * Get Colyseus manager for direct access
+   */
+  getColyseusManager() {
+    return this.colyseusManager;
+  }
+
+  /**
+   * Ping to maintain connection
+   */
+  ping() {
+    this.colyseusManager.ping();
+  }
+
+  /**
+   * Cleanup and dispose
+   */
+  dispose() {
+    console.log('🧹 Disposing NetworkManager...');
+    
+    // Dispose Colyseus manager
+    this.colyseusManager.dispose();
+    
+    // Clear event listeners
+    this.eventListeners.clear();
+    
+    console.log('✅ NetworkManager disposed');
   }
 
   // Singleton pattern
