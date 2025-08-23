@@ -174,7 +174,7 @@ const CardDataSchema = new Schema<ICardData>({
   arena: {
     type: Number,
     required: [true, 'Arena is required'],
-    min: [1, 'Arena must be at least 1'],
+    min: [0, 'Arena must be at least 0'], // Training Camp = Arena 0
     max: [15, 'Arena cannot exceed 15']
   },
   
