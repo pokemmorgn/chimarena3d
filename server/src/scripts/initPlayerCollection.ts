@@ -39,7 +39,7 @@ const DEFAULT_DECK = [
 /**
  * Créer une collection initiale pour un utilisateur
  */
-async function createInitialCollection(userId: string): Promise<any> {
+async function createInitialCollection(userId: string | mongoose.Types.ObjectId): Promise<any> {
   try {
     console.log(`🎒 Creating initial collection for user: ${userId}`);
     
@@ -153,7 +153,7 @@ async function testCreateCollection() {
     console.log(`👤 Found user: ${user.username} (${user._id})`);
     
     // Créer la collection
-    const collection = await createInitialCollection(user._id.toString());
+    const collection = await createInitialCollection(user._id as mongoose.Types.ObjectId);
     
     // Tester les méthodes
     console.log('\n🧪 Testing collection methods:');
@@ -177,7 +177,7 @@ async function testCreateCollection() {
     // Test getDeck
     const deck = collection.getDeck(0);
     console.log(`   - Deck 0: ${deck.length} cards`);
-    deck.forEach((slot, i) => {
+    deck.forEach((slot: any, i: number) => {
       console.log(`     ${i + 1}. ${slot.cardId}`);
     });
     
@@ -207,7 +207,7 @@ async function initializeAllUsersCollections() {
     
     for (const user of users) {
       try {
-        const collection = await createInitialCollection(user._id.toString());
+        const collection = await createInitialCollection(user._id as mongoose.Types.ObjectId);
         if (collection.createdAt.getTime() === collection.updatedAt.getTime()) {
           created++;
           console.log(`✅ Created collection for ${user.username}`);
