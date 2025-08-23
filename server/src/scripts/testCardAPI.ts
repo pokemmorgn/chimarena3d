@@ -1,20 +1,43 @@
-import axios from 'axios';
+import http from 'http';
 
 /**
  * Script de test pour l'API des cartes
- * Teste toutes les routes depuis le serveur local
+ * Teste toutes les routes depuis le serveur local (sans axios)
  */
 
 const API_BASE_URL = 'http://localhost:2567/api';
 
-// Configuration axios
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 5000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+/**
+ * Fonction helper pour faire des requêtes HTTP
+ */
+function makeRequest(path: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const url = `${API_BASE_URL}${path}`;
+    
+    http.get(url, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          const jsonData = JSON.parse(data);
+          resolve({
+            status: res.statusCode,
+            data: jsonData
+          });
+        } catch (error) {
+          reject(new Error(`Failed to parse JSON: ${error}`));
+        }
+      });
+      
+    }).on('error', (error) => {
+      reject(error);
+    });
+  });
+}
 
 /**
  * Test de santé du serveur
@@ -22,7 +45,7 @@ const api = axios.create({
 async function testServerHealth() {
   try {
     console.log('🏥 Testing server health...');
-    const response = await api.get('/health');
+    const response = await makeRequest('/health');
     
     if (response.data.success) {
       console.log('✅ Server is healthy');
@@ -44,7 +67,7 @@ async function testGetAllCards() {
   try {
     console.log('\n🃏 Testing GET /api/cards...');
     
-    const response = await api.get('/cards');
+    const response = await makeRequest('/cards');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -59,7 +82,7 @@ async function testGetAllCards() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ GET /api/cards failed:', error.response?.data || error.message);
+    console.error('❌ GET /api/cards failed:', error.message);
     return false;
   }
 }
@@ -71,7 +94,7 @@ async function testGetSpecificCard() {
   try {
     console.log('\n🏰 Testing GET /api/cards/knight...');
     
-    const response = await api.get('/cards/knight');
+    const response = await makeRequest('/cards/knight');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -83,7 +106,7 @@ async function testGetSpecificCard() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ GET /api/cards/knight failed:', error.response?.data || error.message);
+    console.error('❌ GET /api/cards/knight failed:', error.message);
     return false;
   }
 }
@@ -95,7 +118,7 @@ async function testGetCardStats() {
   try {
     console.log('\n📊 Testing GET /api/cards/knight/stats/3...');
     
-    const response = await api.get('/cards/knight/stats/3');
+    const response = await makeRequest('/cards/knight/stats/3');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -110,7 +133,7 @@ async function testGetCardStats() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ GET /api/cards/knight/stats/3 failed:', error.response?.data || error.message);
+    console.error('❌ GET /api/cards/knight/stats/3 failed:', error.message);
     return false;
   }
 }
@@ -122,7 +145,7 @@ async function testGetArenaCards() {
   try {
     console.log('\n🏟️ Testing GET /api/cards/arena/1...');
     
-    const response = await api.get('/cards/arena/1');
+    const response = await makeRequest('/cards/arena/1');
     const data = response.data;
     
     console.log(`✅ Status: ${response.status}`);
@@ -137,7 +160,7 @@ async function testGetArenaCards() {
     
     return true;
   } catch (error: any) {
-    console.error('❌ GET /api/cards/arena/1 failed:', error.response?.data || error.message);
+    console.error('❌ GET /api/cards/arena/1 failed:', error.message);
     return false;
   }
 }
@@ -232,7 +255,7 @@ async function runAllTests() {
     { name: 'Get Card Stats', fn: testGetCardStats },
     { name: 'Get Arena Cards', fn: testGetArenaCards },
     { name: 'Search Cards', fn: testSearchCards },
-    { name: 'Get Statistics', fn: testGetCardStats },
+    { name: 'Get Statistics', fn: testGetCardStatsSummary },
     { name: 'Test Filters', fn: testCardFilters }
   ];
   
