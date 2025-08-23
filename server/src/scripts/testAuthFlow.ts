@@ -254,12 +254,16 @@ class AuthFlowTester {
 
   private async makeRequest(endpoint: string, method: string = 'GET', data?: any): Promise<any> {
     return new Promise((resolve, reject) => {
-      const url = new URL(endpoint, API_BASE_URL);
+      // Construire l'URL correctement
+      const fullUrl = `${API_BASE_URL}/${endpoint}`;
+      const url = new URL(fullUrl);
       const postData = data ? JSON.stringify(data) : null;
+      
+      console.log(`   Making ${method} request to: ${fullUrl}`);
       
       const options: any = {
         hostname: url.hostname,
-        port: url.port || 80,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
         path: url.pathname,
         method: method,
         headers: {
@@ -277,7 +281,10 @@ class AuthFlowTester {
         res.on('end', () => {
           console.log(`   Response status: ${res.statusCode}`);
           console.log(`   Response headers:`, res.headers['content-type']);
-          console.log(`   Response body: ${responseData.substring(0, 200)}...`);
+          
+          if (res.statusCode !== 200) {
+            console.log(`   Error response body: ${responseData.substring(0, 200)}...`);
+          }
           
           try {
             const jsonData = JSON.parse(responseData);
@@ -307,12 +314,14 @@ class AuthFlowTester {
 
   private async makeAuthenticatedRequest(endpoint: string, method: string = 'GET', data?: any): Promise<any> {
     return new Promise((resolve, reject) => {
-      const url = new URL(endpoint, API_BASE_URL);
+      // Construire l'URL correctement
+      const fullUrl = `${API_BASE_URL}/${endpoint}`;
+      const url = new URL(fullUrl);
       const postData = data ? JSON.stringify(data) : null;
       
       const options: any = {
         hostname: url.hostname,
-        port: url.port || 80,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
         path: url.pathname,
         method: method,
         headers: {
@@ -333,7 +342,7 @@ class AuthFlowTester {
             const jsonData = JSON.parse(responseData);
             resolve(jsonData);
           } catch (error) {
-            reject(new Error('Invalid JSON response'));
+            reject(new Error(`Invalid JSON response. Status: ${res.statusCode}`));
           }
         });
       });
