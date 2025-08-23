@@ -2,14 +2,15 @@ import GameEngine from '@core/GameEngine';
 import SceneManager from '@core/SceneManager';
 import GameState from '@core/GameState';
 import NetworkManager from '@services/NetworkManager';
+import ColyseusManager from '@services/ColyseusManager';
 
 // Import scenes
 import LoginScene from '@scenes/LoginScene';
 import WelcomeMenuScene from '@scenes/WelcomeMenuScene';
 
 /**
- * Application Entry Point
- * Initializes the entire game application and manages the startup process
+ * Application Entry Point - Version avec Colyseus
+ * Initialise l'application complète avec support WebSocket via Colyseus
  */
 class ClashRoyaleApp {
   constructor() {
@@ -18,6 +19,7 @@ class ClashRoyaleApp {
     this.sceneManager = null;
     this.gameState = GameState;
     this.networkManager = NetworkManager;
+    this.colyseusManager = ColyseusManager;
     
     // Canvas element
     this.canvas = null;
@@ -30,7 +32,7 @@ class ClashRoyaleApp {
     this.loadStartTime = performance.now();
     this.initSteps = [];
     
-    console.log('🚀 ClashRoyale App created');
+    console.log('🚀 ClashRoyale App created with Colyseus support');
   }
 
   /**
@@ -38,7 +40,7 @@ class ClashRoyaleApp {
    */
   async initialize() {
     try {
-      console.log('🚀 Starting ClashRoyale application...');
+      console.log('🚀 Starting ClashRoyale application with Colyseus...');
       this.showLoadingScreen();
       
       // Step 1: Initialize canvas and WebGL context
@@ -56,16 +58,19 @@ class ClashRoyaleApp {
       // Step 5: Initialize game state
       await this.initializeGameState();
       
-      // Step 6: Setup global event listeners
+      // Step 6: Initialize network connections (REST + Colyseus)
+      await this.initializeNetworkConnections();
+      
+      // Step 7: Setup global event listeners
       this.setupGlobalEventListeners();
       
-      // Step 7: Setup error handling
+      // Step 8: Setup error handling
       this.setupErrorHandling();
       
-      // Step 8: Determine initial scene
+      // Step 9: Determine initial scene
       await this.determineInitialScene();
       
-      // Step 9: Start the application
+      // Step 10: Start the application
       this.startApplication();
       
       this.isInitialized = true;
@@ -180,6 +185,28 @@ class ClashRoyaleApp {
   }
 
   /**
+   * Initialize network connections (NEW STEP)
+   */
+  async initializeNetworkConnections() {
+    this.updateLoadingStatus('Connecting to Game Server...');
+    
+    try {
+      // Initialize NetworkManager (which will initialize ColyseusManager)
+      await this.networkManager.initialize();
+      
+      console.log('✅ Network connections initialized');
+      this.logInitStep('NetworkConnections', 'REST API + Colyseus WebSocket ready');
+      
+    } catch (error) {
+      console.error('⚠️ Network initialization failed, continuing in offline mode:', error);
+      this.logInitStep('NetworkConnections', 'Failed - continuing offline');
+      
+      // Don't throw error, allow offline mode
+      this.showNetworkStatus('Failed to connect to game server. Some features may be limited.', 'warning');
+    }
+  }
+
+  /**
    * Setup global event listeners
    */
   setupGlobalEventListeners() {
@@ -194,9 +221,15 @@ class ClashRoyaleApp {
     this.gameState.on('auth:logout', this.handleUserLogout.bind(this));
     this.gameState.on('scene:changed', this.handleSceneChange.bind(this));
     
-    // Network events
+    // Network events (REST)
     this.networkManager.on('network:offline', this.handleNetworkOffline.bind(this));
     this.networkManager.on('network:online', this.handleNetworkOnline.bind(this));
+    
+    // Colyseus events
+    this.colyseusManager.on('connection:connected', this.handleColyseusConnected.bind(this));
+    this.colyseusManager.on('connection:error', this.handleColyseusError.bind(this));
+    this.colyseusManager.on('auth:login_success', this.handleColyseusLoginSuccess.bind(this));
+    this.colyseusManager.on('world:joined', this.handleWorldJoined.bind(this));
     
     // Scene manager events
     this.sceneManager.on('scene:switched', this.handleSceneSwitched.bind(this));
@@ -232,13 +265,27 @@ class ClashRoyaleApp {
   async determineInitialScene() {
     this.updateLoadingStatus('Checking Authentication...');
     
-    if (this.gameState.isUserAuthenticated()) {
-      console.log('🔐 User is authenticated, showing welcome menu');
-      await this.sceneManager.switchToScene('welcomeMenu', {
-        user: this.gameState.getUser()
-      }, 'instant');
-    } else {
-      console.log('🔑 User not authenticated, showing login');
+    try {
+      // Try to verify existing token via Colyseus
+      const isAuthenticated = await this.networkManager.verifyToken();
+      
+      if (isAuthenticated) {
+        const user = this.networkManager.getUserData();
+        console.log('🔐 User is authenticated via Colyseus, showing welcome menu');
+        
+        // Update game state
+        this.gameState.setAuthenticated(user, this.networkManager.getAccessToken());
+        
+        await this.sceneManager.switchToScene('welcomeMenu', {
+          user: user
+        }, 'instant');
+      } else {
+        console.log('🔑 User not authenticated, showing login');
+        await this.sceneManager.switchToScene('login', {}, 'instant');
+      }
+      
+    } catch (error) {
+      console.warn('Authentication check failed, showing login:', error);
       await this.sceneManager.switchToScene('login', {}, 'instant');
     }
     
@@ -255,24 +302,62 @@ class ClashRoyaleApp {
     // Start session tracking
     this.gameState.startSession();
     
+    // Start connection heartbeat
+    this.startConnectionHeartbeat();
+    
     // Mark app as ready
     document.body.classList.add('app-ready');
     
-    console.log('▶️ Application started successfully');
-    this.logInitStep('Start', 'Game loop and systems running');
+    console.log('▶️ Application started successfully with Colyseus');
+    this.logInitStep('Start', 'Game loop and WebSocket systems running');
   }
 
   /**
-   * Event Handlers
+   * Start connection heartbeat to maintain WebSocket
+   */
+  startConnectionHeartbeat() {
+    // Ping every 30 seconds to maintain connection
+    setInterval(() => {
+      if (this.networkManager.isAuthenticated()) {
+        this.networkManager.ping();
+      }
+    }, 30000);
+  }
+
+  /**
+   * NEW Event Handlers for Colyseus
+   */
+  handleColyseusConnected(data) {
+    console.log('🔌 Colyseus connected:', data);
+    this.showNetworkStatus('Connected to game server', 'success');
+  }
+
+  handleColyseusError(data) {
+    console.warn('⚠️ Colyseus connection error:', data);
+    this.showNetworkStatus('Game server connection lost. Reconnecting...', 'warning');
+  }
+
+  handleColyseusLoginSuccess(user) {
+    console.log('✅ Colyseus authentication successful:', user.username);
+    this.gameState.setAuthenticated(user, this.networkManager.getAccessToken());
+  }
+
+  handleWorldJoined(worldRoom) {
+    console.log('🌍 Joined world room:', worldRoom.id);
+    this.showNetworkStatus('Joined game world!', 'success');
+    
+    // Could transition to world scene here
+    // this.sceneManager.switchToScene('world', { room: worldRoom });
+  }
+
+  /**
+   * Existing Event Handlers (updated)
    */
   handleWindowResize() {
-    // The game engine handles its own resize through ResizeObserver
-    // This is for any additional app-level resize handling
     console.log('📐 Window resized');
   }
 
   handleGlobalKeyDown(event) {
-    // Global keyboard shortcuts
     switch (event.code) {
       case 'F1':
         event.preventDefault();
@@ -286,8 +371,13 @@ class ClashRoyaleApp {
         }
         break;
         
+      case 'F2':
+        // Debug: Show Colyseus status
+        event.preventDefault();
+        console.log('🔧 Colyseus Status:', this.colyseusManager.getConnectionStatus());
+        break;
+        
       case 'Escape':
-        // Handle escape key (could pause game, close modals, etc.)
         this.handleEscapeKey();
         break;
     }
@@ -295,36 +385,26 @@ class ClashRoyaleApp {
 
   handleUserLogin(user) {
     console.log('👤 User logged in:', user.username);
-    
-    // Could trigger analytics, notifications, etc.
     this.gameState.setLoading(false);
   }
 
   handleUserLogout() {
     console.log('🚪 User logged out');
-    
-    // Clean up user-specific data
     this.gameState.setLoading(false);
   }
 
   handleSceneChange(data) {
     console.log(`🎬 Scene changed: ${data.previous} → ${data.current}`);
-    
-    // Update game state
     this.gameState.setCurrentScene(data.current);
   }
 
   handleSceneSwitched(data) {
     console.log(`✅ Scene switch complete: ${data.name}`);
-    
-    // Scene switch completed, hide any loading indicators
     this.gameState.setLoading(false);
   }
 
   handleTransitionStart(data) {
     console.log(`🔄 Scene transition started: ${data.from} → ${data.to}`);
-    
-    // Show loading if transition is expected to take time
     this.gameState.setLoading(true, `Loading ${data.to}...`);
   }
 
@@ -336,26 +416,25 @@ class ClashRoyaleApp {
   handleNetworkOnline() {
     console.log('📡 Network connection restored');
     this.showNetworkStatus('Connection restored', 'success');
+    
+    // Try to reconnect Colyseus
+    if (!this.colyseusManager.isConnectedToAuth()) {
+      this.colyseusManager.connectToAuthRoom().catch(console.error);
+    }
   }
 
   handleApplicationError(error) {
     console.error('🚨 Application error:', error);
-    
-    // Could send to error reporting service
-    // For now, just show user-friendly message
     this.showErrorNotification('Something went wrong. Please refresh the page.');
   }
 
   handleEscapeKey() {
-    // Handle escape key based on current scene
     const currentScene = this.gameState.getCurrentScene();
     
     switch (currentScene) {
       case 'login':
-        // Could close any modals or reset form
         break;
       case 'welcomeMenu':
-        // Could show settings or logout confirmation
         break;
     }
   }
@@ -363,6 +442,8 @@ class ClashRoyaleApp {
   handleForceRefresh() {
     const confirmed = confirm('Force refresh the application? Any unsaved progress will be lost.');
     if (confirmed) {
+      // Cleanup Colyseus connections before refresh
+      this.networkManager.dispose();
       window.location.reload();
     }
   }
@@ -396,7 +477,9 @@ class ClashRoyaleApp {
                     border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto;"></div>
         <p id="loading-status" style="font-size: 18px; margin-top: 20px;">Initializing...</p>
         <div style="margin-top: 40px; font-size: 12px; color: #666;">
-          <p>Loading game engine and assets...</p>
+          <p>🎮 Loading game engine and 3D graphics</p>
+          <p>🔌 Connecting to game server via WebSocket</p>
+          <p>⚡ Preparing real-time multiplayer features</p>
         </div>
       </div>
       
@@ -460,8 +543,9 @@ class ClashRoyaleApp {
         </p>
         <ul style="text-align: left; margin-bottom: 30px; font-size: 16px;">
           <li>WebGL not supported on your device</li>
-          <li>Network connectivity issues</li>
+          <li>Game server connectivity issues</li>
           <li>Browser compatibility problems</li>
+          <li>WebSocket connection blocked by firewall</li>
         </ul>
         <div style="margin-bottom: 30px;">
           <button onclick="window.location.reload()" style="
@@ -494,7 +578,6 @@ class ClashRoyaleApp {
   }
 
   showNetworkStatus(message, type = 'info') {
-    // Simple notification system
     const notification = document.createElement('div');
     notification.style.cssText = `
       position: fixed;
@@ -507,6 +590,7 @@ class ClashRoyaleApp {
       z-index: 10001;
       font-family: Arial, sans-serif;
       box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      max-width: 300px;
     `;
     
     notification.textContent = message;
@@ -516,7 +600,7 @@ class ClashRoyaleApp {
       if (notification.parentNode) {
         notification.parentNode.removeChild(notification);
       }
-    }, 3000);
+    }, type === 'warning' ? 5000 : 3000);
   }
 
   showErrorNotification(message) {
@@ -525,8 +609,13 @@ class ClashRoyaleApp {
 
   showDebugInfo() {
     const debugInfo = this.gameState.getDebugInfo();
+    const colyseusStatus = this.colyseusManager.getConnectionStatus();
+    const networkStatus = this.networkManager.getConnectionStatus();
+    
     console.log('🐛 Debug Info:', debugInfo);
     console.log('🎮 Game Engine Performance:', this.gameEngine.getPerformanceStats());
+    console.log('🔌 Colyseus Status:', colyseusStatus);
+    console.log('🌐 Network Status:', networkStatus);
     console.log('📊 Initialization Steps:', this.initSteps);
   }
 
@@ -557,6 +646,9 @@ class ClashRoyaleApp {
       this.sceneManager.dispose();
     }
     
+    // Dispose network connections
+    this.networkManager.dispose();
+    
     // Dispose game state
     this.gameState.dispose();
     
@@ -583,7 +675,7 @@ async function startApp() {
     // Initialize and start
     await app.initialize();
     
-    console.log('🎉 ClashRoyale application started successfully!');
+    console.log('🎉 ClashRoyale application with Colyseus started successfully!');
     
   } catch (error) {
     console.error('💥 Failed to start application:', error);
