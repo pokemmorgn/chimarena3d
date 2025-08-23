@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { getActionLogger, ActionLoggerService } from './ActionLoggerService';
 
 /**
  * MatchmakingService - Service centralisé pour le matchmaking
@@ -82,6 +83,7 @@ class MatchmakingService extends EventEmitter {
   private queue: Map<string, IQueuedPlayer> = new Map();
   private activeMatches: Map<string, IMatch> = new Map();
   private config: IMatchmakingConfig;
+  private logger: ActionLoggerService;
   
   // Timers
   private matchmakingTimer: NodeJS.Timeout | null = null;
@@ -125,6 +127,13 @@ class MatchmakingService extends EventEmitter {
     this.startMatchmakingLoop();
     this.startCleanupLoop();
     
+    // Initialiser le logger d'actions
+    this.logger = getActionLogger({
+      enableRealTimeLogging: false,  // Utiliser batch pour performance
+      batchSize: 20,                 // Batch plus petit pour matchmaking
+      logToConsole: this.config.matchmakingTickRate === 500, // Debug si tick rapide
+    });
+    
     console.log('🎯 MatchmakingService initialized');
   }
 
@@ -152,6 +161,9 @@ class MatchmakingService extends EventEmitter {
     this.stats.totalQueued++;
     this.stats.currentQueueSize = this.queue.size;
 
+    // Logger l'action de queue
+    await this.logger.logQueueJoined(player.userId, player.trophies, 0);
+
     console.log(`👤 Player ${player.username} joined matchmaking queue (${player.trophies} trophies)`);
     
     this.emit('playerQueued', queuedPlayer);
@@ -169,6 +181,14 @@ class MatchmakingService extends EventEmitter {
 
     this.queue.delete(sessionId);
     this.stats.currentQueueSize = this.queue.size;
+
+    // Logger la sortie de queue
+    await this.logger.logMatchmaking('queue_left', player.userId, {
+      trophies: player.trophies,
+      waitTime: player.waitTime,
+      reason: 'manual_leave',
+      success: false
+    });
 
     console.log(`👋 Player ${player.username} left matchmaking queue`);
     
@@ -276,6 +296,17 @@ class MatchmakingService extends EventEmitter {
 
       // Retirer le joueur de la queue et créer le match
       this.queue.delete(player.sessionId);
+      
+      // Logger le match avec bot
+      await this.logger.logMatchmaking('bot_matched', player.userId, {
+        trophies: player.trophies,
+        botTrophies: bot.trophies,
+        waitTime: player.waitTime,
+        botName: bot.username,
+        trophyDifference: Math.abs(player.trophies - bot.trophies),
+        success: true
+      });
+      
       this.createMatch(match);
       
       console.log(`🤖 Bot match created for ${player.username} vs ${bot.username}`);
@@ -420,12 +451,16 @@ class MatchmakingService extends EventEmitter {
   /**
    * Créer un match et notifier
    */
-  private createMatch(match: IMatch): void {
+  private async createMatch(match: IMatch): Promise<void> {
     this.activeMatches.set(match.matchId, match);
     
-    // Retirer les joueurs de la file d'attente
-    this.queue.delete(match.player1.sessionId);
-    this.queue.delete(match.player2.sessionId);
+    // Retirer les joueurs de la file d'attente (si pas déjà fait)
+    if (this.queue.has(match.player1.sessionId)) {
+      this.queue.delete(match.player1.sessionId);
+    }
+    if (this.queue.has(match.player2.sessionId)) {
+      this.queue.delete(match.player2.sessionId);
+    }
     
     // Mettre à jour les statistiques
     this.stats.totalMatched += 2;
@@ -435,6 +470,25 @@ class MatchmakingService extends EventEmitter {
     // Calculer le temps d'attente moyen
     const totalWaitTime = match.player1.waitTime + match.player2.waitTime;
     this.stats.averageWaitTime = Math.round(totalWaitTime / 2);
+
+    // Logger le match trouvé pour chaque joueur
+    if (!match.player1.isBot) {
+      await this.logger.logMatchFound(
+        match.player1.userId,
+        match.matchId,
+        match.player2.trophies,
+        match.player1.waitTime
+      );
+    }
+    
+    if (!match.player2.isBot) {
+      await this.logger.logMatchFound(
+        match.player2.userId,
+        match.matchId,
+        match.player1.trophies,
+        match.player2.waitTime
+      );
+    }
 
     console.log(`⚔️ Match created: ${match.player1.username} (${match.player1.trophies}) vs ${match.player2.username} (${match.player2.trophies})`);
     console.log(`   Match ID: ${match.matchId}`);
@@ -479,6 +533,15 @@ class MatchmakingService extends EventEmitter {
       if (now - player.joinTime > player.maxWaitTime) {
         this.queue.delete(sessionId);
         removedCount++;
+        
+        // Logger le timeout
+        await this.logger.logMatchmaking('queue_timeout', player.userId, {
+          trophies: player.trophies,
+          waitTime: now - player.joinTime,
+          maxWaitTime: player.maxWaitTime,
+          reason: 'timeout',
+          success: false
+        });
         
         console.log(`🧹 Removed player ${player.username} from queue (timeout)`);
         this.emit('playerTimeout', player);
@@ -549,13 +612,24 @@ class MatchmakingService extends EventEmitter {
       this.cleanupTimer = null;
     }
 
-    // Notifier tous les joueurs en attente
+    // Notifier tous les joueurs en attente de l'arrêt du service
     for (const player of this.queue.values()) {
+      if (!player.isBot) {
+        await this.logger.logMatchmaking('queue_left', player.userId, {
+          trophies: player.trophies,
+          waitTime: player.waitTime,
+          reason: 'service_stopped',
+          success: false
+        });
+      }
       this.emit('serviceStopped', player);
     }
 
     this.queue.clear();
     this.activeMatches.clear();
+    
+    // Arrêter le logger
+    this.logger.stop();
     
     console.log('🛑 MatchmakingService stopped');
   }
