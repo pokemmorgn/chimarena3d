@@ -1,559 +1,669 @@
-/**
-   * Utilitaires pour les tests de logging
-   */
-  private async getActionCount(): Promise<number> {
-    try {
-      return await PlayerAction.countDocuments({});
-    } catch (error) {
-      return 0;
-    }
-  }
-
-  private async getBotMatchActions(): Promise<number> {
-    try {
-      return await PlayerAction.countDocuments({ action: 'bot_matched' });
-    } catch (error) {
-      return 0;
-    }
-  }
-
-  private async getLeaveActions(): Promise<number> {
-    try {
-      return await PlayerAction.countDocuments({ action: 'queue_left' });
-    } catch (error) {
-      return 0;
-    }
-  }
-
-  private async showRecentActions(limit = 5): Promise<void> {
-    try {
-      const recentActions = await PlayerAction.find({})
-        .sort({ timestamp: -1 })
-        .limit(limit)
-        .select('userId action data.trophies data.waitTime data.reason timestamp')
-        .lean();
-
-      console.log(`\n📋 Last ${recentActions.length} actions:`);
-      recentActions.forEach((action, index) => {
-        const time = new Date(action.timestamp).toLocaleTimeString();
-        const waitTime = action.data?.waitTime ? `${Math.round(action.data.waitTime/1000)}s` : 'N/A';
-        const trophies = action.data?.trophies || 'N/A';
-        const reason = action.data?.reason || '';
-        
-        console.log(`   ${index + 1}. [${time}] ${action.action} - User: ${action.userId} - Trophies: ${trophies} - Wait: ${waitTime} ${reason}`);
-      });
-    } catch (error) {
-      console.log('   ❌ Could not fetch recent actions:', error);
-    }
-  }import { MatchmakingService, IQueuedPlayer, IMatch } from '../services/MatchmakingService';
-import { getActionLogger } from '../services/ActionLoggerService';
-import mongoose from 'mongoose';
-import PlayerAction from '../models/PlayerAction';
+import { EventEmitter } from 'events';
+import { getActionLogger, ActionLoggerService } from './ActionLoggerService';
 
 /**
- * Script de test pour le MatchmakingService
- * Simule différents scénarios de matchmaking
+ * MatchmakingService - Service centralisé pour le matchmaking
+ * Gère les files d'attente, critères de matching et création des matchs
  */
 
-// Données de test pour simuler des joueurs
-const TEST_PLAYERS: Omit<IQueuedPlayer, 'joinTime' | 'waitTime' | 'trophyRange' | 'maxWaitTime'>[] = [
-  {
-    sessionId: 'player1',
-    userId: 'user1',
-    username: 'TestPlayer1',
-    trophies: 1000,
-    level: 5,
-    averageCardLevel: 3.2,
-    region: 'EU'
-  },
-  {
-    sessionId: 'player2',
-    userId: 'user2',
-    username: 'TestPlayer2',
-    trophies: 1050,
-    level: 6,
-    averageCardLevel: 3.5,
-    region: 'EU'
-  },
-  {
-    sessionId: 'player3',
-    userId: 'user3',
-    username: 'TestPlayer3',
-    trophies: 1200,
-    level: 7,
-    averageCardLevel: 4.0,
-    region: 'US'
-  },
-  {
-    sessionId: 'player4',
-    userId: 'user4',
-    username: 'TestPlayer4',
-    trophies: 950,
-    level: 4,
-    averageCardLevel: 2.8,
-    region: 'EU'
-  },
-  {
-    sessionId: 'player5',
-    userId: 'user5',
-    username: 'HighTrophyPlayer',
-    trophies: 2000,
-    level: 10,
-    averageCardLevel: 8.0,
-    region: 'ASIA'
-  }
+// Interface pour un joueur en file d'attente
+export interface IQueuedPlayer {
+  sessionId: string;
+  userId: string;
+  username: string;
+  isBot?: boolean;          // Indique si c'est un bot
+  
+  // Données de matchmaking
+  trophies: number;
+  level: number;
+  averageCardLevel: number;
+  
+  // Métadonnées
+  joinTime: number;          // Timestamp d'entrée en file
+  waitTime: number;          // Temps d'attente actuel
+  region?: string;           // Région géographique (optionnelle)
+  
+  // Critères de recherche (s'élargissent avec le temps)
+  trophyRange: {
+    min: number;
+    max: number;
+  };
+  maxWaitTime: number;       // Temps max d'attente avant élargissement
+}
+
+// Interface pour un match trouvé
+export interface IMatch {
+  matchId: string;
+  player1: IQueuedPlayer;
+  player2: IQueuedPlayer;
+  averageTrophies: number;
+  createdAt: number;
+}
+
+// Configuration du matchmaking
+export interface IMatchmakingConfig {
+  // Critères de base
+  initialTrophyRange: number;      // ±100 trophées initialement
+  maxTrophyRange: number;          // ±500 trophées maximum
+  trophyRangeExpansion: number;    // +50 trophées toutes les 5 secondes
+  
+  // Temps d'attente
+  initialWaitTime: number;         // 5 secondes avant premier élargissement
+  maxWaitTime: number;             // 60 secondes maximum
+  expansionInterval: number;       // Élargir toutes les 5 secondes
+  
+  // Système de bots
+  enableBots: boolean;             // Activer les bots
+  botMatchAfterSeconds: number;    // Matcher avec bot après X secondes
+  botTrophyVariance: number;       // Variance de trophées des bots (±50)
+  
+  // Critères avancés
+  levelDifferenceMax: number;      // Différence de niveau max
+  cardLevelDifferenceMax: number;  // Différence niveau cartes max
+  
+  // Performance
+  matchmakingTickRate: number;     // Fréquence de vérification (ms)
+  queueCleanupInterval: number;    // Nettoyage file (ms)
+}
+
+// Noms de bots réalistes (style Clash Royale)
+const BOT_NAMES = [
+  'Knight_Slayer', 'Dragon_Hunter', 'Spell_Master', 'Tower_Crusher',
+  'Lightning_Lord', 'Fire_Spirit', 'Ice_Wizard', 'Battle_Healer',
+  'Royal_Guard', 'Mega_Minion', 'Dark_Prince', 'Magic_Archer',
+  'Elite_Barbarian', 'Royal_Hogs', 'Goblin_Giant', 'Electro_Dragon',
+  'Skeleton_Army', 'Valkyrie_Queen', 'Lava_Hound', 'Inferno_Tower',
+  'X-Bow_Master', 'Mortar_King', 'Balloon_Rider', 'Giant_Skeleton'
 ];
 
-class MatchmakingTester {
-  private matchmaking: MatchmakingService;
-  private logger = getActionLogger();
-  private matchesFound: IMatch[] = [];
-  private playersMatched: string[] = [];
+/**
+ * Service de matchmaking principal
+ */
+class MatchmakingService extends EventEmitter {
+  private queue: Map<string, IQueuedPlayer> = new Map();
+  private activeMatches: Map<string, IMatch> = new Map();
+  private config: IMatchmakingConfig;
+  private logger: ActionLoggerService;
   
-  constructor() {
-    // Configuration pour les tests (temps réduits)
-    this.matchmaking = new MatchmakingService({
+  // Timers
+  private matchmakingTimer: NodeJS.Timeout | null = null;
+  private cleanupTimer: NodeJS.Timeout | null = null;
+  
+  // Statistiques
+  private stats = {
+    totalQueued: 0,
+    totalMatched: 0,
+    averageWaitTime: 0,
+    currentQueueSize: 0,
+    activeMatchesCount: 0
+  };
+
+  constructor(config?: Partial<IMatchmakingConfig>) {
+    super();
+    
+    // Configuration par défaut (similaire à Clash Royale)
+    this.config = {
       initialTrophyRange: 100,
       maxTrophyRange: 500,
       trophyRangeExpansion: 50,
-      initialWaitTime: 2000,      // 2 secondes pour test
-      maxWaitTime: 30000,         // 30 secondes pour test
-      expansionInterval: 2000,    // 2 secondes pour test
-      enableBots: true,
-      botMatchAfterSeconds: 5,    // Bot après 5 secondes pour test
-      botTrophyVariance: 50,
-      matchmakingTickRate: 500,   // 500ms pour test plus rapide
+      
+      initialWaitTime: 5000,        // 5 secondes
+      maxWaitTime: 60000,           // 1 minute
+      expansionInterval: 5000,      // 5 secondes
+      
+      enableBots: true,             // Bots activés par défaut
+      botMatchAfterSeconds: 15,     // Bot après 15 secondes
+      botTrophyVariance: 50,        // ±50 trophées pour les bots
+      
+      levelDifferenceMax: 3,        // Max 3 niveaux d'écart
+      cardLevelDifferenceMax: 2,    // Max 2 niveaux de cartes d'écart
+      
+      matchmakingTickRate: 1000,    // Vérifier chaque seconde
+      queueCleanupInterval: 30000,  // Nettoyer toutes les 30s
+      
+      ...config
+    };
+    
+    this.startMatchmakingLoop();
+    this.startCleanupLoop();
+    
+    // Initialiser le logger d'actions
+    this.logger = getActionLogger({
+      enableRealTimeLogging: false,  // Utiliser batch pour performance
+      batchSize: 20,                 // Batch plus petit pour matchmaking
+      logToConsole: this.config.matchmakingTickRate === 500, // Debug si tick rapide
     });
     
-    this.setupEventListeners();
+    console.log('🎯 MatchmakingService initialized');
   }
 
   /**
-   * Configuration des event listeners
+   * Ajouter un joueur en file d'attente
    */
-  setupEventListeners() {
-    this.matchmaking.on('playerQueued', (player: IQueuedPlayer) => {
-      console.log(`✅ Player queued: ${player.username} (${player.trophies} trophies)`);
-    });
+  async addPlayerToQueue(player: Omit<IQueuedPlayer, 'joinTime' | 'waitTime' | 'trophyRange' | 'maxWaitTime'>): Promise<boolean> {
+    if (this.queue.has(player.sessionId)) {
+      console.warn(`Player ${player.sessionId} is already in queue`);
+      return false;
+    }
 
-    this.matchmaking.on('matchFound', (match: IMatch) => {
-      this.matchesFound.push(match);
-      this.playersMatched.push(match.player1.sessionId, match.player2.sessionId);
-      
-      const p1Bot = match.player1.isBot ? ' [BOT]' : '';
-      const p2Bot = match.player2.isBot ? ' [BOT]' : '';
-      
-      console.log(`🎯 MATCH FOUND!`);
-      console.log(`   Match ID: ${match.matchId}`);
-      console.log(`   Player 1: ${match.player1.username}${p1Bot} (${match.player1.trophies} trophies)`);
-      console.log(`   Player 2: ${match.player2.username}${p2Bot} (${match.player2.trophies} trophies)`);
-      console.log(`   Average trophies: ${match.averageTrophies}`);
-      console.log(`   Trophy difference: ${Math.abs(match.player1.trophies - match.player2.trophies)}`);
-      
-      // Simuler la fin du match après quelques secondes
-      setTimeout(() => {
-        this.matchmaking.finializeMatch(match.matchId);
-        console.log(`🏁 Match ${match.matchId} finalized`);
-      }, 3000);
-    });
+    const queuedPlayer: IQueuedPlayer = {
+      ...player,
+      joinTime: Date.now(),
+      waitTime: 0,
+      trophyRange: {
+        min: player.trophies - this.config.initialTrophyRange,
+        max: player.trophies + this.config.initialTrophyRange
+      },
+      maxWaitTime: this.config.maxWaitTime
+    };
 
-    this.matchmaking.on('playerLeft', (player: IQueuedPlayer) => {
-      console.log(`👋 Player left: ${player.username}`);
-    });
+    this.queue.set(player.sessionId, queuedPlayer);
+    this.stats.totalQueued++;
+    this.stats.currentQueueSize = this.queue.size;
 
-    this.matchmaking.on('playerTimeout', (player: IQueuedPlayer) => {
-      console.log(`⏰ Player timeout: ${player.username}`);
-    });
+    // Logger l'action de queue
+    await this.logger.logQueueJoined(player.userId, player.trophies, 0);
+
+    console.log(`👤 Player ${player.username} joined matchmaking queue (${player.trophies} trophies)`);
+    
+    this.emit('playerQueued', queuedPlayer);
+    return true;
   }
 
   /**
-   * Test 1: Matchmaking de base avec 2 joueurs compatibles
+   * Retirer un joueur de la file d'attente
    */
-  async testBasicMatchmaking() {
-    console.log('\n🧪 TEST 1: Basic Matchmaking + Logging');
-    console.log('='.repeat(60));
+  async removePlayerFromQueue(sessionId: string): Promise<boolean> {
+    const player = this.queue.get(sessionId);
+    if (!player) {
+      return false;
+    }
+
+    this.queue.delete(sessionId);
+    this.stats.currentQueueSize = this.queue.size;
+
+    // Logger la sortie de queue
+    await this.logger.logMatchmaking('queue_left', player.userId, {
+      trophies: player.trophies,
+      waitTime: player.waitTime,
+      reason: 'manual_leave',
+      success: false
+    });
+
+    console.log(`👋 Player ${player.username} left matchmaking queue`);
     
-    // Compter les actions avant
-    const actionsBefore = await this.getActionCount();
-    console.log(`📊 Actions in DB before test: ${actionsBefore}`);
-    
-    // Ajouter 2 joueurs compatibles
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[0]); // 1000 trophies
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[1]); // 1050 trophies
-    
-    // Attendre que le match se fasse
-    await this.waitForMatches(1, 10000);
-    
-    // Flush les logs et vérifier
-    await this.logger.flush();
-    await this.sleep(1000); // Laisser le temps à la DB
-    
-    const actionsAfter = await this.getActionCount();
-    const newActions = actionsAfter - actionsBefore;
-    
-    console.log(`📊 Actions in DB after test: ${actionsAfter}`);
-    console.log(`📊 New actions logged: ${newActions}`);
-    console.log(`✅ Test completed. Matches found: ${this.matchesFound.length}`);
-    
-    // Afficher les dernières actions
-    await this.showRecentActions();
+    this.emit('playerLeft', player);
+    return true;
   }
 
   /**
-   * Test 2: Élargissement progressif des critères
+   * Obtenir la position d'un joueur dans la file
    */
-  async testRangeExpansion() {
-    console.log('\n🧪 TEST 2: Range Expansion + Timeout Logging');
-    console.log('='.repeat(60));
+  getPlayerQueuePosition(sessionId: string): number {
+    const player = this.queue.get(sessionId);
+    if (!player) return -1;
+
+    // Trier par temps d'attente (plus ancien = priorité)
+    const sortedQueue = Array.from(this.queue.values()).sort((a, b) => a.joinTime - b.joinTime);
+    return sortedQueue.findIndex(p => p.sessionId === sessionId) + 1;
+  }
+
+  /**
+   * Obtenir les informations d'un joueur en file
+   */
+  getQueuedPlayer(sessionId: string): IQueuedPlayer | null {
+    return this.queue.get(sessionId) || null;
+  }
+
+  /**
+   * Démarrer la boucle de matchmaking
+   */
+  private startMatchmakingLoop(): void {
+    this.matchmakingTimer = setInterval(async () => {
+      await this.processMatchmaking();
+    }, this.config.matchmakingTickRate);
+  }
+
+  /**
+   * Processus principal de matchmaking
+   */
+  private async processMatchmaking(): Promise<void> {
+    if (this.queue.size === 0) return;
+
+    // Mettre à jour les temps d'attente et critères
+    this.updateQueuedPlayers();
+
+    // Vérifier les matches avec bots si activés
+    if (this.config.enableBots) {
+      await this.checkForBotMatches();
+    }
+
+    // Trouver des matchs entre joueurs réels (si au moins 2)
+    if (this.queue.size >= 2) {
+      const matches = this.findMatches();
+      
+      // Créer les matchs
+      matches.forEach(match => {
+        this.createMatch(match);
+      });
+    }
+  }
+
+  /**
+   * Mettre à jour les joueurs en file d'attente
+   */
+  private updateQueuedPlayers(): void {
+    const now = Date.now();
     
-    // Reset
-    this.resetTest();
-    
-    const actionsBefore = await this.getActionCount();
-    
-    // Ajouter joueurs avec écart de trophées important
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[0]); // 1000 trophies
-    await this.sleep(1000);
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[2]); // 1200 trophies (écart de 200)
-    
-    console.log('Players added with 200 trophy difference. Waiting for range expansion...');
-    
-    // Afficher l'évolution des critères toutes les secondes
-    const intervalId = setInterval(() => {
-      const stats = this.matchmaking.getStats();
-      if (stats.queueDetails.length > 0) {
-        const player = stats.queueDetails[0];
-        console.log(`   ${player.username}: Wait ${player.waitTime}s, Range: ${player.trophyRange.min}-${player.trophyRange.max}`);
+    for (const player of this.queue.values()) {
+      player.waitTime = now - player.joinTime;
+      
+      // Élargir les critères de recherche avec le temps
+      if (player.waitTime > this.config.initialWaitTime) {
+        const expansions = Math.floor((player.waitTime - this.config.initialWaitTime) / this.config.expansionInterval);
+        const additionalRange = expansions * this.config.trophyRangeExpansion;
+        
+        const totalRange = this.config.initialTrophyRange + additionalRange;
+        const maxRange = Math.min(totalRange, this.config.maxTrophyRange);
+        
+        player.trophyRange = {
+          min: player.trophies - maxRange,
+          max: player.trophies + maxRange
+        };
       }
-    }, 1000);
-    
-    await this.waitForMatches(1, 15000);
-    clearInterval(intervalId);
-    
-    // Vérifier les logs
-    await this.logger.flush();
-    await this.sleep(1000);
-    
-    const actionsAfter = await this.getActionCount();
-    console.log(`📊 New actions logged: ${actionsAfter - actionsBefore}`);
-    console.log(`✅ Test completed. Matches found: ${this.matchesFound.length}`);
+    }
   }
 
   /**
-   * Test 3: Matchmaking avec bots
+   * Vérifier et créer des matches avec des bots
    */
-  async testBotMatchmaking() {
-    console.log('\n🧪 TEST 3: Bot Matchmaking + Bot Logging');
-    console.log('='.repeat(60));
-    
-    // Reset
-    this.resetTest();
-    
-    const actionsBefore = await this.getActionCount();
-    
-    // Ajouter un seul joueur (devrait être matché avec un bot après 5 secondes)
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[0]);
-    
-    console.log('Single player added. Should be matched with a bot after 5 seconds...');
-    
-    await this.waitForMatches(1, 10000);
-    
-    // Vérifier les logs spécifiques aux bots
-    await this.logger.flush();
-    await this.sleep(1000);
-    
-    const actionsAfter = await this.getActionCount();
-    const botActions = await this.getBotMatchActions();
-    
-    console.log(`📊 New actions logged: ${actionsAfter - actionsBefore}`);
-    console.log(`🤖 Bot match actions: ${botActions}`);
-    console.log(`✅ Test completed. Matches found: ${this.matchesFound.length}`);
-    
-    // Vérifier si c'était un match avec bot
-    if (this.matchesFound.length > 0) {
-      const match = this.matchesFound[0];
-      const hasBotPlayer = match.player1.isBot || match.player2.isBot;
-      console.log(`   Bot match: ${hasBotPlayer ? 'YES' : 'NO'}`);
+  private async checkForBotMatches(): Promise<void> {
+    const now = Date.now();
+    const playersReadyForBot = Array.from(this.queue.values()).filter(player => 
+      !player.isBot && // Seulement les vrais joueurs
+      now - player.joinTime >= this.config.botMatchAfterSeconds * 1000
+    );
+
+    for (const player of playersReadyForBot) {
+      const bot = this.createBot(player);
+      const match: IMatch = {
+        matchId: this.generateMatchId(),
+        player1: player,
+        player2: bot,
+        averageTrophies: Math.round((player.trophies + bot.trophies) / 2),
+        createdAt: now
+      };
+
+      // Retirer le joueur de la queue et créer le match
+      this.queue.delete(player.sessionId);
       
-      if (hasBotPlayer) {
-        const bot = match.player1.isBot ? match.player1 : match.player2;
-        const human = match.player1.isBot ? match.player2 : match.player1;
-        console.log(`   Bot: ${bot.username} (${bot.trophies} trophies, Level ${bot.level})`);
-        console.log(`   Human: ${human.username} (${human.trophies} trophies, Level ${human.level})`);
-        console.log(`   Trophy difference: ${Math.abs(bot.trophies - human.trophies)}`);
-      }
-    }
-  }
-
-  /**
-   * Test 4: File d'attente multiple avec priorités
-   */
-  async testQueuePriority() {
-    console.log('\n🧪 TEST 4: Queue Priority (FIFO) + Leave Logging');
-    console.log('='.repeat(60));
-    
-    // Reset
-    this.resetTest();
-    
-    const actionsBefore = await this.getActionCount();
-    
-    // Ajouter joueurs un par un avec délai
-    console.log('Adding players with delays to test FIFO priority...');
-    
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[0]);
-    await this.sleep(1000);
-    
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[1]);
-    await this.sleep(1000);
-    
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[3]);
-    
-    // Tester le leave
-    console.log('Testing manual queue leave...');
-    await this.matchmaking.removePlayerFromQueue('player4');
-    
-    await this.sleep(1000);
-    
-    // Ajouter un joueur très compatible avec le premier
-    await this.matchmaking.addPlayerToQueue({
-      sessionId: 'compatible_player',
-      userId: 'compatible_user',
-      username: 'VeryCompatible',
-      trophies: 1005, // Très proche du premier joueur
-      level: 5,
-      averageCardLevel: 3.0,
-      region: 'EU'
-    });
-    
-    console.log('All players added. First match should prioritize earliest joined players...');
-    
-    await this.waitForMatches(2, 15000);
-    
-    // Vérifier les logs
-    await this.logger.flush();
-    await this.sleep(1000);
-    
-    const actionsAfter = await this.getActionCount();
-    const leaveActions = await this.getLeaveActions();
-    
-    console.log(`📊 New actions logged: ${actionsAfter - actionsBefore}`);
-    console.log(`👋 Leave actions: ${leaveActions}`);
-    console.log(`✅ Test completed. Matches found: ${this.matchesFound.length}`);
-  }
-
-  /**
-   * Test 5: Match forcé
-   */
-  async testForceMatch() {
-    console.log('\n🧪 TEST 5: Force Match + Manual Actions');
-    console.log('='.repeat(60));
-    
-    // Reset
-    this.resetTest();
-    
-    const actionsBefore = await this.getActionCount();
-    
-    // Ajouter 2 joueurs incompatibles
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[0]); // 1000 trophies
-    await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[4]); // 2000 trophies
-    
-    console.log('Added incompatible players. Forcing match...');
-    
-    // Forcer le match
-    const forcedMatch = this.matchmaking.forceMatch('player1', 'player5');
-    
-    if (forcedMatch) {
-      console.log(`✅ Forced match created: ${forcedMatch.matchId}`);
-      console.log(`   ${forcedMatch.player1.username} vs ${forcedMatch.player2.username}`);
-      console.log(`   Trophy difference: ${Math.abs(forcedMatch.player1.trophies - forcedMatch.player2.trophies)}`);
-    } else {
-      console.log('❌ Failed to force match');
-    }
-    
-    // Vérifier les logs
-    await this.logger.flush();
-    await this.sleep(1000);
-    
-    const actionsAfter = await this.getActionCount();
-    console.log(`📊 New actions logged: ${actionsAfter - actionsBefore}`);
-  }
-
-  /**
-   * Test 6: Statistiques du service + Analytics des logs
-   */
-  async testStatistics() {
-    console.log('\n🧪 TEST 6: Service Statistics + Action Analytics');
-    console.log('='.repeat(60));
-    
-    // Reset
-    this.resetTest();
-    
-    // Ajouter plusieurs joueurs
-    for (let i = 0; i < 3; i++) {
-      await this.matchmaking.addPlayerToQueue(TEST_PLAYERS[i]);
-    }
-    
-    await this.sleep(1000);
-    
-    const stats = this.matchmaking.getStats();
-    
-    console.log('📊 Current Matchmaking Statistics:');
-    console.log(`   Total queued: ${stats.totalQueued}`);
-    console.log(`   Total matched: ${stats.totalMatched}`);
-    console.log(`   Current queue size: ${stats.currentQueueSize}`);
-    console.log(`   Real players in queue: ${stats.realPlayersInQueue}`);
-    console.log(`   Bots in queue: ${stats.botsInQueue}`);
-    console.log(`   Active matches: ${stats.activeMatchesCount}`);
-    console.log(`   Average wait time: ${stats.averageWaitTime}ms`);
-    
-    // Statistiques du logger
-    const loggerStats = this.logger.getStats();
-    console.log('\n📊 Action Logger Statistics:');
-    console.log(`   Total logged: ${loggerStats.totalLogged}`);
-    console.log(`   Total batches: ${loggerStats.totalBatches}`);
-    console.log(`   Pending actions: ${loggerStats.pendingCount}`);
-    console.log(`   Average batch size: ${loggerStats.averageBatchSize}`);
-    console.log(`   Errors: ${loggerStats.errorCount}`);
-    console.log(`   Category counts:`, loggerStats.categoryCounts);
-    
-    // Flush et vérifier la DB
-    await this.logger.flush();
-    await this.sleep(1000);
-    
-    const totalDBActions = await this.getActionCount();
-    console.log(`\n📊 Total actions in database: ${totalDBActions}`);
-    
-    // Afficher les actions récentes
-    await this.showRecentActions(5);
-  }
-
-  /**
-   * Test complet
-   */
-  async runAllTests() {
-    console.log('🚀 Starting Matchmaking Service Tests with Action Logging...');
-    console.log('='.repeat(80));
-    
-    // Connexion à la DB pour les tests de logging
-    try {
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chimarena3d');
-      console.log('✅ Connected to MongoDB for logging tests');
-    } catch (error) {
-      console.error('❌ Failed to connect to MongoDB:', error);
-      console.log('⚠️ Running tests without database logging verification');
-    }
-    
-    const tests = [
-      { name: 'Basic Matchmaking + Logging', fn: () => this.testBasicMatchmaking() },
-      { name: 'Range Expansion + Timeout', fn: () => this.testRangeExpansion() },
-      { name: 'Bot Matchmaking + Bot Logs', fn: () => this.testBotMatchmaking() },
-      { name: 'Queue Priority + Leave Logs', fn: () => this.testQueuePriority() },
-      { name: 'Force Match + Manual Actions', fn: () => this.testForceMatch() },
-      { name: 'Statistics + Analytics', fn: () => this.testStatistics() }
-    ];
-    
-    let passed = 0;
-    let failed = 0;
-    
-    for (const test of tests) {
-      try {
-        console.log(`\n🧪 Running: ${test.name}`);
-        await test.fn();
-        passed++;
-        console.log(`✅ ${test.name} - PASSED`);
-      } catch (error) {
-        failed++;
-        console.error(`❌ ${test.name} - FAILED:`, error);
-      }
+      // Logger le match avec bot
+      await this.logger.logMatchmaking('bot_matched', player.userId, {
+        trophies: player.trophies,
+        botTrophies: bot.trophies,
+        waitTime: player.waitTime,
+        botName: bot.username,
+        trophyDifference: Math.abs(player.trophies - bot.trophies),
+        success: true
+      });
       
-      // Pause entre les tests
-      await this.sleep(2000);
-    }
-    
-    // Final flush pour s'assurer que tous les logs sont écrits
-    console.log('\n📊 Final flush of all pending logs...');
-    await this.logger.flush();
-    await this.sleep(2000);
-    
-    // Statistiques finales des logs
-    if (mongoose.connection.readyState === 1) {
-      const finalActionCount = await this.getActionCount();
-      console.log(`\n📊 Final database action count: ${finalActionCount}`);
+      this.createMatch(match);
       
-      // Afficher un échantillon d'actions récentes
-      console.log('\n📋 Sample of recent actions:');
-      await this.showRecentActions(10);
-    }
-    
-    // Résultats finaux
-    console.log('\n' + '='.repeat(80));
-    console.log('🎯 FINAL RESULTS:');
-    console.log(`✅ Passed: ${passed}`);
-    console.log(`❌ Failed: ${failed}`);
-    console.log(`📊 Success Rate: ${Math.round((passed / (passed + failed)) * 100)}%`);
-    
-    if (failed === 0) {
-      console.log('🎉 All tests passed! MatchmakingService + ActionLogger working perfectly!');
-    } else {
-      console.log('⚠️ Some tests failed. Check the logs above.');
-    }
-    
-    // Arrêter les services
-    await this.matchmaking.stop();
-    console.log('🛑 MatchmakingService stopped');
-    
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.disconnect();
-      console.log('📦 Disconnected from MongoDB');
+      console.log(`🤖 Bot match created for ${player.username} vs ${bot.username}`);
     }
   }
 
   /**
-   * Utilitaires pour les tests
+   * Créer un bot adapté au niveau du joueur
    */
-  private resetTest() {
-    this.matchesFound = [];
-    this.playersMatched = [];
-    // Note: On ne peut pas facilement clear la queue, donc on utilise de nouveaux sessionIds
+  private createBot(player: IQueuedPlayer): IQueuedPlayer {
+    // Variance aléatoire pour les trophées du bot
+    const trophyVariance = (Math.random() - 0.5) * 2 * this.config.botTrophyVariance;
+    const botTrophies = Math.max(0, Math.round(player.trophies + trophyVariance));
+    
+    // Niveau similaire avec petite variation
+    const levelVariance = Math.floor((Math.random() - 0.5) * 2 * 2); // ±2 niveaux
+    const botLevel = Math.max(1, Math.min(13, player.level + levelVariance)); // Niveau 1-13
+    
+    // Niveau de cartes similaire
+    const cardLevelVariance = (Math.random() - 0.5) * 2 * 1; // ±1 niveau
+    const botCardLevel = Math.max(1, player.averageCardLevel + cardLevelVariance);
+    
+    // Nom aléatoire
+    const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+    
+    const bot: IQueuedPlayer = {
+      sessionId: `bot_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      userId: `bot_user_${Date.now()}`,
+      username: botName,
+      isBot: true,
+      
+      trophies: botTrophies,
+      level: botLevel,
+      averageCardLevel: botCardLevel,
+      
+      joinTime: Date.now(),
+      waitTime: 0,
+      trophyRange: {
+        min: botTrophies - 50,
+        max: botTrophies + 50
+      },
+      maxWaitTime: 0 // Les bots n'attendent pas
+    };
+    
+    // Ajouter la région seulement si le joueur en a une
+    if (player.region) {
+      bot.region = player.region;
+    }
+    
+    return bot;
   }
 
-  private async waitForMatches(expectedMatches: number, timeout: number): Promise<void> {
-    return new Promise((resolve) => {
-      const startTime = Date.now();
+  /**
+   * Créer un deck aléatoire pour un bot basé sur son niveau
+   */
+  createBotDeck(_bot: IQueuedPlayer): string[] {
+    // Deck de base similaire aux cartes starter
+    // TODO: Ajouter plus de cartes selon le niveau du bot et utiliser le paramètre bot
+    
+    // Pour l'instant, deck fixe (à améliorer plus tard)
+    return ['knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon', 'knight', 'archers'];
+  }
+
+  /**
+   * Vérifier si un joueur est un bot
+   */
+  isBot(sessionId: string): boolean {
+    const player = this.queue.get(sessionId);
+    return player?.isBot || false;
+  }
+  private findMatches(): IMatch[] {
+    const matches: IMatch[] = [];
+    const availablePlayers = Array.from(this.queue.values());
+    const matchedPlayers = new Set<string>();
+
+    // Trier par temps d'attente (priorité aux plus anciens)
+    availablePlayers.sort((a, b) => a.joinTime - b.joinTime);
+
+    for (let i = 0; i < availablePlayers.length - 1; i++) {
+      const player1 = availablePlayers[i];
       
-      const checkInterval = setInterval(() => {
-        if (this.matchesFound.length >= expectedMatches) {
-          clearInterval(checkInterval);
-          resolve();
-        } else if (Date.now() - startTime > timeout) {
-          clearInterval(checkInterval);
-          console.log(`⏰ Timeout waiting for matches. Found: ${this.matchesFound.length}/${expectedMatches}`);
-          resolve();
+      if (matchedPlayers.has(player1.sessionId)) continue;
+
+      for (let j = i + 1; j < availablePlayers.length; j++) {
+        const player2 = availablePlayers[j];
+        
+        if (matchedPlayers.has(player2.sessionId)) continue;
+
+        if (this.arePlayersCompatible(player1, player2)) {
+          const match: IMatch = {
+            matchId: this.generateMatchId(),
+            player1,
+            player2,
+            averageTrophies: Math.round((player1.trophies + player2.trophies) / 2),
+            createdAt: Date.now()
+          };
+
+          matches.push(match);
+          matchedPlayers.add(player1.sessionId);
+          matchedPlayers.add(player2.sessionId);
+          break;
         }
-      }, 100);
-    });
+      }
+    }
+
+    return matches;
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  /**
+   * Vérifier la compatibilité entre deux joueurs
+   */
+  private arePlayersCompatible(player1: IQueuedPlayer, player2: IQueuedPlayer): boolean {
+    // Vérifier les trophées (bidirectionnel)
+    const trophiesMatch = (
+      player2.trophies >= player1.trophyRange.min &&
+      player2.trophies <= player1.trophyRange.max &&
+      player1.trophies >= player2.trophyRange.min &&
+      player1.trophies <= player2.trophyRange.max
+    );
+    
+    if (!trophiesMatch) return false;
+
+    // Vérifier la différence de niveau
+    const levelDifference = Math.abs(player1.level - player2.level);
+    if (levelDifference > this.config.levelDifferenceMax) return false;
+
+    // Vérifier la différence de niveau des cartes
+    const cardLevelDifference = Math.abs(player1.averageCardLevel - player2.averageCardLevel);
+    if (cardLevelDifference > this.config.cardLevelDifferenceMax) return false;
+
+    // Vérifier la région si spécifiée
+    if (player1.region && player2.region && player1.region !== player2.region) {
+      // Permettre cross-région après 30 secondes d'attente
+      if (player1.waitTime < 30000 && player2.waitTime < 30000) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Créer un match et notifier
+   */
+  private async createMatch(match: IMatch): Promise<void> {
+    this.activeMatches.set(match.matchId, match);
+    
+    // Retirer les joueurs de la file d'attente (si pas déjà fait)
+    if (this.queue.has(match.player1.sessionId)) {
+      this.queue.delete(match.player1.sessionId);
+    }
+    if (this.queue.has(match.player2.sessionId)) {
+      this.queue.delete(match.player2.sessionId);
+    }
+    
+    // Mettre à jour les statistiques
+    this.stats.totalMatched += 2;
+    this.stats.currentQueueSize = this.queue.size;
+    this.stats.activeMatchesCount = this.activeMatches.size;
+    
+    // Calculer le temps d'attente moyen
+    const totalWaitTime = match.player1.waitTime + match.player2.waitTime;
+    this.stats.averageWaitTime = Math.round(totalWaitTime / 2);
+
+    // Logger le match trouvé pour chaque joueur
+    if (!match.player1.isBot) {
+      await this.logger.logMatchFound(
+        match.player1.userId,
+        match.matchId,
+        match.player2.trophies,
+        match.player1.waitTime
+      );
+    }
+    
+    if (!match.player2.isBot) {
+      await this.logger.logMatchFound(
+        match.player2.userId,
+        match.matchId,
+        match.player1.trophies,
+        match.player2.waitTime
+      );
+    }
+
+    console.log(`⚔️ Match created: ${match.player1.username} (${match.player1.trophies}) vs ${match.player2.username} (${match.player2.trophies})`);
+    console.log(`   Match ID: ${match.matchId}`);
+    console.log(`   Wait times: ${Math.round(match.player1.waitTime/1000)}s / ${Math.round(match.player2.waitTime/1000)}s`);
+
+    this.emit('matchFound', match);
+  }
+
+  /**
+   * Finaliser un match (appelé à la fin du combat)
+   */
+  finializeMatch(matchId: string): boolean {
+    const match = this.activeMatches.get(matchId);
+    if (!match) return false;
+
+    this.activeMatches.delete(matchId);
+    this.stats.activeMatchesCount = this.activeMatches.size;
+
+    console.log(`🏁 Match finalized: ${matchId}`);
+    this.emit('matchFinished', match);
+    
+    return true;
+  }
+
+  /**
+   * Boucle de nettoyage
+   */
+  private startCleanupLoop(): void {
+    this.cleanupTimer = setInterval(async () => {
+      await this.cleanupQueue();
+    }, this.config.queueCleanupInterval);
+  }
+
+  /**
+   * Boucle de nettoyage
+   */
+  private async cleanupQueue(): Promise<void> {
+    const now = Date.now();
+    let removedCount = 0;
+
+    for (const [sessionId, player] of this.queue) {
+      if (now - player.joinTime > player.maxWaitTime) {
+        this.queue.delete(sessionId);
+        removedCount++;
+        
+        // Logger le timeout
+        await this.logger.logMatchmaking('queue_timeout', player.userId, {
+          trophies: player.trophies,
+          waitTime: now - player.joinTime,
+          maxWaitTime: player.maxWaitTime,
+          reason: 'timeout',
+          success: false
+        });
+        
+        console.log(`🧹 Removed player ${player.username} from queue (timeout)`);
+        this.emit('playerTimeout', player);
+      }
+    }
+
+    if (removedCount > 0) {
+      this.stats.currentQueueSize = this.queue.size;
+      console.log(`🧹 Cleaned ${removedCount} players from queue`);
+    }
+  }
+
+  /**
+   * Générer un ID de match unique
+   */
+  private generateMatchId(): string {
+    return `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Obtenir les statistiques du matchmaking
+   */
+  getStats() {
+    const realPlayers = Array.from(this.queue.values()).filter(p => !p.isBot);
+    const bots = Array.from(this.queue.values()).filter(p => p.isBot);
+    
+    return {
+      ...this.stats,
+      realPlayersInQueue: realPlayers.length,
+      botsInQueue: bots.length,
+      queueDetails: Array.from(this.queue.values()).map(player => ({
+        username: player.username,
+        trophies: player.trophies,
+        waitTime: Math.round(player.waitTime / 1000),
+        trophyRange: player.trophyRange,
+        isBot: player.isBot || false
+      }))
+    };
+  }
+
+  /**
+   * Obtenir la configuration actuelle
+   */
+  getConfig(): IMatchmakingConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Mettre à jour la configuration
+   */
+  updateConfig(newConfig: Partial<IMatchmakingConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    console.log('⚙️ Matchmaking configuration updated');
+    this.emit('configUpdated', this.config);
+  }
+
+  /**
+   * Arrêter le service de matchmaking
+   */
+  async stop(): Promise<void> {
+    if (this.matchmakingTimer) {
+      clearInterval(this.matchmakingTimer);
+      this.matchmakingTimer = null;
+    }
+    
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+
+    // Notifier tous les joueurs en attente de l'arrêt du service
+    for (const player of this.queue.values()) {
+      if (!player.isBot) {
+        await this.logger.logMatchmaking('queue_left', player.userId, {
+          trophies: player.trophies,
+          waitTime: player.waitTime,
+          reason: 'service_stopped',
+          success: false
+        });
+      }
+      this.emit('serviceStopped', player);
+    }
+
+    this.queue.clear();
+    this.activeMatches.clear();
+    
+    // Arrêter le logger
+    this.logger.stop();
+    
+    console.log('🛑 MatchmakingService stopped');
+  }
+
+  /**
+   * Forcer un match (pour les tests)
+   */
+  forceMatch(sessionId1: string, sessionId2: string): IMatch | null {
+    const player1 = this.queue.get(sessionId1);
+    const player2 = this.queue.get(sessionId2);
+    
+    if (!player1 || !player2) return null;
+
+    const match: IMatch = {
+      matchId: this.generateMatchId(),
+      player1,
+      player2,
+      averageTrophies: Math.round((player1.trophies + player2.trophies) / 2),
+      createdAt: Date.now()
+    };
+
+    this.createMatch(match);
+    return match;
   }
 }
 
-/**
- * Fonction principale
- */
-async function runMatchmakingTests() {
-  const tester = new MatchmakingTester();
-  await tester.runAllTests();
-  process.exit(0);
+// Export singleton
+let matchmakingServiceInstance: MatchmakingService | null = null;
+
+export function getMatchmakingService(config?: Partial<IMatchmakingConfig>): MatchmakingService {
+  if (!matchmakingServiceInstance) {
+    matchmakingServiceInstance = new MatchmakingService(config);
+  }
+  return matchmakingServiceInstance;
 }
 
-// Exécuter si appelé directement
-if (require.main === module) {
-  runMatchmakingTests().catch((error) => {
-    console.error('💥 Test suite crashed:', error);
-    process.exit(1);
-  });
-}
-
-export { MatchmakingTester, runMatchmakingTests };
+export { MatchmakingService };
