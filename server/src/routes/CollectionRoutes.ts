@@ -41,6 +41,16 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       collection = await createInitialCollection(userId);
     }
     
+    // À ce point, collection ne peut pas être null
+    if (!collection) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create initial collection',
+        code: 'COLLECTION_CREATION_FAILED'
+      });
+      return;
+    }
+    
     res.json({
       success: true,
       message: 'Collection retrieved successfully',
@@ -97,7 +107,7 @@ router.get('/cards', async (req: Request, res: Response): Promise<void> => {
         const cardData = await CardData.findOne({ id: playerCard.cardId }).lean();
         
         return {
-          ...playerCard.toObject(),
+          ...JSON.parse(JSON.stringify(playerCard)), // Convertir en plain object
           cardInfo: cardData ? {
             nameKey: cardData.nameKey,
             descriptionKey: cardData.descriptionKey,
