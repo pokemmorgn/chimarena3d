@@ -6,7 +6,6 @@ import axios from 'axios';
  */
 
 const API_BASE_URL = 'http://localhost:2567/api';
-const CARD_API_URL = `${API_BASE_URL}/cards`;
 
 // Configuration axios
 const api = axios.create({
@@ -32,7 +31,7 @@ async function testServerHealth() {
     
     console.log('❌ Server health check failed');
     return false;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Server is not reachable:', error.message);
     return false;
   }
@@ -172,7 +171,7 @@ async function testSearchCards() {
 /**
  * Test 6: GET /api/cards/stats/summary (statistiques)
  */
-async function testGetCardStats() {
+async function testGetCardStatsSummary() {
   try {
     console.log('\n📈 Testing GET /api/cards/stats/summary...');
     
