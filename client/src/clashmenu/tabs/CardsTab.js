@@ -759,6 +759,7 @@ class CardsTab {
         
         this.renderDeck();
         this.renderMyCards(); // Mettre à jour aussi mes cartes
+        this.resetVisualState(); // Nettoyer tous les effets visuels
         this.showMessage(`✅ ${card.cardInfo?.nameKey || card.cardId} ajouté au deck !`, "success");
         
         console.log("✅ Deck mis à jour avec succès");
