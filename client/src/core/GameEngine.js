@@ -12,7 +12,9 @@ class GameEngine {
     this.isInitialized = false;
     this.isRunning = false;
     this.isPaused = false;
-    
+    this.backgroundScene = new THREE.Scene();
+this.backgroundCamera = new THREE.Camera(); // camera sans perspective
+this.backgroundMesh = null; // sera rempli plus tard
     // Core Three.js components
     this.scene = null;
     this.camera = null;
@@ -344,6 +346,8 @@ setupResizeHandling() {
     this.emit('engine:render');
   }
 
+  
+
   /**
    * Render the current scene
    */
@@ -354,8 +358,23 @@ setupResizeHandling() {
     this.renderer.info.reset();
     
     // Render the scene
-    this.renderer.render(this.scene, this.camera);
+if (this.backgroundMesh) {
+  this.renderer.autoClear = false;
+  this.renderer.clear();
+  this.renderer.render(this.backgroundScene, this.backgroundCamera);
+  this.renderer.clearDepth();
+  this.renderer.render(this.scene, this.camera);
+  this.renderer.autoClear = true;
+} else {
+  this.renderer.render(this.scene, this.camera);
+}
   }
+  setBackgroundShader(material) {
+  const geometry = new THREE.PlaneGeometry(2, 2);
+  this.backgroundMesh = new THREE.Mesh(geometry, material);
+  this.backgroundMesh.frustumCulled = false;
+  this.backgroundScene.add(this.backgroundMesh);
+}
 
   /**
    * Update performance statistics
