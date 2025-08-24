@@ -1013,8 +1013,7 @@ renderAllCards() {
       this.eventListeners.get(event).forEach(cb => cb(data));
     }
   }
-}
-  /**
+   /**
    * Mise à jour des données joueur depuis Colyseus (world:welcome)
    */
   updatePlayerData(playerData) {
@@ -1033,4 +1032,6 @@ renderAllCards() {
     }
   }
 
+}
+ 
 export default CardsTab;
