@@ -13,7 +13,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 // Import Rooms
 import { AuthRoom } from './rooms/AuthRoom';
 import { WorldRoom } from './rooms/WorldRoom';
-
+import { BattleRoom } from './rooms/BattleRoom';
 // Import routes
 import authRoutes from './routes/AuthRoutes';
 import cardRoutes from './routes/CardRoutes';
@@ -247,6 +247,10 @@ function setupGameServer(): void {
     maxClients: 500   // Lobby limit
   });
   
+  // 3. BattleRoom - Batailles en temps réel
+  gameServer.define('battle', BattleRoom, {
+    maxClients: 12  // 2 joueurs + 10 spectateurs max
+  });
   // Future rooms can be added here:
   // gameServer.define('battle', BattleRoom);
   // gameServer.define('tournament', TournamentRoom);
