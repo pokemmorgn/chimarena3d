@@ -1,5 +1,4 @@
 import { TargetingSystem, getTargetingSystem, ITargetableEntity } from '../gameplay/systems/TargetingSystem';
-import { IPosition, TargetType } from '../gameplay/units/BaseUnit';
 
 /**
  * Script de test pour TargetingSystem
@@ -41,11 +40,11 @@ class TargetingSystemTester {
     console.log('   Testing TargetingSystem constructor and singleton...');
     
     // Test du constructeur avec config par défaut
-    const defaultSystem = new TargetingSystem();
+    new TargetingSystem();
     console.log('   ✅ Default TargetingSystem created');
     
     // Test du constructeur avec config custom
-    const customSystem = new TargetingSystem({
+    new TargetingSystem({
       maxTargetingRange: 20,
       priorities: {
         buildings: 10,
@@ -82,7 +81,7 @@ class TargetingSystemTester {
       id: 'knight_1',
       position: { x: 9, y: 20 },
       ownerId: 'player1',
-      type: 'unit',
+      type: 'unit' as const,
       isAlive: true,
       hitpoints: 1000,
       maxHitpoints: 1000,
@@ -191,7 +190,7 @@ class TargetingSystemTester {
       id: 'test_unit',
       position: { x: 10, y: 20 },
       ownerId: 'player1',
-      type: 'unit',
+      type: 'unit' as const,
       isAlive: true,
       hitpoints: 500,
       maxHitpoints: 500
@@ -203,7 +202,7 @@ class TargetingSystemTester {
         id: 'weak_close',
         position: { x: 11, y: 19 },
         ownerId: 'player2',
-        type: 'unit',
+        type: 'unit' as const,
         isAlive: true,
         hitpoints: 50,  // HP très bas
         maxHitpoints: 300
@@ -214,7 +213,7 @@ class TargetingSystemTester {
         id: 'building_target',
         position: { x: 13, y: 18 },
         ownerId: 'player2',
-        type: 'building',
+        type: 'building' as const,
         isAlive: true,
         hitpoints: 800,
         maxHitpoints: 800,
@@ -226,7 +225,7 @@ class TargetingSystemTester {
         id: 'far_tank',
         position: { x: 15, y: 25 },
         ownerId: 'player2',
-        type: 'unit',
+        type: 'unit' as const,
         isAlive: true,
         hitpoints: 2000,
         maxHitpoints: 2000,
@@ -257,7 +256,7 @@ class TargetingSystemTester {
       id: 'priority_tester',
       position: { x: 9, y: 18 },
       ownerId: 'player1',
-      type: 'unit',
+      type: 'unit' as const,
       isAlive: true,
       hitpoints: 800,
       maxHitpoints: 800
@@ -269,7 +268,7 @@ class TargetingSystemTester {
         id: 'enemy_tower',
         position: { x: 9, y: 4 },  // Loin mais c'est une tour
         ownerId: 'player2',
-        type: 'tower',
+        type: 'tower' as const,
         isAlive: true,
         hitpoints: 1400,
         maxHitpoints: 1400,
@@ -279,7 +278,7 @@ class TargetingSystemTester {
         id: 'injured_unit',
         position: { x: 10, y: 17 }, // Très proche et blessé
         ownerId: 'player2',
-        type: 'unit',
+        type: 'unit' as const,
         isAlive: true,
         hitpoints: 80,   // Très peu de HP
         maxHitpoints: 400
@@ -309,7 +308,7 @@ class TargetingSystemTester {
       id: 'edge_tester',
       position: { x: 5, y: 5 },
       ownerId: 'player1',
-      type: 'unit',
+      type: 'unit' as const,
       isAlive: true,
       hitpoints: 100,
       maxHitpoints: 100
@@ -326,7 +325,7 @@ class TargetingSystemTester {
       id: 'only_target',
       position: { x: 6, y: 6 },
       ownerId: 'player2',
-      type: 'unit',
+      type: 'unit' as const,
       isAlive: true,
       hitpoints: 200,
       maxHitpoints: 200
@@ -364,7 +363,7 @@ class TargetingSystemTester {
       console.log('   ✅ TargetingSystem instance created');
       
       // Test du singleton
-      const singleton = getTargetingSystem();
+      getTargetingSystem();
       console.log('   ✅ Singleton accessor works');
       
       console.log('\n2️⃣ Testing method signatures...');
