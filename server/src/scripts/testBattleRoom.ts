@@ -1,4 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Charger le .env depuis le dossier server/ (fonctionne depuis n'importe où)
+dotenv.config({ path: './server/.env' });
 import mongoose from 'mongoose';
 import UserData from '../models/UserData';
 import { TokenService } from '../middleware/AuthData';
