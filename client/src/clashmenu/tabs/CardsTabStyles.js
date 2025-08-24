@@ -13,7 +13,15 @@ class CardsTabStyles {
   color: #fff;
   font-family: sans-serif;
   overflow-y: auto;
+
+  /* Masquer la scrollbar */
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge */
 }
+.cards-tab::-webkit-scrollbar { 
+  display: none;               /* Chrome, Safari, Edge */
+}
+
 
       .cards-tab.active {
         display: flex;
