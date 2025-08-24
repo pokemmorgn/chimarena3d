@@ -67,9 +67,8 @@ class BattleTab {
       </div>
 
       <!-- Arena -->
-      <div class="arena-section">
-        <img src="assets/arena_placeholder.png" alt="Arena" class="arena-image" />
-      </div>
+<div class="arena-section arena-background"></div>
+
 
       <!-- Bottom: Battle + mode + chests -->
       <div class="battle-bottom">
