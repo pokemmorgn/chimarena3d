@@ -1,5 +1,5 @@
-import { IPosition, ITarget, TargetType } from '../units/BaseUnit';
-import { getTargetingSystem, ITargetableEntity } from './TargetingSystem';
+import { IPosition } from '../units/BaseUnit';
+import { ITargetableEntity } from './TargetingSystem';
 
 /**
  * CombatSystem - Système de combat pour Clash Royale
@@ -25,8 +25,8 @@ export interface IAttackConfig {
   
   // Splash damage
   hasSplash?: boolean;
-  splashRadius?: number;
-  splashDamagePercent?: number; // 100% = full damage, 50% = half damage
+  splashRadius?: number | undefined;
+  splashDamagePercent?: number | undefined; // 100% = full damage, 50% = half damage
   
   // Projectile (pour ranged units)
   isProjectile?: boolean;
@@ -77,8 +77,8 @@ interface IProjectile {
   speed: number;            // tiles per second
   damage: number;
   damageType: DamageType;
-  splashRadius?: number;
-  splashDamagePercent?: number;
+  splashRadius?: number | undefined;
+  splashDamagePercent?: number | undefined;
   
   // État
   launchTick: number;
@@ -102,9 +102,9 @@ export interface ICombatant extends ITargetableEntity {
   
   // État de combat
   isStunned?: boolean;
-  stunEndTick?: number;
+  stunEndTick?: number | undefined;
   isInvulnerable?: boolean;
-  invulnerabilityEndTick?: number;
+  invulnerabilityEndTick?: number | undefined;
   
   // Callbacks pour événements
   onTakeDamage?: (damage: number, attacker: ICombatant, damageType: DamageType) => void;
@@ -345,14 +345,12 @@ class CombatSystem {
   /**
    * Calculer les dégâts finaux avec résistances
    */
-  private calculateDamage(attacker: ICombatant, target: ICombatant, baseDamage: number, damageType: DamageType): number {
+  private calculateDamage(_attacker: ICombatant, target: ICombatant, baseDamage: number, damageType: DamageType): number {
     let damage = baseDamage;
     
     // Coup critique (si activé)
-    let isCritical = false;
     if (this.config.enableCriticalHits && Math.random() < this.config.criticalChance) {
       damage *= this.config.criticalMultiplier;
-      isCritical = true;
     }
     
     // Réduction de dégâts selon le type
@@ -529,7 +527,7 @@ class CombatSystem {
     const projectilesToRemove: string[] = [];
     let projectilesProcessed = 0;
     
-    for (const [projectileId, projectile] of this.projectiles) {
+    for (const [, projectile] of this.projectiles) {
       if (!projectile.isActive) {
         projectilesToRemove.push(projectileId);
         continue;
@@ -572,7 +570,7 @@ class CombatSystem {
       damage: projectile.damage,
       damageType: projectile.damageType,
       hasSplash: !!projectile.splashRadius,
-      splashRadius: projectile.splashRadius,
+      splashRadius: projectile.splashRadius || undefined,
       splashDamagePercent: projectile.splashDamagePercent || 100
     };
     
