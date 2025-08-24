@@ -296,7 +296,6 @@ class BattleRoomTickTester {
     
     // Simuler régénération d'élixir
     let currentElixir = 5; // Starting elixir
-    let lastRegenTick = 0;
     let nextRegenTick = ELIXIR_REGEN_TICKS;
     const maxElixir = 10;
     
@@ -306,7 +305,6 @@ class BattleRoomTickTester {
     for (let tick = 0; tick <= 400; tick++) {
       if (tick >= nextRegenTick && currentElixir < maxElixir) {
         currentElixir = Math.min(maxElixir, currentElixir + 1);
-        lastRegenTick = tick;
         nextRegenTick = tick + ELIXIR_REGEN_TICKS;
         
         elixirData.push({
