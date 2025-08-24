@@ -82,7 +82,10 @@ this.backgroundMesh = null; // sera rempli plus tard
    * Setup WebGL renderer with optimizations
    */
   setupRenderer() {
-const parent = this.canvas.parentElement;
+const parent = this.canvas.parentElement || document.getElementById('mobile-viewport');
+const width = parent?.clientWidth || window.innerWidth;
+const height = parent?.clientHeight || window.innerHeight;
+
 this.renderer = new THREE.WebGLRenderer({
   canvas: this.canvas,
   antialias: true,
@@ -93,7 +96,8 @@ this.renderer = new THREE.WebGLRenderer({
 });
 
 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-this.renderer.setSize(parent.clientWidth, parent.clientHeight);
+this.renderer.setSize(width, height);
+
 
     this.renderer.setClearColor(0x1a1a2e, 1.0); // Dark blue background
     
@@ -129,22 +133,23 @@ this.renderer.setSize(parent.clientWidth, parent.clientHeight);
    * Setup camera with optimal settings for game view
    */
   setupCamera() {
-const parent = this.canvas.parentElement;
-const aspect = parent.clientWidth / parent.clientHeight;
+const parent = this.canvas.parentElement || document.getElementById('mobile-viewport');
+const width = parent?.clientWidth || window.innerWidth;
+const height = parent?.clientHeight || window.innerHeight;
+const aspect = width / height;
 
-    
-    this.camera = new THREE.PerspectiveCamera(
-      60, // FOV - good for game view
-      aspect,
-      0.1, // Near plane
-      1000 // Far plane
-    );
-    
-    // Position camera for top-down game view (like Clash Royale)
-    this.camera.position.set(0, 25, 15);
-    this.camera.lookAt(0, 0, 0);
-    
-    console.log('✅ Camera configured');
+this.camera = new THREE.PerspectiveCamera(
+  60,
+  aspect,
+  0.1,
+  1000
+);
+
+this.camera.position.set(0, 25, 15);
+this.camera.lookAt(0, 0, 0);
+
+console.log('✅ Camera configured');
+
   }
 
   /**
@@ -191,25 +196,34 @@ const aspect = parent.clientWidth / parent.clientHeight;
    * Setup responsive resize handling
    */
 setupResizeHandling() {
-  // Use ResizeObserver for better performance than window resize
-  if (window.ResizeObserver) {
+  const target = this.canvas.parentElement || document.getElementById('mobile-viewport') || this.canvas;
+
+  if (window.ResizeObserver && target) {
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const parent = this.canvas.parentElement;
-        this.handleResize(parent.clientWidth, parent.clientHeight);
+        const width = entry.contentRect?.width || target.clientWidth || window.innerWidth;
+        const height = entry.contentRect?.height || target.clientHeight || window.innerHeight;
+        if (width > 0 && height > 0) {
+          this.handleResize(width, height);
+        }
       }
     });
 
-    this.resizeObserver.observe(this.canvas.parentElement || this.canvas);
+    this.resizeObserver.observe(target);
   } else {
     // Fallback to window resize
     window.addEventListener('resize', () => {
-      this.handleResize(window.innerWidth, window.innerHeight);
+      const width = target.clientWidth || window.innerWidth;
+      const height = target.clientHeight || window.innerHeight;
+      if (width > 0 && height > 0) {
+        this.handleResize(width, height);
+      }
     });
   }
 
   console.log('✅ Resize handling configured');
 }
+
 
 
   /**
