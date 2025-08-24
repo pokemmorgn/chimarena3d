@@ -1,8 +1,6 @@
-import ProfileOverlayStyles from './ProfileOverlayStyles.js';
-
 /**
  * Profile Overlay - Fullscreen modal for player profile
- * Allows editing avatar, banner, name, and shows stats
+ * Allows changing avatar, banner, name + shows all player stats
  */
 class ProfileOverlay {
   constructor() {
@@ -10,6 +8,7 @@ class ProfileOverlay {
     this.overlay = null;
     this.eventListeners = new Map();
 
+    // Assets prédéfinis
     this.availableAvatars = [
       "/avatars/avatar_01.png",
       "/avatars/avatar_02.png",
@@ -24,19 +23,8 @@ class ProfileOverlay {
 
   initialize(container) {
     this.container = container;
-    this.injectStyles();
     this.renderOverlay();
     this.setupEventListeners();
-  }
-
-  injectStyles() {
-    const existing = document.getElementById('profile-overlay-styles');
-    if (existing) existing.remove();
-
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'profile-overlay-styles';
-    styleSheet.textContent = ProfileOverlayStyles.getCSS();
-    document.head.appendChild(styleSheet);
   }
 
   renderOverlay() {
@@ -45,29 +33,37 @@ class ProfileOverlay {
     this.overlay.id = "profile-overlay";
 
     this.overlay.innerHTML = `
-      <div class="profile-window">
-        <button class="close-btn" id="btn-close-profile">✖</button>
-
+      <div class="profile-content">
+        <!-- Banner -->
         <img id="profile-banner" class="profile-banner" src="/banners/banner_01.jpg" />
 
-        <div class="profile-header">
-          <img id="profile-avatar" class="profile-avatar" src="/avatars/avatar_01.png" />
-          <input id="profile-name" class="profile-name" type="text" value="Player" />
-        </div>
+        <!-- Avatar -->
+        <img id="profile-avatar" class="profile-avatar" src="/avatars/avatar_01.png" />
 
+        <!-- Player name -->
+        <input id="profile-name" class="profile-name" type="text" value="Player" />
+
+        <!-- Stats -->
         <div class="profile-stats">
-          <div>🏆 Trophies: <span id="profile-trophies">0</span></div>
-          <div>⭐ Level: <span id="profile-level">1</span></div>
-          <div>⚔️ Wins: <span id="profile-wins">0</span></div>
+          <div>🏆 Current Trophies: <span id="profile-currentTrophies">0</span></div>
+          <div>🌟 Highest Trophies: <span id="profile-highestTrophies">0</span></div>
+          <div>🎮 Games Played: <span id="profile-gamesPlayed">0</span></div>
+          <div>✅ Wins: <span id="profile-gamesWon">0</span></div>
+          <div>❌ Losses: <span id="profile-gamesLost">0</span></div>
+          <div>📈 Win Rate: <span id="profile-winRate">0%</span></div>
+          <div>⭐ Level: <span id="profile-level">1</span> (XP: <span id="profile-xp">0</span>)</div>
+          <div>📅 Joined: <span id="profile-createdAt">-</span></div>
+          <div>🕹️ Last Login: <span id="profile-lastLogin">-</span></div>
         </div>
 
-        <div class="profile-actions">
-          <button id="btn-save-profile">💾 Save</button>
-        </div>
-
-        <div class="selection-menu" id="avatar-selection"></div>
-        <div class="selection-menu" id="banner-selection"></div>
+        <!-- Action buttons -->
+        <button id="btn-save-profile">💾 Save</button>
+        <button id="btn-close-profile">❌ Close</button>
       </div>
+
+      <!-- Selection Menus -->
+      <div class="selection-menu" id="avatar-selection"></div>
+      <div class="selection-menu" id="banner-selection"></div>
     `;
 
     this.container.appendChild(this.overlay);
@@ -83,10 +79,12 @@ class ProfileOverlay {
     const avatarMenu = this.overlay.querySelector("#avatar-selection");
     const bannerMenu = this.overlay.querySelector("#banner-selection");
 
+    // Close
     closeBtn.addEventListener("click", () => {
       this.overlay.classList.remove("active");
     });
 
+    // Save
     saveBtn.addEventListener("click", () => {
       const data = {
         name: this.overlay.querySelector("#profile-name").value,
@@ -97,6 +95,7 @@ class ProfileOverlay {
       this.overlay.classList.remove("active");
     });
 
+    // Avatar change
     avatarImg.addEventListener("click", () => {
       avatarMenu.innerHTML = this.availableAvatars.map(src => `
         <img src="${src}" class="selection-item avatar-option" data-src="${src}" />
@@ -112,6 +111,7 @@ class ProfileOverlay {
       });
     });
 
+    // Banner change
     bannerImg.addEventListener("click", () => {
       bannerMenu.innerHTML = this.availableBanners.map(src => `
         <img src="${src}" class="selection-item banner-option" data-src="${src}" />
@@ -130,11 +130,27 @@ class ProfileOverlay {
 
   open(profileData) {
     if (profileData) {
-      this.overlay.querySelector("#profile-name").value = profileData.name || "Player";
-      this.overlay.querySelector("#profile-trophies").textContent = profileData.trophies || 0;
-      this.overlay.querySelector("#profile-level").textContent = profileData.level || 1;
-      this.overlay.querySelector("#profile-wins").textContent = profileData.wins || 0;
+      // Basic info
+      this.overlay.querySelector("#profile-name").value = profileData.displayName || profileData.username || "Player";
 
+      // Stats
+      this.overlay.querySelector("#profile-currentTrophies").textContent = profileData.stats?.currentTrophies || 0;
+      this.overlay.querySelector("#profile-highestTrophies").textContent = profileData.stats?.highestTrophies || 0;
+      this.overlay.querySelector("#profile-gamesPlayed").textContent = profileData.stats?.gamesPlayed || 0;
+      this.overlay.querySelector("#profile-gamesWon").textContent = profileData.stats?.gamesWon || 0;
+      this.overlay.querySelector("#profile-gamesLost").textContent = profileData.stats?.gamesLost || 0;
+      this.overlay.querySelector("#profile-winRate").textContent = `${profileData.stats?.winRate || 0}%`;
+
+      this.overlay.querySelector("#profile-level").textContent = profileData.level || 1;
+      this.overlay.querySelector("#profile-xp").textContent = profileData.experience || 0;
+
+      // Dates
+      this.overlay.querySelector("#profile-createdAt").textContent =
+        profileData.createdAt ? new Date(profileData.createdAt).toLocaleDateString() : "-";
+      this.overlay.querySelector("#profile-lastLogin").textContent =
+        profileData.lastLogin ? new Date(profileData.lastLogin).toLocaleString() : "-";
+
+      // Avatar & banner
       this.overlay.querySelector("#profile-avatar").src = profileData.avatar || "/avatars/avatar_01.png";
       this.overlay.querySelector("#profile-banner").src = profileData.banner || "/banners/banner_01.jpg";
     }
