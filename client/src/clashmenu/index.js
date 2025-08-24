@@ -60,20 +60,18 @@ class ClashMenuManager {
    * Create main container
    */
 createMainContainer() {
-  // Phone wrapper (simulate mobile screen)
-  const phoneWrapper = document.createElement('div');
-  phoneWrapper.id = 'clash-phone-wrapper';
-  phoneWrapper.className = 'clash-phone-wrapper';
+  const mobileViewport = document.getElementById('mobile-viewport');
+  if (!mobileViewport) {
+    console.warn('❌ mobile-viewport not found');
+    return;
+  }
 
-  // Main container inside phone wrapper
   this.mainContainer = document.createElement('div');
   this.mainContainer.id = 'clash-menu-container';
   this.mainContainer.className = 'clash-menu-container';
 
-  phoneWrapper.appendChild(this.mainContainer);
-  document.body.appendChild(phoneWrapper);
-
-  console.log('📦 Main container created with phone wrapper');
+  mobileViewport.appendChild(this.mainContainer);
+  console.log('📦 Main container created inside mobile-viewport');
 }
 
 
