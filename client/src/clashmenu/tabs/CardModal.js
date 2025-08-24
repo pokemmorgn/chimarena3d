@@ -1,6 +1,6 @@
 class CardModal {
   constructor(cardsTab) {
-    this.cardsTab = cardsTab; // accès aux méthodes updateDeckSlot, collection...
+    this.cardsTab = cardsTab;
     this.modal = null;
     this.currentCard = null;
   }
@@ -23,30 +23,30 @@ class CardModal {
         </div>
         <div class="card-modal-body">
           <div class="cm-level">
-            Niveau : <strong class="cm-level-value"></strong>
+            Level: <strong class="cm-level-value"></strong>
             <span class="cm-max-badge" style="display:none;">MAX</span>
           </div>
           <div class="cm-stats"></div>
           <div class="cm-upgrade" style="display:none;">
             <span class="cm-upgrade-req"></span>
-            <button class="cm-upgrade-btn">Améliorer</button>
+            <button class="cm-upgrade-btn">Upgrade</button>
           </div>
         </div>
         <div class="card-modal-actions">
-          <button class="cm-add-btn">Ajouter au deck</button>
+          <button class="cm-add-btn">Add to deck</button>
         </div>
       </div>
     `;
-    document.body.appendChild(this.modal); // attaché directement au body
+    document.body.appendChild(this.modal);
 
-    // fermeture
+    // close
     this.modal.querySelector(".card-modal-close")
       .addEventListener("click", () => this.close());
     this.modal.addEventListener("click", (e) => {
       if (e.target === this.modal) this.close();
     });
 
-    // bouton ajouter
+    // add to deck
     this.modal.querySelector(".cm-add-btn").addEventListener("click", () => {
       if (this.currentCard) {
         const empty = this.cardsTab.findEmptyDeckSlot();
@@ -65,28 +65,29 @@ class CardModal {
     const lvl = card.level || 1;
     const max = card.maxLevel || info.maxLevel || 13;
 
-    // --- Sprite ---
+    // sprite
     const img = this.modal.querySelector(".cm-sprite");
     img.src = info.sprite ? `/cards/${info.sprite}` : "/cards/fallback.png";
     img.style.maxWidth = "80px";
     img.style.maxHeight = "80px";
 
-    // --- Texte ---
+    // text
     this.modal.querySelector(".cm-name").textContent = info.name || info.nameKey || card.cardId;
     this.modal.querySelector(".cm-rarity").textContent = info.rarity ? info.rarity.toUpperCase() : "COMMON";
     this.modal.querySelector(".cm-elixir").textContent = (info.elixirCost ?? "?") + "⚡";
 
-    // --- Niveau ---
+    // level
     this.modal.querySelector(".cm-level-value").textContent = lvl;
     this.modal.querySelector(".cm-max-badge").style.display = (lvl >= max) ? "inline-block" : "none";
 
-    // --- Stats ---
+    // stats
     const statsEl = this.modal.querySelector(".cm-stats");
     statsEl.innerHTML = "";
-    if (info.stats) {
+    if (info.stats && typeof info.stats === "object") {
       const ul = document.createElement("ul");
       ul.style.listStyle = "none";
       ul.style.padding = "0";
+      ul.style.margin = "0";
       for (const [key, value] of Object.entries(info.stats)) {
         const li = document.createElement("li");
         li.textContent = `${key}: ${value}`;
@@ -94,27 +95,43 @@ class CardModal {
       }
       statsEl.appendChild(ul);
     } else {
-      statsEl.textContent = "Aucune statistique disponible.";
+      statsEl.textContent = "No stats available.";
     }
 
-    // --- Upgrade ---
+    // upgrade
     const upgradeBox = this.modal.querySelector(".cm-upgrade");
     const upgradeReq = this.modal.querySelector(".cm-upgrade-req");
     const upgradeBtn = this.modal.querySelector(".cm-upgrade-btn");
 
     if (card.canUpgrade) {
       upgradeBox.style.display = "block";
-      upgradeReq.textContent = `Amélioration possible (${card.nextLevelCount} cartes, ${card.nextLevelGold} or)`;
+      upgradeReq.textContent = `Requires ${card.nextLevelCount} cards and ${card.nextLevelGold} gold`;
       upgradeBtn.disabled = false;
-      upgradeBtn.onclick = () => {
-        console.log("🔧 Upgrade lancé pour", card.cardId);
-        this.close();
+      upgradeBtn.onclick = async () => {
+        console.log("🔧 Upgrade requested for", card.cardId);
+
+        // Example: call API (replace with your real endpoint)
+        try {
+          const result = await this.cardsTab.authenticatedFetch(`/api/collection/upgrade`, {
+            method: "POST",
+            body: JSON.stringify({ cardId: card.cardId })
+          });
+
+          if (result.success) {
+            alert(`${info.name || card.cardId} upgraded to level ${lvl + 1}!`);
+            this.cardsTab.loadCollection(); // reload player cards
+            this.close();
+          } else {
+            alert("Upgrade failed: " + result.message);
+          }
+        } catch (err) {
+          alert("Upgrade error: " + err.message);
+        }
       };
     } else {
       upgradeBox.style.display = "none";
     }
 
-    // afficher modal
     this.modal.style.display = "flex";
   }
 
