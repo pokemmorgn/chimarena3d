@@ -271,11 +271,11 @@ export class BaseUnit extends Schema {
     const levelStats = this.cardData.getStatsForLevel(level);
     
     // Créer les stats avec valeurs par défaut correctes
+    // D'abord construire un objet complet avec toutes les propriétés requises
     this.baseStats = {
       hitpoints: levelStats.hitpoints ?? this.cardData.stats.hitpoints ?? 100,
       damage: levelStats.damage ?? this.cardData.stats.damage ?? 50,
       damagePerSecond: this.cardData.stats.damagePerSecond ?? 0,
-      crownTowerDamage: levelStats.crownTowerDamage ?? this.cardData.stats.crownTowerDamage,
       
       speed: this.cardData.stats.speed ?? 'medium',
       walkingSpeed: BaseUnit.SPEED_VALUES[this.cardData.stats.speed as string] ?? BaseUnit.SPEED_VALUES['medium'],
@@ -284,16 +284,34 @@ export class BaseUnit extends Schema {
       
       targets: this.cardData.stats.targets ?? 'ground',
       splashDamage: this.cardData.stats.splashDamage ?? false,
-      splashRadius: this.cardData.stats.splashRadius,
       count: this.cardData.stats.count ?? 1,
       mass: this.cardData.stats.mass ?? 1,
       sight: this.cardData.stats.sight ?? 5.5,
       deployTime: this.cardData.stats.deployTime ?? 1,
-      
-      abilities: this.cardData.stats.abilities,
-      spawns: this.cardData.stats.spawns,
-      spawnCount: this.cardData.stats.spawnCount
     };
+
+    // Ajouter les propriétés optionnelles seulement si elles existent
+    if (levelStats.crownTowerDamage !== undefined) {
+      this.baseStats.crownTowerDamage = levelStats.crownTowerDamage;
+    } else if (this.cardData.stats.crownTowerDamage !== undefined) {
+      this.baseStats.crownTowerDamage = this.cardData.stats.crownTowerDamage;
+    }
+
+    if (this.cardData.stats.splashRadius !== undefined) {
+      this.baseStats.splashRadius = this.cardData.stats.splashRadius;
+    }
+
+    if (this.cardData.stats.abilities !== undefined) {
+      this.baseStats.abilities = this.cardData.stats.abilities;
+    }
+
+    if (this.cardData.stats.spawns !== undefined) {
+      this.baseStats.spawns = this.cardData.stats.spawns;
+    }
+
+    if (this.cardData.stats.spawnCount !== undefined) {
+      this.baseStats.spawnCount = this.cardData.stats.spawnCount;
+    }
     
     // Initialiser les stats actuelles
     this.maxHitpoints = this.baseStats.hitpoints;
@@ -776,11 +794,11 @@ export class BaseUnit extends Schema {
       const cardData = await cache.getCardData(cardId);
       const levelStats = cardData.getStatsForLevel(level);
       
-      return {
+      // Créer l'objet stats complet avec toutes les propriétés requises
+      const stats: IUnitStats = {
         hitpoints: levelStats.hitpoints ?? cardData.stats.hitpoints ?? 100,
         damage: levelStats.damage ?? cardData.stats.damage ?? 50,
         damagePerSecond: cardData.stats.damagePerSecond ?? 0,
-        crownTowerDamage: levelStats.crownTowerDamage,
         
         speed: cardData.stats.speed ?? 'medium',
         walkingSpeed: BaseUnit.SPEED_VALUES[cardData.stats.speed as string] ?? BaseUnit.SPEED_VALUES['medium'],
@@ -789,16 +807,34 @@ export class BaseUnit extends Schema {
         
         targets: cardData.stats.targets ?? 'ground',
         splashDamage: cardData.stats.splashDamage ?? false,
-        splashRadius: cardData.stats.splashRadius,
         count: cardData.stats.count ?? 1,
         mass: cardData.stats.mass ?? 1,
         sight: cardData.stats.sight ?? 5.5,
         deployTime: cardData.stats.deployTime ?? 1,
-        
-        abilities: cardData.stats.abilities,
-        spawns: cardData.stats.spawns,
-        spawnCount: cardData.stats.spawnCount
       };
+
+      // Ajouter les propriétés optionnelles seulement si elles existent
+      if (levelStats.crownTowerDamage !== undefined) {
+        stats.crownTowerDamage = levelStats.crownTowerDamage;
+      }
+
+      if (cardData.stats.splashRadius !== undefined) {
+        stats.splashRadius = cardData.stats.splashRadius;
+      }
+
+      if (cardData.stats.abilities !== undefined) {
+        stats.abilities = cardData.stats.abilities;
+      }
+
+      if (cardData.stats.spawns !== undefined) {
+        stats.spawns = cardData.stats.spawns;
+      }
+
+      if (cardData.stats.spawnCount !== undefined) {
+        stats.spawnCount = cardData.stats.spawnCount;
+      }
+
+      return stats;
     } catch (error) {
       console.error(`Failed to get stats for ${cardId}:`, error);
       return null;
