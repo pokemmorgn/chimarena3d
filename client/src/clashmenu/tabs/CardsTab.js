@@ -49,7 +49,7 @@ class CardsTab {
           <div class="deck-cards"></div>
           <div class="deck-footer">
             <span>Moyenne élixir: <span id="deck-elixir">0.0</span></span>
-            <button id="btn-show-all-cards">Voir toutes les cartes</button>
+            <button id="btn-show-all-cards">COLLECTIONS</button>
           </div>
         </div>
         
