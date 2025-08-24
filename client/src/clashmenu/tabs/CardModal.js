@@ -27,9 +27,9 @@ class CardModal {
             <span class="cm-max-badge" style="display:none;">MAX</span>
           </div>
           <div class="cm-stats"></div>
-          <div class="cm-upgrade">
+          <div class="cm-upgrade" style="display:none;">
             <span class="cm-upgrade-req"></span>
-            <button class="cm-upgrade-btn" disabled>Améliorer</button>
+            <button class="cm-upgrade-btn">Améliorer</button>
           </div>
         </div>
         <div class="card-modal-actions">
@@ -37,7 +37,7 @@ class CardModal {
         </div>
       </div>
     `;
-    container.appendChild(this.modal);
+    document.body.appendChild(this.modal); // attaché directement au body
 
     // fermeture
     this.modal.querySelector(".card-modal-close")
@@ -65,15 +65,56 @@ class CardModal {
     const lvl = card.level || 1;
     const max = card.maxLevel || info.maxLevel || 13;
 
-    this.modal.querySelector(".cm-sprite").src = info.sprite ? `/cards/${info.sprite}` : "/cards/fallback.png";
-    this.modal.querySelector(".cm-name").textContent = info.nameKey || card.cardId;
-    this.modal.querySelector(".cm-rarity").textContent = info.rarity || "common";
+    // --- Sprite ---
+    const img = this.modal.querySelector(".cm-sprite");
+    img.src = info.sprite ? `/cards/${info.sprite}` : "/cards/fallback.png";
+    img.style.maxWidth = "80px";
+    img.style.maxHeight = "80px";
+
+    // --- Texte ---
+    this.modal.querySelector(".cm-name").textContent = info.name || info.nameKey || card.cardId;
+    this.modal.querySelector(".cm-rarity").textContent = info.rarity ? info.rarity.toUpperCase() : "COMMON";
     this.modal.querySelector(".cm-elixir").textContent = (info.elixirCost ?? "?") + "⚡";
+
+    // --- Niveau ---
     this.modal.querySelector(".cm-level-value").textContent = lvl;
-    this.modal.querySelector(".cm-max-badge").style.display = (lvl >= max) ? "inline" : "none";
+    this.modal.querySelector(".cm-max-badge").style.display = (lvl >= max) ? "inline-block" : "none";
 
-    // TODO : stats & upgrade
+    // --- Stats ---
+    const statsEl = this.modal.querySelector(".cm-stats");
+    statsEl.innerHTML = "";
+    if (info.stats) {
+      const ul = document.createElement("ul");
+      ul.style.listStyle = "none";
+      ul.style.padding = "0";
+      for (const [key, value] of Object.entries(info.stats)) {
+        const li = document.createElement("li");
+        li.textContent = `${key}: ${value}`;
+        ul.appendChild(li);
+      }
+      statsEl.appendChild(ul);
+    } else {
+      statsEl.textContent = "Aucune statistique disponible.";
+    }
 
+    // --- Upgrade ---
+    const upgradeBox = this.modal.querySelector(".cm-upgrade");
+    const upgradeReq = this.modal.querySelector(".cm-upgrade-req");
+    const upgradeBtn = this.modal.querySelector(".cm-upgrade-btn");
+
+    if (card.canUpgrade) {
+      upgradeBox.style.display = "block";
+      upgradeReq.textContent = `Amélioration possible (${card.nextLevelCount} cartes, ${card.nextLevelGold} or)`;
+      upgradeBtn.disabled = false;
+      upgradeBtn.onclick = () => {
+        console.log("🔧 Upgrade lancé pour", card.cardId);
+        this.close();
+      };
+    } else {
+      upgradeBox.style.display = "none";
+    }
+
+    // afficher modal
     this.modal.style.display = "flex";
   }
 
