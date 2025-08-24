@@ -63,11 +63,11 @@ class CardsTabStyles {
         cursor: pointer;
         position: relative;
         transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-        transform: scale(1);
+        transform: scale(1) !important;
       }
 
       .deck-slot:hover:not(.drag-over) {
-        transform: scale(1.05);
+        transform: scale(1.02) !important;
       }
 
       .deck-slot.empty-slot {
@@ -75,11 +75,11 @@ class CardsTabStyles {
         border: 2px dashed #555;
         font-size: 32px;
         color: #888;
-        transform: scale(1);
+        transform: scale(1) !important;
       }
 
       .deck-slot.empty-slot:hover:not(.drag-over) {
-        transform: scale(1.05);
+        transform: scale(1.02) !important;
       }
 
       .deck-slot.empty-slot:hover::after {
@@ -97,7 +97,7 @@ class CardsTabStyles {
       .deck-slot.drag-over {
         border-color: #00bcd4 !important;
         background-color: rgba(0,188,212,0.1) !important;
-        transform: scale(1.05) !important;
+        transform: scale(1.02) !important;
         box-shadow: 0 0 15px rgba(0,188,212,0.5);
         transition: all 0.2s ease;
       }
