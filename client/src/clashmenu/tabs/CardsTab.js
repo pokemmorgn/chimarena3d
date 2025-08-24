@@ -553,16 +553,21 @@ if (slot.cardInfo) {
    
    // Clic pour ouvrir la modale (version corrigée)
    cardEl.addEventListener("click", (e) => {
-     // Empêcher le clic pendant un drag actif
      if (this.isDragging) {
        return;
      }
-     
      console.log("🖱️ Clic détecté sur carte:", card.cardId);
      e.preventDefault();
      e.stopPropagation();
      this.cardModal.open(card);
    });
+
+   myCardsContainer.appendChild(cardEl);
+ });
+
+ console.log("✅ Rendu de mes cartes terminé avec drag & drop");
+} // <-- fin de renderMyCards()
+
 
 /**
  * Afficher toutes les cartes du jeu (possédées + non possédées)
