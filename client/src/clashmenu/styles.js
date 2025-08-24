@@ -158,104 +158,111 @@ static getContainerStyles() {
   /**
    * Styles de l'onglet Bataille
    */
-  static getBattleTabStyles() {
-    const { white, gold, green, red, orange, darkBlue, royalBlue, neonBlue, electric } = this.colors;
+static getBattleTabStyles() {
+  const { white, gold, green, red, orange, darkBlue, royalBlue, neonBlue, electric } = this.colors;
+  
+  return `
+    .battle-tab {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: calc(100% - 80px);
+      padding: 20px;
+      overflow-y: auto;
+      display: none;
+
+      /* Masquer la scrollbar */
+      scrollbar-width: none;     /* Firefox */
+      -ms-overflow-style: none;  /* IE et Edge */
+    }
+    .battle-tab::-webkit-scrollbar { 
+      display: none;             /* Chrome, Safari, Edge */
+    }
     
-    return `
-      .battle-tab {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: calc(100% - 80px);
-        padding: 20px;
-        overflow-y: auto;
-        display: none;
-      }
-      
-      .battle-tab.active {
-        display: block;
-      }
-      
-      /* Header avec stats joueur */
-      .battle-header {
-        text-align: center;
-        margin-bottom: 40px;
-        padding: 30px 20px;
-        background: linear-gradient(135deg, ${darkBlue}cc, ${royalBlue}cc);
-        border-radius: 20px;
-        backdrop-filter: blur(15px);
-        border: 2px solid ${neonBlue}44;
-      }
-      
-      .player-name {
-        font-size: 32px;
-        font-weight: bold;
-        color: ${gold};
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-      }
-      
-      .player-stats {
-        display: flex;
-        justify-content: center;
-        gap: 40px;
-        margin-top: 20px;
-      }
-      
-      .stat-item {
-        text-align: center;
-      }
-      
-      .stat-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: ${white};
-        display: block;
-      }
-      
-      .stat-label {
-        font-size: 14px;
-        color: ${neonBlue};
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-top: 5px;
-      }
-      
-      /* Status de connexion */
-      .connection-status {
-        text-align: center;
-        padding: 15px;
-        margin-bottom: 30px;
-        border-radius: 15px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-      }
-      
-      .connection-status.connected {
-        background: ${green}22;
-        color: ${green};
-        border: 2px solid ${green}44;
-      }
-      
-      .connection-status.connecting {
-        background: ${orange}22;
-        color: ${orange};
-        border: 2px solid ${orange}44;
-      }
-      
-      .connection-status.error {
-        background: ${red}22;
-        color: ${red};
-        border: 2px solid ${red}44;
-      }
-      
-      .connection-status.searching {
-        background: ${electric}22;
-        color: ${electric};
-        border: 2px solid ${electric}44;
-        animation: pulse 1.5s infinite;
-      }
+    .battle-tab.active {
+      display: block;
+    }
+
+    /* Header avec stats joueur */
+    .battle-header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 30px 20px;
+      background: linear-gradient(135deg, ${darkBlue}cc, ${royalBlue}cc);
+      border-radius: 20px;
+      backdrop-filter: blur(15px);
+      border: 2px solid ${neonBlue}44;
+    }
+
+    .player-name {
+      font-size: 32px;
+      font-weight: bold;
+      color: ${gold};
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .player-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 20px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: ${white};
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: ${neonBlue};
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 5px;
+    }
+
+    /* Status de connexion */
+    .connection-status {
+      text-align: center;
+      padding: 15px;
+      margin-bottom: 30px;
+      border-radius: 15px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .connection-status.connected {
+      background: ${green}22;
+      color: ${green};
+      border: 2px solid ${green}44;
+    }
+
+    .connection-status.connecting {
+      background: ${orange}22;
+      color: ${orange};
+      border: 2px solid ${orange}44;
+    }
+
+    .connection-status.error {
+      background: ${red}22;
+      color: ${red};
+      border: 2px solid ${red}44;
+    }
+
+    .connection-status.searching {
+      background: ${electric}22;
+      color: ${electric};
+      border: 2px solid ${electric}44;
+      animation: pulse 1.5s infinite;
+    }
       
       /* Boutons de bataille */
       .battle-buttons {
