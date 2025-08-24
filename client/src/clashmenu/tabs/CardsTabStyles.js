@@ -40,36 +40,8 @@ class CardsTabStyles {
       /* Contenu principal */
       .cards-main-content {
         flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         padding: 20px;
-      }
-
-      /* Placeholder temporaire */
-      .cards-placeholder {
-        text-align: center;
-        background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        border-radius: 20px;
-        padding: 40px 30px;
-        color: ${white};
-        max-width: 300px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      }
-
-      .cards-placeholder h2 {
-        margin: 0 0 15px 0;
-        font-size: 24px;
-        color: ${gold};
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-      }
-
-      .cards-placeholder p {
-        margin: 0;
-        font-size: 16px;
-        opacity: 0.8;
-        color: ${white};
+        /* Onglet vide, prêt pour le contenu */
       }
 
       /* Responsive */
@@ -79,17 +51,8 @@ class CardsTabStyles {
           height: calc(100% - 120px);
         }
 
-        .cards-placeholder {
-          padding: 30px 20px;
-          margin: 10px;
-        }
-
-        .cards-placeholder h2 {
-          font-size: 20px;
-        }
-
-        .cards-placeholder p {
-          font-size: 14px;
+        .cards-main-content {
+          padding: 15px;
         }
       }
     `;
