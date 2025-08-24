@@ -1,6 +1,3 @@
-/**
- * Battle Tab Styles - Clash Royale style
- */
 class BattleTabStyles {
   static get colors() {
     return {
@@ -11,214 +8,205 @@ class BattleTabStyles {
       orange: '#ff9800',
       darkBlue: '#0f1419',
       royalBlue: '#1a237e',
-      neonBlue: '#00bcd4',
-      electric: '#00e5ff',
-      gray: '#9e9e9e'
+      neonBlue: '#00bcd4'
     };
   }
 
   static getCSS() {
-    return `
-      ${this.getBattleTabStyles()}
-      ${this.getAnimations()}
-    `;
+    return this.getBattleTabStyles();
   }
 
   static getBattleTabStyles() {
-    const { white, gold, green, red, orange, darkBlue, royalBlue, neonBlue, electric, gray } = this.colors;
+    const { white, gold, darkBlue, royalBlue } = this.colors;
 
     return `
     .battle-tab {
       position: absolute;
-      top: 0;
+      top: 60px; /* below global header */
       left: 0;
       width: 100%;
-      height: calc(100% - 80px);
-      display: none;
-      overflow-y: auto;
-      padding: 10px;
+      height: calc(100% - 140px);
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .battle-tab.active {
-      display: block;
-    }
-
-    /* --- Topbar --- */
+    /* --- Top bar --- */
     .battle-topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-      border-bottom: 2px solid ${neonBlue}55;
-      padding: 10px 15px;
-      border-radius: 10px;
+      width: 100%;
+      padding: 8px 16px;
       margin-bottom: 10px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border-radius: 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
 
-    .topbar-left,
-    .topbar-right {
+    .topbar-left, .topbar-right {
       display: flex;
       gap: 10px;
     }
 
     .topbar-btn {
-      background: ${darkBlue};
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
       color: ${white};
-      border: 2px solid ${neonBlue}55;
-      border-radius: 8px;
-      font-size: 18px;
-      padding: 6px 10px;
+      font-size: 20px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: transform 0.2s ease, background 0.2s ease;
     }
 
     .topbar-btn:hover {
-      background: ${royalBlue};
-      transform: translateY(-2px);
+      transform: scale(1.1);
+      background: rgba(255,255,255,0.2);
     }
 
-    .player-info {
-      text-align: center;
+    .topbar-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .player-name {
-      display: block;
       font-size: 16px;
       font-weight: bold;
-      color: ${gold};
-    }
-
-    .player-trophies {
-      display: block;
-      font-size: 14px;
       color: ${white};
     }
 
-    /* --- Connection status --- */
-    .connection-status {
-      text-align: center;
-      margin: 10px auto 20px auto;
-      padding: 10px 15px;
+    .player-trophies {
+      font-size: 14px;
+      color: ${gold};
+    }
+
+    /* --- Dropdown menu --- */
+    .dropdown-menu {
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border: 2px solid rgba(255,255,255,0.2);
       border-radius: 10px;
-      font-weight: bold;
-      width: fit-content;
-      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      width: 200px;
+      display: none;
+      flex-direction: column;
+      z-index: 100;
     }
 
-    .connection-status.connected {
-      background: ${green}22;
-      color: ${green};
-      border: 2px solid ${green}44;
+    .dropdown-menu.active {
+      display: flex;
     }
 
-    .connection-status.connecting {
-      background: ${orange}22;
-      color: ${orange};
-      border: 2px solid ${orange}44;
+    .dropdown-item {
+      padding: 12px 15px;
+      color: ${white};
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.2s ease;
     }
 
-    .connection-status.error {
-      background: ${red}22;
-      color: ${red};
-      border: 2px solid ${red}44;
+    .dropdown-item:last-child {
+      border-bottom: none;
     }
 
-    .connection-status.searching {
-      background: ${electric}22;
-      color: ${electric};
-      border: 2px solid ${electric}44;
-      animation: pulse 1.5s infinite;
+    .dropdown-item:hover {
+      background: rgba(255,255,255,0.1);
     }
 
     /* --- Arena --- */
     .arena-section {
+      flex: 1;
       display: flex;
-      justify-content: center;
       align-items: center;
-      margin: 20px 0;
+      justify-content: center;
+      margin: 10px 0;
     }
 
     .arena-image {
-      max-width: 90%;
+      max-width: 100%;
+      max-height: 220px;
+      object-fit: contain;
       border-radius: 15px;
-      border: 3px solid ${neonBlue}55;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
 
     /* --- Battle action --- */
     .battle-action {
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       gap: 15px;
-      margin: 20px 0;
+      margin: 15px 0;
     }
 
     .battle-main-btn {
-      background: linear-gradient(135deg, ${green}, #45a049);
-      color: ${white};
+      padding: 20px 50px;
       font-size: 22px;
       font-weight: bold;
       text-transform: uppercase;
-      padding: 15px 40px;
+      background: linear-gradient(135deg, ${gold}, #ffb300);
+      color: ${darkBlue};
       border: none;
-      border-radius: 15px;
+      border-radius: 20px;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 8px 20px ${green}55;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      transition: transform 0.2s ease;
     }
 
     .battle-main-btn:hover {
       transform: translateY(-3px);
-      box-shadow: 0 12px 25px rgba(0,0,0,0.3);
+    }
+
+    .battle-main-btn:active {
+      transform: translateY(-1px);
     }
 
     .battle-mode-btn {
-      background: ${royalBlue};
-      color: ${white};
-      font-size: 18px;
-      border: 2px solid ${neonBlue}55;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
-      width: 48px;
-      height: 48px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      color: ${white};
+      border: 2px solid ${gold};
+      font-size: 22px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: transform 0.2s ease;
     }
 
     .battle-mode-btn:hover {
-      background: ${darkBlue};
-      transform: rotate(20deg);
+      transform: scale(1.1);
     }
 
-    /* --- Chest slots --- */
+    /* --- Chests --- */
     .battle-chests {
       display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 30px;
+      justify-content: space-around;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 10px;
     }
 
     .chest-slot {
       width: 70px;
       height: 70px;
-      border: 2px dashed ${gray};
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border: 2px solid rgba(255,255,255,0.2);
       border-radius: 12px;
-      background: rgba(255,255,255,0.05);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      color: ${gray};
+      color: ${white};
+      font-size: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
-    `;
-  }
-
-  static getAnimations() {
-    return `
-      @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.7; transform: scale(1.05); }
-      }
     `;
   }
 }
