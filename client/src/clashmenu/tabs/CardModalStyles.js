@@ -4,11 +4,11 @@ class CardModalStyles {
 .card-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0,0,0,0.7);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
+  z-index: 20000;
 }
 .card-modal {
   background: #1a1f2b;
@@ -30,7 +30,6 @@ class CardModalStyles {
   cursor: pointer;
   color: #fff;
 }
-.cm-title { margin-left: 10px; }
 .cm-upgrade-btn {
   margin-top: 10px;
   padding: 8px;
