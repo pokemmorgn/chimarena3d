@@ -1,6 +1,6 @@
 /**
  * Battle Tab - Interface de bataille principale (style Clash Royale)
- * Arène, bouton combat, sélection de mode et coffres
+ * Affiche l'arène, les coffres, le bouton Combat et la topbar
  */
 class BattleTab {
   constructor() {
@@ -33,11 +33,9 @@ class BattleTab {
 
     try {
       console.log('⚔️ Initializing BattleTab...');
-
       this.createTabElement();
       this.renderLayout();
       this.setupEventListeners();
-
       console.log('✅ BattleTab initialized');
     } catch (error) {
       console.error('❌ Failed to initialize BattleTab:', error);
@@ -46,7 +44,7 @@ class BattleTab {
   }
 
   /**
-   * Create root tab element
+   * Create tab element
    */
   createTabElement() {
     this.tabElement = document.createElement('div');
@@ -56,22 +54,39 @@ class BattleTab {
   }
 
   /**
-   * Render main layout
+   * Render main layout (topbar + arena + battle + chests)
    */
   renderLayout() {
     this.tabElement.innerHTML = `
-      <!-- Arène -->
+      <!-- Top bar -->
+      <div class="battle-topbar">
+        <div class="topbar-left">
+          <button class="topbar-btn" id="btn-friends">👥</button>
+          <button class="topbar-btn" id="btn-messages">💬</button>
+        </div>
+        <div class="topbar-center">
+          <div class="player-info">
+            <span class="player-name" id="topbar-player-name">Player</span>
+            <span class="player-trophies" id="topbar-player-trophies">🏆 0</span>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="topbar-btn" id="btn-menu">☰</button>
+        </div>
+      </div>
+
+      <!-- Arena -->
       <div class="arena-section">
         <img src="assets/arena_placeholder.png" alt="Arena" class="arena-image" />
       </div>
 
-      <!-- Bouton combat + mode -->
+      <!-- Battle button + mode -->
       <div class="battle-action">
         <button class="battle-main-btn" id="battle-main-btn">⚔️ Combat</button>
         <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
       </div>
 
-      <!-- Coffres -->
+      <!-- Chests -->
       <div class="battle-chests">
         <div class="chest-slot" data-slot="1"></div>
         <div class="chest-slot" data-slot="2"></div>
@@ -80,32 +95,56 @@ class BattleTab {
       </div>
     `;
 
-    // refs
+    // Refs
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
     this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
     this.chestSlots = Array.from(this.tabElement.querySelectorAll('.chest-slot'));
   }
 
   /**
-   * Setup events
+   * Setup event listeners
    */
   setupEventListeners() {
     if (this.battleBtn) {
-      this.battleBtn.addEventListener('click', () => {
-        this.handleBattle();
-      });
+      this.battleBtn.addEventListener('click', () => this.handleMainBattle());
     }
     if (this.modeBtn) {
-      this.modeBtn.addEventListener('click', () => {
-        this.handleModeChange();
-      });
+      this.modeBtn.addEventListener('click', () => this.handleModeSelection());
+    }
+
+    const friendsBtn = this.tabElement.querySelector('#btn-friends');
+    const messagesBtn = this.tabElement.querySelector('#btn-messages');
+    const menuBtn = this.tabElement.querySelector('#btn-menu');
+
+    if (friendsBtn) {
+      friendsBtn.addEventListener('click', () => this.emit('battle:friends'));
+    }
+    if (messagesBtn) {
+      messagesBtn.addEventListener('click', () => this.emit('battle:messages'));
+    }
+    if (menuBtn) {
+      menuBtn.addEventListener('click', () => this.emit('battle:menu'));
     }
   }
 
   /**
-   * Battle button handler
+   * Update player data in the topbar
    */
-  handleBattle() {
+  updatePlayerData(user) {
+    if (!user) return;
+    this.currentUser = user;
+
+    const nameEl = this.tabElement.querySelector('#topbar-player-name');
+    const trophiesEl = this.tabElement.querySelector('#topbar-player-trophies');
+
+    if (nameEl) nameEl.textContent = user.displayName || user.username || 'Player';
+    if (trophiesEl) trophiesEl.textContent = `🏆 ${user.trophies || 0}`;
+  }
+
+  /**
+   * Handle main battle button
+   */
+  handleMainBattle() {
     if (this.isSearching) {
       this.cancelBattleSearch();
     } else {
@@ -113,36 +152,30 @@ class BattleTab {
     }
   }
 
-  /**
-   * Mode change handler
-   */
-  handleModeChange() {
-    console.log('⚙️ Mode selection clicked');
-    alert('Mode selection UI à implémenter');
-  }
-
-  /**
-   * Start search
-   */
   startBattleSearch() {
+    if (this.isSearching) return;
     this.isSearching = true;
-    if (this.battleBtn) this.battleBtn.textContent = '❌ Annuler';
+    if (this.battleBtn) {
+      this.battleBtn.textContent = '❌ Annuler';
+    }
     this.emit('battle:search');
-    console.log('🔍 Searching battle...');
   }
 
-  /**
-   * Cancel search
-   */
   cancelBattleSearch() {
+    if (!this.isSearching) return;
     this.isSearching = false;
-    if (this.battleBtn) this.battleBtn.textContent = '⚔️ Combat';
+    if (this.battleBtn) {
+      this.battleBtn.textContent = '⚔️ Combat';
+    }
     this.emit('battle:cancel');
-    console.log('❌ Battle search cancelled');
+  }
+
+  handleModeSelection() {
+    this.emit('battle:mode');
   }
 
   /**
-   * Show/hide
+   * Show/hide tab
    */
   show() {
     if (this.tabElement) {
@@ -171,14 +204,12 @@ class BattleTab {
   emit(event, data) {
     if (this.eventListeners.has(event)) {
       this.eventListeners.get(event).forEach(cb => {
-        try { cb(data); } catch (e) { console.error(e); }
+        try {
+          cb(data);
+        } catch (err) {
+          console.error(`Error in event listener ${event}`, err);
+        }
       });
-    }
-  }
-
-  off(event, callback) {
-    if (this.eventListeners.has(event)) {
-      this.eventListeners.get(event).delete(callback);
     }
   }
 
@@ -186,10 +217,12 @@ class BattleTab {
    * Cleanup
    */
   async cleanup() {
-    console.log('🧹 Cleaning BattleTab');
     if (this.tabElement && this.tabElement.parentNode) {
       this.tabElement.parentNode.removeChild(this.tabElement);
     }
+    this.eventListeners.clear();
+    this.container = null;
+    this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
     this.chestSlots = [];
