@@ -39,9 +39,9 @@ class BattleTabStyles {
   flex: 1;
   width: 100%;
   background: url('/arena/Arena1.png') center/cover no-repeat;
-  border-radius: 15px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+  border-radius: 0;
 }
+
 
 .edit-profile-btn {
   background: none;
