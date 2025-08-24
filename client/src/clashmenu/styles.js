@@ -58,13 +58,15 @@ static getContainerStyles() {
 
   return `
     .clash-menu-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
       font-family: 'Arial', sans-serif;
       overflow: hidden;
-      z-index: 10; /* au-dessus du canvas */
+      z-index: 9999;
     }
   `;
 }
