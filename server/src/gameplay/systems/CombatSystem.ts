@@ -523,36 +523,36 @@ class CombatSystem {
   /**
    * Mettre à jour les projectiles en vol
    */
-  private updateProjectiles(tick: number): void {
-    const projectilesToRemove: string[] = [];
-    let projectilesProcessed = 0;
-    
-    for (const [, projectile] of this.projectiles) {
-      if (!projectile.isActive) {
-        projectilesToRemove.push(projectileId);
-        continue;
-      }
-      
-      // Limite de performance
-      if (projectilesProcessed >= this.config.maxProjectilesPerTick) {
-        break;
-      }
-      
-      // Vérifier si le projectile doit toucher
-      if (tick >= projectile.expectedHitTick) {
-        this.processProjectileHit(projectile);
-        projectilesToRemove.push(projectileId);
-      } else {
-        // Mettre à jour la position du projectile
-        this.updateProjectilePosition(projectile, tick);
-      }
-      
-      projectilesProcessed++;
+private updateProjectiles(tick: number): void {
+  const projectilesToRemove: string[] = [];
+  let projectilesProcessed = 0;
+
+  for (const [id, projectile] of this.projectiles) {
+    if (!projectile.isActive) {
+      projectilesToRemove.push(id);
+      continue;
     }
-    
-    // Nettoyer les projectiles finis
-    projectilesToRemove.forEach(id => this.projectiles.delete(id));
+
+    // Limite de performance
+    if (projectilesProcessed >= this.config.maxProjectilesPerTick) {
+      break;
+    }
+
+    // Vérifier si le projectile doit toucher
+    if (tick >= projectile.expectedHitTick) {
+      this.processProjectileHit(projectile);
+      projectilesToRemove.push(id);
+    } else {
+      // Mettre à jour la position du projectile
+      this.updateProjectilePosition(projectile, tick);
+    }
+
+    projectilesProcessed++;
   }
+
+  // Nettoyer les projectiles finis
+  projectilesToRemove.forEach(id => this.projectiles.delete(id));
+}
 
   /**
    * Traiter l'impact d'un projectile
@@ -692,16 +692,16 @@ class CombatSystem {
   /**
    * Retirer un combattant du système
    */
-  unregisterCombatant(combatantId: string): void {
-    this.combatants.delete(combatantId);
-    
-    // Nettoyer les projectiles qui visaient cette cible
-    for (const [projectileId, projectile] of this.projectiles) {
-      if (projectile.targetId === combatantId) {
-        projectile.targetId = 'invalid'; // Garder pour explosion
-      }
+unregisterCombatant(combatantId: string): void {
+  this.combatants.delete(combatantId);
+
+  // Nettoyer les projectiles qui visaient cette cible
+  for (const projectile of this.projectiles.values()) {
+    if (projectile.targetId === combatantId) {
+      projectile.targetId = 'invalid'; // Garder pour explosion
     }
   }
+}
 
   /**
    * Obtenir les statistiques de performance
