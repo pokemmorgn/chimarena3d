@@ -23,8 +23,8 @@ class BattleTabStyles {
       top: 60px;
       left: 0;
       width: 100%;
-      height: calc(100% - 120px);
-      display: flex;
+height: 100%;     
+display: flex;
       flex-direction: column;
       align-items: center;
     }
