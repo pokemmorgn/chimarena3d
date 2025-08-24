@@ -79,7 +79,7 @@ class BattleTabStyles {
     }
     .topbar-btn:hover { transform: scale(1.1); background: rgba(255,255,255,0.25); }
 
-    /* Dropdown menu */
+    /* Dropdown menu topbar */
     .dropdown-menu {
       position: absolute; top: 110px; right: 15px;
       background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
@@ -107,7 +107,7 @@ class BattleTabStyles {
     /* --- Bottom zone (battle button + mode + chests) --- */
     .battle-bottom {
       width: 100%; display: flex; flex-direction: column; align-items: center;
-      padding-bottom: 8px; gap: 6px; margin-top: -15px; /* remonté */
+      padding-bottom: 8px; gap: 6px; margin-top: -15px;
     }
 
     .battle-action { display: flex; align-items: center; justify-content: center; gap: 12px; }
@@ -129,10 +129,30 @@ class BattleTabStyles {
     }
     .battle-mode-btn:hover { transform: scale(1.1); }
 
-    .mode-label {
-      font-size: 12px; color: ${white}; opacity: 0.9; margin-top: 2px;
-      text-align: center;
+    /* Mode dropdown (battle modes) */
+    .mode-dropdown {
+      position: absolute;
+      bottom: 130px;
+      right: calc(50% - 100px);
+      width: 200px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      display: none;
+      flex-direction: column;
+      z-index: 200;
     }
+    .mode-dropdown.active { display: flex; }
+    .mode-dropdown-item {
+      padding: 12px 15px;
+      color: ${white};
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.2s ease;
+    }
+    .mode-dropdown-item:last-child { border-bottom: none; }
+    .mode-dropdown-item:hover { background: rgba(255,255,255,0.1); }
 
     .battle-chests {
       display: flex; justify-content: space-around; align-items: center;
