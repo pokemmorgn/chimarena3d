@@ -63,7 +63,8 @@ class ClashMenuManager {
     this.mainContainer.id = 'clash-menu-container';
     this.mainContainer.className = 'clash-menu-container';
     
-    document.body.appendChild(this.mainContainer);
+const parent = document.getElementById('mobile-viewport') || document.body;
+parent.appendChild(this.mainContainer);
     console.log('📦 Main container created');
   }
 
