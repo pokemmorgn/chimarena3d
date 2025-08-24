@@ -61,48 +61,64 @@ class WelcomeMenuScene {
   /**
    * Create animated background
    */
-  createBackground() {
-    // Gradient background plane
-    const geometry = new THREE.PlaneGeometry(100, 100);
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-        color1: { value: new THREE.Color(0x1a1a2e) },
-        color2: { value: new THREE.Color(0x16213e) },
-        color3: { value: new THREE.Color(0x0f3460) }
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        uniform vec3 color1;
-        uniform vec3 color2;
-        uniform vec3 color3;
-        varying vec2 vUv;
-        
-        void main() {
-          float wave1 = sin(vUv.x * 8.0 + time * 0.5) * 0.1;
-          float wave2 = cos(vUv.y * 6.0 + time * 0.3) * 0.1;
-          float pattern = wave1 + wave2;
-          
-          vec3 color = mix(color1, color2, vUv.y + pattern);
-          color = mix(color, color3, vUv.x * 0.2);
-          
-          gl_FragColor = vec4(color, 1.0);
-        }
-      `
-    });
-    
-    this.backgroundPlane = new THREE.Mesh(geometry, material);
-    this.backgroundPlane.position.z = -10;
-    this.backgroundPlane.name = 'Background';
-    this.rootObject.add(this.backgroundPlane);
-  }
+ createBackground() {
+  const geometry = new THREE.PlaneBufferGeometry(2, 2); // Fullscreen quad in NDC
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      resolution: { value: new THREE.Vector2() },
+      color1: { value: new THREE.Color(0x1a1a2e) },
+      color2: { value: new THREE.Color(0x16213e) },
+      color3: { value: new THREE.Color(0x0f3460) }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position, 1.0); // NDC space [-1,1]
+      }
+    `,
+    fragmentShader: `
+      uniform float time;
+      uniform vec2 resolution;
+      uniform vec3 color1;
+      uniform vec3 color2;
+      uniform vec3 color3;
+      varying vec2 vUv;
+
+      void main() {
+        float wave1 = sin(vUv.x * 8.0 + time * 0.5) * 0.1;
+        float wave2 = cos(vUv.y * 6.0 + time * 0.3) * 0.1;
+        float pattern = wave1 + wave2;
+
+        vec3 color = mix(color1, color2, vUv.y + pattern);
+        color = mix(color, color3, vUv.x * 0.2);
+
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false; // always rendered
+  mesh.renderOrder = -1; // render before everything else
+
+  this.backgroundPlane = mesh;
+  this.rootObject.add(mesh);
+
+  // Set resolution once and on resize
+  const updateResolution = () => {
+    const size = this.gameEngine.getRenderer().getSize(new THREE.Vector2());
+    material.uniforms.resolution.value.set(size.x, size.y);
+  };
+
+  updateResolution();
+  window.addEventListener('resize', updateResolution);
+}
+
 
   /**
    * Create simple floating elements for ambiance
