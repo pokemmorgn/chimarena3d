@@ -136,6 +136,12 @@ createMainContainer() {
       this.battleTab.on('battle:cancel', () => {
         this.handleBattleCancel();
       });
+       // ✅ Ouvrir l'overlay profil quand on clique sur edit
+  this.battleTab.on('player:open-profile', () => {
+    if (this.profileOverlay) {
+      this.profileOverlay.open(this.currentUser);
+    }
+  });
     }
   }
 
@@ -280,19 +286,6 @@ if (this.header && user) {
     }
   }
 
-  /**
-   * Show connection status
-   */
-  showConnectionStatus(message, status) {
-    this.connectionStatus = status;
-    
-    // Update battle tab if available
-    if (this.battleTab) {
-      this.battleTab.updateConnectionStatus(message, status);
-    }
-    
-    console.log(`🔌 Connection status: ${status} - ${message}`);
-  }
 
   /**
    * Enable/disable battle features based on connection
