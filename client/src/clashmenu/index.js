@@ -1,3 +1,4 @@
+
 import TabNavigation from './components/TabNavigation';
 import BattleTab from './tabs/BattleTab';
 import styles from './styles';
@@ -63,8 +64,7 @@ class ClashMenuManager {
     this.mainContainer.id = 'clash-menu-container';
     this.mainContainer.className = 'clash-menu-container';
     
-const parent = document.getElementById('mobile-viewport') || document.body;
-parent.appendChild(this.mainContainer);
+    document.body.appendChild(this.mainContainer);
     console.log('📦 Main container created');
   }
 
