@@ -31,7 +31,7 @@ export interface IUnitStats {
   sight: number;
   deployTime: number;
   
-  // Capacités spéciales
+  // Capacités spéciales (toutes optionnelles)
   abilities?: string[];
   spawns?: string; // Ce qu'elle spawn à la mort
   spawnCount?: number;
@@ -246,8 +246,8 @@ export class BaseUnit extends Schema {
       // Initialiser le comportement
       this.initializeBehavior();
       
-      // Logger la création
-      await this.logger.logBattle('unit_deployed', ownerId, {
+      // Logger la création (sync pour éviter les problèmes)
+      this.logger.logBattle('unit_deployed', ownerId, {
         unitId: this.id,
         cardId: this.cardId,
         level: this.level,
@@ -270,29 +270,29 @@ export class BaseUnit extends Schema {
     // Utiliser la méthode du model CardData
     const levelStats = this.cardData.getStatsForLevel(level);
     
-    // Mapper les stats depuis CardData vers notre format
+    // Créer les stats avec valeurs par défaut correctes
     this.baseStats = {
-      hitpoints: levelStats.hitpoints || this.cardData.stats.hitpoints || 100,
-      damage: levelStats.damage || this.cardData.stats.damage || 50,
-      damagePerSecond: this.cardData.stats.damagePerSecond || 0,
-      crownTowerDamage: levelStats.crownTowerDamage || this.cardData.stats.crownTowerDamage,
+      hitpoints: levelStats.hitpoints ?? this.cardData.stats.hitpoints ?? 100,
+      damage: levelStats.damage ?? this.cardData.stats.damage ?? 50,
+      damagePerSecond: this.cardData.stats.damagePerSecond ?? 0,
+      crownTowerDamage: levelStats.crownTowerDamage ?? this.cardData.stats.crownTowerDamage,
       
-      speed: this.cardData.stats.speed || 'medium',
-      walkingSpeed: BaseUnit.SPEED_VALUES[this.cardData.stats.speed as string] || BaseUnit.SPEED_VALUES['medium'],
-      range: this.cardData.stats.range || 1,
-      attackSpeed: this.cardData.stats.attackSpeed || 1.5,
+      speed: this.cardData.stats.speed ?? 'medium',
+      walkingSpeed: BaseUnit.SPEED_VALUES[this.cardData.stats.speed as string] ?? BaseUnit.SPEED_VALUES['medium'],
+      range: this.cardData.stats.range ?? 1,
+      attackSpeed: this.cardData.stats.attackSpeed ?? 1.5,
       
-      targets: this.cardData.stats.targets || 'ground',
-      splashDamage: this.cardData.stats.splashDamage || false,
-      splashRadius: this.cardData.stats.splashRadius || 0,
-      count: this.cardData.stats.count || 1,
-      mass: this.cardData.stats.mass || 1,
-      sight: this.cardData.stats.sight || 5.5,
-      deployTime: this.cardData.stats.deployTime || 1,
+      targets: this.cardData.stats.targets ?? 'ground',
+      splashDamage: this.cardData.stats.splashDamage ?? false,
+      splashRadius: this.cardData.stats.splashRadius,
+      count: this.cardData.stats.count ?? 1,
+      mass: this.cardData.stats.mass ?? 1,
+      sight: this.cardData.stats.sight ?? 5.5,
+      deployTime: this.cardData.stats.deployTime ?? 1,
       
-      abilities: this.cardData.stats.abilities || [],
-      spawns: this.cardData.stats.spawns || undefined,
-      spawnCount: this.cardData.stats.spawnCount || 0
+      abilities: this.cardData.stats.abilities,
+      spawns: this.cardData.stats.spawns,
+      spawnCount: this.cardData.stats.spawnCount
     };
     
     // Initialiser les stats actuelles
@@ -505,8 +505,8 @@ export class BaseUnit extends Schema {
     
     this.currentHitpoints = Math.max(0, this.currentHitpoints - actualDamage);
     
-    // Logger les dégâts
-    await this.logger.logBattle('card_played', this.ownerId, {
+    // Logger les dégâts (sync pour éviter les problèmes dans le tick)
+    this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
       attackerId,
       damage: actualDamage,
@@ -566,8 +566,8 @@ export class BaseUnit extends Schema {
     
     const damage = this.getCurrentDamage();
     
-    // Logger l'attaque
-    await this.logger.logBattle('card_played', this.ownerId, {
+    // Logger l'attaque (sync)
+    this.logger.logBattle('card_played', this.ownerId, {
       attackerId: this.id,
       targetId: this.behavior.currentTarget.id,
       damage,
@@ -732,8 +732,8 @@ export class BaseUnit extends Schema {
     this.behavior.buffs.clear();
     this.behavior.debuffs.clear();
     
-    // Logger la destruction
-    await this.logger.logBattle('card_played', this.ownerId, {
+    // Logger la destruction (sync)
+    this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
       cardId: this.cardId,
       finalState: this.state,
@@ -768,7 +768,7 @@ export class BaseUnit extends Schema {
   }
   
   /**
-   * Obtenir les stats d'une carte sans créer d'unité
+   * Obtenir les stats d'une carte sans créer d'unité (méthode utilitaire)
    */
   static async getCardStats(cardId: string, level: number): Promise<IUnitStats | null> {
     try {
@@ -777,27 +777,27 @@ export class BaseUnit extends Schema {
       const levelStats = cardData.getStatsForLevel(level);
       
       return {
-        hitpoints: levelStats.hitpoints || cardData.stats.hitpoints || 100,
-        damage: levelStats.damage || cardData.stats.damage || 50,
-        damagePerSecond: cardData.stats.damagePerSecond || 0,
+        hitpoints: levelStats.hitpoints ?? cardData.stats.hitpoints ?? 100,
+        damage: levelStats.damage ?? cardData.stats.damage ?? 50,
+        damagePerSecond: cardData.stats.damagePerSecond ?? 0,
         crownTowerDamage: levelStats.crownTowerDamage,
         
-        speed: cardData.stats.speed || 'medium',
-        walkingSpeed: BaseUnit.SPEED_VALUES[cardData.stats.speed as string] || BaseUnit.SPEED_VALUES['medium'],
-        range: cardData.stats.range || 1,
-        attackSpeed: cardData.stats.attackSpeed || 1.5,
+        speed: cardData.stats.speed ?? 'medium',
+        walkingSpeed: BaseUnit.SPEED_VALUES[cardData.stats.speed as string] ?? BaseUnit.SPEED_VALUES['medium'],
+        range: cardData.stats.range ?? 1,
+        attackSpeed: cardData.stats.attackSpeed ?? 1.5,
         
-        targets: cardData.stats.targets || 'ground',
-        splashDamage: cardData.stats.splashDamage || false,
-        splashRadius: cardData.stats.splashRadius || 0,
-        count: cardData.stats.count || 1,
-        mass: cardData.stats.mass || 1,
-        sight: cardData.stats.sight || 5.5,
-        deployTime: cardData.stats.deployTime || 1,
+        targets: cardData.stats.targets ?? 'ground',
+        splashDamage: cardData.stats.splashDamage ?? false,
+        splashRadius: cardData.stats.splashRadius,
+        count: cardData.stats.count ?? 1,
+        mass: cardData.stats.mass ?? 1,
+        sight: cardData.stats.sight ?? 5.5,
+        deployTime: cardData.stats.deployTime ?? 1,
         
-        abilities: cardData.stats.abilities || [],
-        spawns: cardData.stats.spawns || undefined,
-        spawnCount: cardData.stats.spawnCount || 0
+        abilities: cardData.stats.abilities,
+        spawns: cardData.stats.spawns,
+        spawnCount: cardData.stats.spawnCount
       };
     } catch (error) {
       console.error(`Failed to get stats for ${cardId}:`, error);
