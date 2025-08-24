@@ -3,6 +3,7 @@
  * Tous les styles sont dans des strings JavaScript pour éviter les erreurs de parsing
  */
 import BattleTabStyles from './tabs/BattleTabStyles.js';
+import HeaderStyles from './components/HeaderStyles.js';
 
 class ClashMenuStyles {
   
@@ -45,10 +46,12 @@ class ClashMenuStyles {
     return `
       ${this.getContainerStyles()}
       ${this.getTabNavigationStyles()}
+      ${HeaderStyles.getCSS()}
       ${BattleTabStyles.getCSS()}
       ${this.getComingSoonStyles()}
       ${this.getAnimationStyles()}
       ${this.getUtilityStyles()}
+      
     `;
   }
 
