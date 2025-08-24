@@ -611,14 +611,9 @@ class CardsTab {
 
   handleCardDragEnd(e) {
     console.log("🎯 Fin du drag");
-    this.isDragging = false;
-    this.draggedCard = null;
     
-    // Nettoyer les classes visuelles
-    e.target.classList.remove("dragging");
-    
-    // Nettoyer tous les drag-over et les transformations
-    this.cleanupVisualEffects();
+    // Nettoyer immédiatement
+    this.cleanupAllVisualEffects();
   }
 
   async handleCardDrop(e, slotIndex) {
@@ -745,10 +740,8 @@ class CardsTab {
         this.renderMyCards(); // Mettre à jour aussi mes cartes
         this.showMessage(`✅ ${card.cardInfo?.nameKey || card.cardId} ajouté au deck !`, "success");
         
-        // Nettoyer l'état visuel après un court délai
-        setTimeout(() => {
-          this.cleanupVisualEffects();
-        }, 100);
+        // Nettoyage immédiat
+        this.cleanupAllVisualEffects();
         
         console.log("✅ Deck mis à jour avec succès");
       } else {
