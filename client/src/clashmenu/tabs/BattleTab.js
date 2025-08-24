@@ -8,6 +8,7 @@ class BattleTab {
     this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
+    this.dropdownMenu = null;
 
     this.eventListeners = new Map();
   }
@@ -46,6 +47,15 @@ class BattleTab {
         </div>
       </div>
 
+      <!-- Dropdown menu -->
+      <div class="dropdown-menu" id="dropdown-menu">
+        <div class="dropdown-item" data-action="news">📰 News</div>
+        <div class="dropdown-item" data-action="leaderboard">🏆 Leaderboard</div>
+        <div class="dropdown-item" data-action="history">📜 Battle History</div>
+        <div class="dropdown-item" data-action="options">⚙️ Settings</div>
+        <div class="dropdown-item" data-action="logout">🚪 Logout</div>
+      </div>
+
       <!-- Arena -->
       <div class="arena-section">
         <img src="assets/arena_placeholder.png" alt="Arena" class="arena-image" />
@@ -60,6 +70,7 @@ class BattleTab {
 
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
     this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
+    this.dropdownMenu = this.tabElement.querySelector('#dropdown-menu');
   }
 
   setupEventListeners() {
@@ -71,6 +82,27 @@ class BattleTab {
 
     const banner = this.tabElement.querySelector('#topbar-banner');
     banner.addEventListener('click', () => this.emit('player:change-banner'));
+
+    const menuBtn = this.tabElement.querySelector('#btn-menu');
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.dropdownMenu.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (this.dropdownMenu.classList.contains('active')) {
+        if (!this.dropdownMenu.contains(e.target) && e.target.id !== 'btn-menu') {
+          this.dropdownMenu.classList.remove('active');
+        }
+      }
+    });
+
+    this.dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        this.dropdownMenu.classList.remove('active');
+        this.emit(`menu:${item.dataset.action}`);
+      });
+    });
   }
 
   updatePlayerData(user) {
