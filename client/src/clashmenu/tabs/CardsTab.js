@@ -29,8 +29,9 @@ class CardsTab {
 
     // Charger données depuis backend avec debug
     await this.loadDecks();
+        await this.loadAllCards();
+
     await this.loadCollection();
-    await this.loadAllCards();
     this.renderDeck();
     this.renderMyCards(); // Afficher mes cartes sous le deck
   }
