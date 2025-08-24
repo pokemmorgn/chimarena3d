@@ -165,6 +165,9 @@ export class BaseUnit extends Schema {
   @type("number") level: number = 1;
   @type("string") unitType: UnitType = 'troop';
   
+  // === VISUEL ===
+  @type("string") model: string = "";   // <-- ajouté pour le .glb
+  
   // === POSITION ===
   @type("number") x: number = 0;
   @type("number") y: number = 0;
@@ -215,54 +218,57 @@ export class BaseUnit extends Schema {
   /**
    * Initialisation avec chargement async des données
    */
-  private async initialize(
-    cardId: string,
-    level: number,
-    ownerId: string,
-    position: IPosition,
-    spawnTick: number
-  ): Promise<void> {
-    try {
-      // Générer ID unique
-      this.id = `unit_${spawnTick}_${Math.random().toString(36).substr(2, 6)}`;
-      this.cardId = cardId;
-      this.ownerId = ownerId;
-      this.level = level;
-      this.x = position.x;
-      this.y = position.y;
-      this.spawnTick = spawnTick;
-      this.lastUpdateTick = spawnTick;
-      
-      // Charger les données de carte depuis le cache
-      const cache = CardDataCache.getInstance();
-      this.cardData = await cache.getCardData(cardId);
-      
-      // Définir le type d'unité
-      this.unitType = this.cardData.type as UnitType;
-      
-      // Charger les stats pour le niveau spécifique
-      this.loadStatsForLevel(level);
-      
-      // Initialiser le comportement
-      this.initializeBehavior();
-      
-      // Logger la création (sync pour éviter les problèmes)
-      this.logger.logBattle('unit_deployed', ownerId, {
-        unitId: this.id,
-        cardId: this.cardId,
-        level: this.level,
-        position: { x: this.x, y: this.y },
-        hitpoints: this.currentHitpoints,
-        damage: this.currentDamage,
-        spawnTick
-      });
-      
-    } catch (error) {
-      console.error(`Failed to initialize unit ${cardId}:`, error);
-      throw error;
-    }
+ private async initialize(
+  cardId: string,
+  level: number,
+  ownerId: string,
+  position: IPosition,
+  spawnTick: number
+): Promise<void> {
+  try {
+    // Générer ID unique
+    this.id = `unit_${spawnTick}_${Math.random().toString(36).substr(2, 6)}`;
+    this.cardId = cardId;
+    this.ownerId = ownerId;
+    this.level = level;
+    this.x = position.x;
+    this.y = position.y;
+    this.spawnTick = spawnTick;
+    this.lastUpdateTick = spawnTick;
+    
+    // Charger les données de carte depuis le cache
+    const cache = CardDataCache.getInstance();
+    this.cardData = await cache.getCardData(cardId);
+    
+    // Définir le type d'unité
+    this.unitType = this.cardData.type as UnitType;
+    
+    // Définir le modèle 3D (.glb)
+    this.model = this.cardData.model || "";
+    
+    // Charger les stats pour le niveau spécifique
+    this.loadStatsForLevel(level);
+    
+    // Initialiser le comportement
+    this.initializeBehavior();
+    
+    // Logger la création (sync pour éviter les problèmes)
+    this.logger.logBattle('unit_deployed', ownerId, {
+      unitId: this.id,
+      cardId: this.cardId,
+      level: this.level,
+      position: { x: this.x, y: this.y },
+      hitpoints: this.currentHitpoints,
+      damage: this.currentDamage,
+      spawnTick
+    });
+    
+  } catch (error) {
+    console.error(`Failed to initialize unit ${cardId}:`, error);
+    throw error;
   }
-  
+}
+
   /**
    * Charger les stats pour le niveau spécifique
    */
