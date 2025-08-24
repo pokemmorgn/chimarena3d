@@ -7,7 +7,8 @@ class CardsTab {
 
     this.decks = [];
     this.currentDeck = null;
-    this.collection = [];
+    this.collection = [];   // cartes possédées
+    this.allCards = [];     // toutes les cartes du jeu
 
     this.eventListeners = new Map();
   }
@@ -20,6 +21,7 @@ class CardsTab {
     // Charger données depuis backend
     await this.loadDecks();
     await this.loadCollection();
+    await this.loadAllCards();
     this.renderDeck();
   }
 
@@ -83,6 +85,18 @@ class CardsTab {
     }
   }
 
+  async loadAllCards() {
+    try {
+      const res = await fetch("/api/cards", { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        this.allCards = data.data.cards;
+      }
+    } catch (err) {
+      console.error("❌ Failed to load all cards", err);
+    }
+  }
+
   renderDeck() {
     const deckContainer = this.tabElement.querySelector(".deck-cards");
     deckContainer.innerHTML = "";
@@ -118,20 +132,38 @@ class CardsTab {
     const colContainer = this.tabElement.querySelector(".collection-grid");
     colContainer.innerHTML = "";
 
-    this.collection.forEach(card => {
+    // Fusionner toutes les cartes et celles possédées
+    const ownedMap = new Map(this.collection.map(c => [c.cardId, c]));
+
+    this.allCards.forEach(cardData => {
+      const playerCard = ownedMap.get(cardData.id); // trouvé dans la collection ?
       const cardEl = document.createElement("div");
-      cardEl.className = "collection-card";
-      cardEl.innerHTML = `
-        <img src="/cards/${card.cardInfo?.sprite}" alt="${card.cardId}" />
-        <div class="collection-info">
-          <span>${card.cardInfo?.nameKey || card.cardId}</span>
-          <span>Niveau ${card.level}</span>
-          <span>x${card.count}</span>
-        </div>
-      `;
-      cardEl.addEventListener("click", () => {
-        this.emit("collection:select-card", card);
-      });
+
+      if (playerCard) {
+        cardEl.className = "collection-card";
+        cardEl.innerHTML = `
+          <img src="/cards/${cardData.sprite}" alt="${cardData.nameKey}" />
+          <div class="collection-info">
+            <span>${cardData.nameKey}</span>
+            <span>Niveau ${playerCard.level}</span>
+            <span>x${playerCard.count}</span>
+          </div>
+        `;
+        cardEl.addEventListener("click", () => {
+          this.emit("collection:select-card", playerCard);
+        });
+      } else {
+        // Carte pas encore débloquée
+        cardEl.className = "collection-card locked";
+        cardEl.innerHTML = `
+          <img src="/cards/${cardData.sprite}" alt="${cardData.nameKey}" />
+          <div class="collection-info">
+            <span>${cardData.nameKey}</span>
+            <span>Non débloquée</span>
+          </div>
+        `;
+      }
+
       colContainer.appendChild(cardEl);
     });
   }
