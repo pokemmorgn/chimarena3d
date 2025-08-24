@@ -62,7 +62,6 @@ class WelcomeMenuScene {
    * Create animated background
    */
 createBackground() {
-  const geometry = new THREE.PlaneGeometry(2, 2);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       time: { value: 0 },
@@ -74,7 +73,7 @@ createBackground() {
       varying vec2 vUv;
       void main() {
         vUv = uv;
-        gl_Position = vec4(position, 1.0); // full screen quad
+        gl_Position = vec4(position, 1.0);
       }
     `,
     fragmentShader: `
@@ -96,19 +95,13 @@ createBackground() {
       }
     `,
     depthTest: false,
-    depthWrite: false,
-    transparent: false
+    depthWrite: false
   });
 
-  this.backgroundPlane = new THREE.Mesh(geometry, material);
-  this.backgroundPlane.frustumCulled = false;
-
-  // Crée une scène de fond spéciale
-  this.backgroundScene = new THREE.Scene();
-  this.backgroundCamera = new THREE.Camera(); // caméra orthographique
-
-  this.backgroundScene.add(this.backgroundPlane);
+  this.backgroundMaterial = material;
+  this.gameEngine.setBackgroundShader(material); // Délègue à GameEngine
 }
+
 
   /**
    * Create simple floating elements for ambiance
