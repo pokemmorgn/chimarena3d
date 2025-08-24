@@ -618,9 +618,8 @@ class CardsTab {
     e.target.classList.remove("dragging");
     
     // Nettoyer tous les drag-over et les transformations
-    this.tabElement.querySelectorAll(".drag-over").forEach(el => {
-      el.classList.remove("drag-over");
-      el.style.transform = ""; // Reset transform
+    this.cleanupVisualEffects();
+  }transform = ""; // Reset transform
     });
     
     // Nettoyer tous les deck-slots pour être sûr
@@ -759,8 +758,12 @@ class CardsTab {
         
         this.renderDeck();
         this.renderMyCards(); // Mettre à jour aussi mes cartes
-        this.resetVisualState(); // Nettoyer tous les effets visuels
         this.showMessage(`✅ ${card.cardInfo?.nameKey || card.cardId} ajouté au deck !`, "success");
+        
+        // Nettoyer l'état visuel après un court délai
+        setTimeout(() => {
+          this.cleanupVisualEffects();
+        }, 100);
         
         console.log("✅ Deck mis à jour avec succès");
       } else {
