@@ -1014,5 +1014,23 @@ renderAllCards() {
     }
   }
 }
+  /**
+   * Mise à jour des données joueur depuis Colyseus (world:welcome)
+   */
+  updatePlayerData(playerData) {
+    console.log("🔄 updatePlayerData reçu:", playerData);
+
+    // Exemple : si tu veux mettre à jour la collection et decks en live
+    if (playerData?.collection) {
+      this.collection = playerData.collection.cards || [];
+      this.renderMyCards();
+    }
+
+    if (playerData?.decks) {
+      this.decks = playerData.decks;
+      this.currentDeck = this.decks.find(d => d.isActive) || this.decks[0];
+      this.renderDeck();
+    }
+  }
 
 export default CardsTab;
