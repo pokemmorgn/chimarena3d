@@ -101,7 +101,7 @@ createMainContainer() {
   /**
    * Inject CSS styles
    */
- injectStyles() {
+injectStyles() {
   // Remove existing styles
   const existingStyle = document.getElementById('clash-menu-styles');
   if (existingStyle) {
@@ -111,11 +111,11 @@ createMainContainer() {
   // Create and inject new styles
   const styleSheet = document.createElement('style');
   styleSheet.id = 'clash-menu-styles';
-  styleSheet.textContent =
+  styleSheet.textContent = 
     styles.getCSS() + "\n" + ProfileOverlayStyles.getCSS(); // ✅ merge
   document.head.appendChild(styleSheet);
 
-  console.log('🎨 Styles injected (with profile overlay)');
+  console.log('🎨 Styles injected (with ProfileOverlay)');
 }
 
 
