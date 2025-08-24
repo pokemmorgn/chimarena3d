@@ -328,52 +328,69 @@ class CardsTab {
 
       console.log(`🃏 Slot ${index}:`, slot);
 
-      if (slot && (slot.cardInfo || slot.cardId)) {
-        // Cas 1: slot avec cardInfo déjà enrichi
-        if (slot.cardInfo) {
-          slotEl.innerHTML = `
-            <img src="/cards/${slot.cardInfo.sprite}" 
-                 alt="${slot.cardInfo.nameKey || slot.cardId}" 
-                 class="deck-card"
-                 onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-            <div class="deck-level">Lvl ${slot.level || 1}</div>
-          `;
-        } 
-        // Cas 2: slot avec seulement cardId (chercher dans allCards)
-        else if (slot.cardId && this.allCards.length > 0) {
-          const cardInfo = this.allCards.find(c => c.id === slot.cardId);
-          if (cardInfo) {
-            slotEl.innerHTML = `
-              <img src="/cards/${cardInfo.sprite}" 
-                   alt="${cardInfo.nameKey || slot.cardId}" 
-                   class="deck-card"
-                   onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-              <div class="deck-level">Lvl ${slot.level || 1}</div>
-            `;
-          } else {
-            // Fallback avec nom de la carte
-            slotEl.innerHTML = `
-              <div class="deck-card-fallback">
-                <span>${slot.cardId}</span>
-              </div>
-              <div class="deck-level">Lvl ${slot.level || 1}</div>
-            `;
-          }
-        }
-        // Cas 3: slot avec données mais pas de cardInfo
-        else {
-          slotEl.innerHTML = `
-            <div class="deck-card-fallback">
-              <span>${slot.cardId || 'Carte'}</span>
-            </div>
-            <div class="deck-level">Lvl ${slot.level || 1}</div>
-          `;
-        }
-      } else {
-        // Slot vide
-        slotEl.innerHTML = `<div class="deck-empty">+</div>`;
-        slotEl.classList.add("empty-slot");
-      }
+     if (slot && (slot.cardInfo || slot.cardId)) {
+  // Cas 1: slot avec cardInfo déjà enrichi
+  if (slot.cardInfo) {
+    slotEl.innerHTML = `
+      <img src="/cards/${slot.cardInfo.sprite}" 
+           alt="${slot.cardInfo.nameKey || slot.cardId}" 
+           class="deck-card"
+           onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+      <div class="card-level">Lvl ${slot.level || 1}</div>
+      <div class="card-progress">
+        <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
+        <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
+      </div>
+    `;
+  } 
+  // Cas 2: slot avec seulement cardId (chercher dans allCards)
+  else if (slot.cardId && this.allCards.length > 0) {
+    const cardInfo = this.allCards.find(c => c.id === slot.cardId);
+    if (cardInfo) {
+      slotEl.innerHTML = `
+        <img src="/cards/${cardInfo.sprite}" 
+             alt="${cardInfo.nameKey || slot.cardId}" 
+             class="deck-card"
+             onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+        <div class="card-level">Lvl ${slot.level || 1}</div>
+        <div class="card-progress">
+          <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
+          <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
+        </div>
+      `;
+    } else {
+      // Fallback avec nom de la carte
+      slotEl.innerHTML = `
+        <div class="deck-card-fallback">
+          <span>${slot.cardId}</span>
+        </div>
+        <div class="card-level">Lvl ${slot.level || 1}</div>
+        <div class="card-progress">
+          <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
+          <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
+        </div>
+      `;
+    }
+  }
+  // Cas 3: slot avec données mais pas de cardInfo
+  else {
+    slotEl.innerHTML = `
+      <div class="deck-card-fallback">
+        <span>${slot.cardId || 'Carte'}</span>
+      </div>
+      <div class="card-level">Lvl ${slot.level || 1}</div>
+      <div class="card-progress">
+        <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
+        <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
+      </div>
+    `;
+  }
+} else {
+  // Slot vide
+  slotEl.innerHTML = `<div class="deck-empty">+</div>`;
+  slotEl.classList.add("empty-slot");
+}
+
 
       slotEl.addEventListener("click", () => {
         console.log(`🖱️ Clic sur slot ${index}:`, slot);
@@ -444,29 +461,28 @@ class CardsTab {
       cardEl.dataset.cardLevel = card.level;
 
       if (sprite) {
-        cardEl.innerHTML = `
-          <img src="${sprite}" alt="${card.cardId}" 
-               onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-          <div class="my-card-info">
-            <span>${card.cardInfo?.nameKey || card.cardId}</span>
-            <span>Niveau ${card.level}</span>
-            <span>x${card.count}</span>
-          </div>
-          <div class="drag-hint">📱 Glisser vers le deck</div>
-        `;
-      } else {
-        cardEl.innerHTML = `
-          <div class="my-card-fallback">
-            <span>${card.cardId}</span>
-          </div>
-          <div class="my-card-info">
-            <span>${card.cardInfo?.nameKey || card.cardId}</span>
-            <span>Niveau ${card.level}</span>
-            <span>x${card.count}</span>
-          </div>
-          <div class="drag-hint">📱 Glisser vers le deck</div>
-        `;
-      }
+  cardEl.innerHTML = `
+    <img src="${sprite}" alt="${card.cardId}" 
+         onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+    <div class="card-level">Lvl ${card.level}</div>
+    <div class="card-progress">
+      <div class="card-progress-fill" style="width:${Math.min(100, (card.count / (card.nextLevelCount || 1)) * 100)}%;"></div>
+      <span>${card.count}/${card.nextLevelCount || "??"}</span>
+    </div>
+  `;
+} else {
+  cardEl.innerHTML = `
+    <div class="my-card-fallback">
+      <span>${card.cardId}</span>
+    </div>
+    <div class="card-level">Lvl ${card.level}</div>
+    <div class="card-progress">
+      <div class="card-progress-fill" style="width:${Math.min(100, (card.count / (card.nextLevelCount || 1)) * 100)}%;"></div>
+      <span>${card.count}/${card.nextLevelCount || "??"}</span>
+    </div>
+  `;
+}
+
 
       // Event listeners pour le drag & drop
       cardEl.addEventListener("dragstart", (e) => {
