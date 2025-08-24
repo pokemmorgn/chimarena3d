@@ -1,3 +1,6 @@
+/**
+ * Battle Tab Styles - Clash Royale style
+ */
 class BattleTabStyles {
   static get colors() {
     return {
@@ -9,18 +12,20 @@ class BattleTabStyles {
       darkBlue: '#0f1419',
       royalBlue: '#1a237e',
       neonBlue: '#00bcd4',
-      electric: '#00e5ff'
+      electric: '#00e5ff',
+      gray: '#9e9e9e'
     };
   }
 
   static getCSS() {
     return `
       ${this.getBattleTabStyles()}
+      ${this.getAnimations()}
     `;
   }
 
   static getBattleTabStyles() {
-    const { white, gold, green, red, orange, darkBlue, royalBlue, neonBlue } = this.colors;
+    const { white, gold, green, red, orange, darkBlue, royalBlue, neonBlue, electric, gray } = this.colors;
 
     return `
     .battle-tab {
@@ -29,122 +34,191 @@ class BattleTabStyles {
       left: 0;
       width: 100%;
       height: calc(100% - 80px);
-      overflow-y: auto;
       display: none;
+      overflow-y: auto;
+      padding: 10px;
     }
-    .battle-tab.active { display: block; }
 
-    /* Topbar */
+    .battle-tab.active {
+      display: block;
+    }
+
+    /* --- Topbar --- */
     .battle-topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      width: 100%;
-      padding: 10px 15px;
-      background: linear-gradient(to bottom, ${royalBlue}cc, ${darkBlue}cc);
+      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
       border-bottom: 2px solid ${neonBlue}55;
+      padding: 10px 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
     }
-    .topbar-left, .topbar-right { display: flex; gap: 10px; }
+
+    .topbar-left,
+    .topbar-right {
+      display: flex;
+      gap: 10px;
+    }
+
     .topbar-btn {
       background: ${darkBlue};
-      border: 2px solid ${neonBlue}55;
-      border-radius: 10px;
-      padding: 8px 12px;
-      cursor: pointer;
       color: ${white};
+      border: 2px solid ${neonBlue}55;
+      border-radius: 8px;
       font-size: 18px;
-      transition: all 0.2s ease;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
     }
-    .topbar-btn:hover { transform: scale(1.1); background: ${royalBlue}; }
+
+    .topbar-btn:hover {
+      background: ${royalBlue};
+      transform: translateY(-2px);
+    }
 
     .player-info {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: ${gold};
-      font-weight: bold;
-      font-size: 16px;
-    }
-    .player-trophies { font-size: 14px; color: ${white}; }
-
-    /* Dropdown */
-    .dropdown-menu {
-      position: absolute;
-      top: 45px;
-      right: 10px;
-      background: ${darkBlue}ee;
-      border: 2px solid ${neonBlue}55;
-      border-radius: 10px;
-      padding: 10px;
-      min-width: 180px;
-      display: none;
-      transform-origin: top right;
-      transform: scaleY(0);
-      opacity: 0;
-      transition: all 0.2s ease;
-    }
-    .dropdown-menu.show {
-      display: block;
-      transform: scaleY(1);
-      opacity: 1;
-    }
-    .dropdown-menu ul { list-style: none; margin: 0; padding: 0; }
-    .dropdown-menu li {
-      padding: 8px 12px;
-      cursor: pointer;
-      color: ${white};
-      transition: background 0.2s;
-    }
-    .dropdown-menu li:hover { background: ${royalBlue}; }
-
-    /* Arena */
-    .arena-section {
       text-align: center;
+    }
+
+    .player-name {
+      display: block;
+      font-size: 16px;
+      font-weight: bold;
+      color: ${gold};
+    }
+
+    .player-trophies {
+      display: block;
+      font-size: 14px;
+      color: ${white};
+    }
+
+    /* --- Connection status --- */
+    .connection-status {
+      text-align: center;
+      margin: 10px auto 20px auto;
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-weight: bold;
+      width: fit-content;
+      transition: all 0.3s ease;
+    }
+
+    .connection-status.connected {
+      background: ${green}22;
+      color: ${green};
+      border: 2px solid ${green}44;
+    }
+
+    .connection-status.connecting {
+      background: ${orange}22;
+      color: ${orange};
+      border: 2px solid ${orange}44;
+    }
+
+    .connection-status.error {
+      background: ${red}22;
+      color: ${red};
+      border: 2px solid ${red}44;
+    }
+
+    .connection-status.searching {
+      background: ${electric}22;
+      color: ${electric};
+      border: 2px solid ${electric}44;
+      animation: pulse 1.5s infinite;
+    }
+
+    /* --- Arena --- */
+    .arena-section {
+      display: flex;
+      justify-content: center;
+      align-items: center;
       margin: 20px 0;
     }
+
     .arena-image {
-      width: 100%;
-      max-width: 500px;
+      max-width: 90%;
       border-radius: 15px;
+      border: 3px solid ${neonBlue}55;
       box-shadow: 0 8px 20px rgba(0,0,0,0.4);
     }
 
-    /* Battle Action */
+    /* --- Battle action --- */
     .battle-action {
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 15px;
-      margin-top: 20px;
+      margin: 20px 0;
     }
+
     .battle-main-btn {
       background: linear-gradient(135deg, ${green}, #45a049);
       color: ${white};
+      font-size: 22px;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 15px 40px;
       border: none;
       border-radius: 15px;
-      padding: 18px 40px;
-      font-size: 20px;
-      font-weight: bold;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 6px 15px ${green}44;
+      box-shadow: 0 8px 20px ${green}55;
     }
-    .battle-main-btn:hover { transform: scale(1.05); box-shadow: 0 10px 25px ${green}66; }
-    .battle-main-btn.searching {
-      background: linear-gradient(135deg, ${orange}, #e65100);
-      box-shadow: 0 6px 15px ${orange}66;
+
+    .battle-main-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 25px rgba(0,0,0,0.3);
     }
+
     .battle-mode-btn {
       background: ${royalBlue};
-      border: 2px solid ${neonBlue};
-      border-radius: 12px;
-      padding: 12px 16px;
-      cursor: pointer;
-      font-size: 20px;
       color: ${white};
-      transition: transform 0.2s;
+      font-size: 18px;
+      border: 2px solid ${neonBlue}55;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      transition: all 0.3s ease;
     }
-    .battle-mode-btn:hover { transform: rotate(10deg) scale(1.1); }
+
+    .battle-mode-btn:hover {
+      background: ${darkBlue};
+      transform: rotate(20deg);
+    }
+
+    /* --- Chest slots --- */
+    .battle-chests {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 30px;
+    }
+
+    .chest-slot {
+      width: 70px;
+      height: 70px;
+      border: 2px dashed ${gray};
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: ${gray};
+    }
+    `;
+  }
+
+  static getAnimations() {
+    return `
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.05); }
+      }
     `;
   }
 }
