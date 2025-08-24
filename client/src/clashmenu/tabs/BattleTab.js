@@ -36,13 +36,19 @@ class BattleTab {
       <div class="battle-topbar">
         <img src="assets/banner_placeholder.jpg" alt="Banner" class="topbar-banner" id="topbar-banner" />
         <div class="topbar-content">
-          <div class="topbar-left">
-            <img src="assets/avatar_placeholder.png" alt="Avatar" class="player-avatar" id="player-avatar" />
-            <div class="player-info">
-              <div class="player-name" id="topbar-player-name">Player</div>
-              <div class="player-trophies" id="topbar-player-trophies">🏆 0</div>
-            </div>
-          </div>
+<div class="topbar-left">
+  <img src="assets/avatar_placeholder.png" alt="Avatar" class="player-avatar" id="player-avatar" />
+  <div class="player-info">
+    <div class="player-name-wrapper">
+      <span class="player-name" id="topbar-player-name">Player</span>
+      <button class="edit-profile-btn" id="btn-edit-profile">
+        <img src="/icons/Icon_Going.png" alt="Edit" />
+      </button>
+    </div>
+    <div class="player-trophies" id="topbar-player-trophies">🏆 0</div>
+  </div>
+</div>
+
           <div class="topbar-right">
             <button class="topbar-btn" id="btn-friends">👥</button>
             <button class="topbar-btn" id="btn-messages">💬</button>
@@ -110,6 +116,9 @@ class BattleTab {
       });
     });
 
+    const editBtn = this.tabElement.querySelector('#btn-edit-profile');
+editBtn.addEventListener('click', () => this.emit('profile:open'));
+    
     // Close dropdown if clicking outside
     document.addEventListener('click', (e) => {
       if (this.modeDropdown.classList.contains('active') &&
