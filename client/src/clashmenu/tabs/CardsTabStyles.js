@@ -81,21 +81,51 @@ class CardsTabStyles {
   border-radius: 6px;
 }
 
-/* Badge niveau (deck + collection) */
+/* === Badge niveau stylé === */
 .card-level {
   position: absolute;
   top: 4px;
   left: 4px;
-  background: rgba(0,0,0,0.7);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 6px rgba(0,0,0,0.6);
+  border: 2px solid #fff;
   z-index: 2;
 }
 
-/* Barre progression (deck + collection) */
+/* Variation par rareté */
+.card-level.common {
+  background: radial-gradient(circle at 30% 30%, #b0bec5, #546e7a);
+}
+.card-level.rare {
+  background: radial-gradient(circle at 30% 30%, #42a5f5, #0d47a1);
+}
+.card-level.epic {
+  background: radial-gradient(circle at 30% 30%, #ab47bc, #4a148c);
+}
+.card-level.legendary {
+  background: radial-gradient(circle at 30% 30%, #ffb300, #e65100);
+}
+
+/* Petite étoile décorative */
+.card-level::before {
+  content: "★";
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 12px;
+  color: #00e5ff;
+  text-shadow: 0 0 4px rgba(0,229,255,0.7);
+}
+
+/* === Barre progression (deck + collection) === */
 .card-progress {
   position: absolute;
   bottom: 0;
