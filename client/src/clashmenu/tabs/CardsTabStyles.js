@@ -1,125 +1,4 @@
-/* === Collection Section === */
-      .collection-section h2 {
-        margin: 0 0 10px 0;
-        font-size: 20px;
-        color: #00bcd4;
-        text-align: center;
-      }
-
-      /* === Mes Cartes Section === */
-      .my-cards-section {
-        margin-top: 20px;
-      }
-
-      .my-cards-section h2 {
-        margin: 0 0 10px 0;
-        font-size: 18px;
-        color: #2ecc71;
-        text-align: center;
-      }
-
-      .my-cards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-        gap: 10px;
-        max-height: 200px;
-        overflow-y: auto;
-        padding: 10px;
-        background: rgba(46,204,113,0.1);
-        border-radius: 8px;
-        border: 1px solid rgba(46,204,113,0.3);
-      }
-
-      .my-card {
-        background: #222;
-        border: 2px solid #2ecc71;
-        border-radius: 8px;
-        text-align: center;
-        padding: 5px;
-        cursor: grab;
-        transition: transform 0.2s, box-shadow 0.2s;
-        position: relative;
-      }
-
-      .my-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(46,204,113,0.3);
-        border-color: #27ae60;
-      }
-
-      .my-card.dragging {
-        opacity: 0.7;
-        transform: rotate(5deg) scale(1.05);
-        cursor: grabbing;
-        z-index: 1000;
-      }
-
-      .my-card img {
-        width: 100%;
-        border-radius: 4px;
-        margin-bottom: 5px;
-      }
-
-      .my-card-info {
-        font-size: 10px;
-        color: #ccc;
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-      }
-
-      .my-card-fallback {
-        width: 100%;
-        aspect-ratio: 3/4;
-        background: repeating-linear-gradient(
-          45deg,
-          #2ecc71,
-          #2ecc71 10px,
-          #27ae60 10px,
-          #27ae60 20px
-        );
-        border-radius: 6px;
-        color: #fff;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 10px;
-        padding: 4px;
-      }
-
-      /* === Toutes les Cartes Section === */
-      .all-cards-section h2 {
-        margin: 0 0 10px 0;
-        font-size: 20px;
-        color: #e67e22;
-        text-align: center;
-      }
-
-      .all-cards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-        gap: 10px;
-      }
-
-      .arena-title {
-        grid-column: 1 / -1;
-        margin: 20px 0 10px 0;
-        padding: 10px;
-        background: linear-gradient(90deg, #e67e22, #d35400);
-        border-radius: 8px;
-        text-align: center;
-      }
-
-      .arena-title h3 {
-        margin: 0;
-        color: #fff;
-        font-size: 16px;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-      }
-
-      .game-card {
-        background: #222;
-        class CardsTabStyles {
+class CardsTabStyles {
   static getCSS() {
     return `
       /* === Cards Tab === */
@@ -280,6 +159,117 @@
 
       .deck-footer button:hover {
         background: #0056b3;
+      }
+
+      /* === Mes Cartes Section === */
+      .my-cards-section {
+        margin-top: 20px;
+      }
+
+      .my-cards-section h2 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        color: #2ecc71;
+        text-align: center;
+      }
+
+      .my-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 10px;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 10px;
+        background: rgba(46,204,113,0.1);
+        border-radius: 8px;
+        border: 1px solid rgba(46,204,113,0.3);
+      }
+
+      .my-card {
+        background: #222;
+        border: 2px solid #2ecc71;
+        border-radius: 8px;
+        text-align: center;
+        padding: 5px;
+        cursor: grab;
+        transition: transform 0.2s, box-shadow 0.2s;
+        position: relative;
+      }
+
+      .my-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(46,204,113,0.3);
+        border-color: #27ae60;
+      }
+
+      .my-card.dragging {
+        opacity: 0.7;
+        transform: rotate(5deg) scale(1.05);
+        cursor: grabbing;
+        z-index: 1000;
+      }
+
+      .my-card img {
+        width: 100%;
+        border-radius: 4px;
+        margin-bottom: 5px;
+      }
+
+      .my-card-info {
+        font-size: 10px;
+        color: #ccc;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .my-card-fallback {
+        width: 100%;
+        aspect-ratio: 3/4;
+        background: repeating-linear-gradient(
+          45deg,
+          #2ecc71,
+          #2ecc71 10px,
+          #27ae60 10px,
+          #27ae60 20px
+        );
+        border-radius: 6px;
+        color: #fff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 10px;
+        padding: 4px;
+      }
+
+      /* === Toutes les Cartes Section === */
+      .all-cards-section h2 {
+        margin: 0 0 10px 0;
+        font-size: 20px;
+        color: #e67e22;
+        text-align: center;
+      }
+
+      .all-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+        gap: 10px;
+      }
+
+      .arena-title {
+        grid-column: 1 / -1;
+        margin: 20px 0 10px 0;
+        padding: 10px;
+        background: linear-gradient(90deg, #e67e22, #d35400);
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .arena-title h3 {
+        margin: 0;
+        color: #fff;
+        font-size: 16px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
       }
 
       .game-card {
