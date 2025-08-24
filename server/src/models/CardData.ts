@@ -9,6 +9,7 @@ export interface ICardData extends Document {
   
   // === VISUEL ===
   sprite: string;                // "knight.png"
+  model: string;                // "cyclops.glb"
   descriptionKey: string;        // "card.knight.description" (clé de localisation)
   
   // === TYPE ET CATÉGORIE ===
