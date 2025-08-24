@@ -4,6 +4,7 @@ import BattleTab from './tabs/BattleTab';
 import styles from './styles';
 import Header from './components/Header.js';
 import ProfileOverlay from './components/ProfileOverlay.js';
+import ProfileOverlayStyles from './styles/ProfileOverlayStyles.js';
 
 /**
  * Clash Menu Manager - Gestionnaire principal du menu
@@ -100,21 +101,23 @@ createMainContainer() {
   /**
    * Inject CSS styles
    */
-  injectStyles() {
-    // Remove existing styles
-    const existingStyle = document.getElementById('clash-menu-styles');
-    if (existingStyle) {
-      existingStyle.remove();
-    }
-    
-    // Create and inject new styles
-    const styleSheet = document.createElement('style');
-    styleSheet.id = 'clash-menu-styles';
-    styleSheet.textContent = styles.getCSS();
-    document.head.appendChild(styleSheet);
-    
-    console.log('🎨 Styles injected');
+ injectStyles() {
+  // Remove existing styles
+  const existingStyle = document.getElementById('clash-menu-styles');
+  if (existingStyle) {
+    existingStyle.remove();
   }
+
+  // Create and inject new styles
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'clash-menu-styles';
+  styleSheet.textContent =
+    styles.getCSS() + "\n" + ProfileOverlayStyles.getCSS(); // ✅ merge
+  document.head.appendChild(styleSheet);
+
+  console.log('🎨 Styles injected (with profile overlay)');
+}
+
 
   /**
    * Setup event listeners
