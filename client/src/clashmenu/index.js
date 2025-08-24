@@ -71,8 +71,8 @@ createMainContainer() {
   this.mainContainer.className = 'clash-menu-container';
 
   mobileViewport.appendChild(this.mainContainer);
-  console.log('📦 Main container created inside mobile-viewport');
 }
+
 
 
   /**
