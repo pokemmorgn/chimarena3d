@@ -175,7 +175,6 @@ export class BattleRoom extends Room<BattleRoomState> {
   private gameLoopTimer: NodeJS.Timeout | null = null;
   private tickCount = 0;
   private gameStartTime = 0;
-  private lastTickTime = 0;
   private isTickProcessing = false;
   
   // === PERFORMANCE MONITORING ===
@@ -399,7 +398,6 @@ export class BattleRoom extends Room<BattleRoomState> {
     this.tickCount++;
     this.state.currentTick = this.tickCount;
     this.state.serverTick = tickStartTime;
-    this.lastTickTime = tickStartTime;
     
     try {
       // 1. Mise à jour du temps de bataille
@@ -535,7 +533,7 @@ export class BattleRoom extends Room<BattleRoomState> {
     }, this.config.performanceMonitoringInterval);
   }
 
-  private updatePerformanceMetrics(tickTime: number, timeSinceLastTick: number): void {
+  private updatePerformanceMetrics(tickTime: number, _timeSinceLastTick: number): void {
     this.performance.maxTickTime = Math.max(this.performance.maxTickTime, tickTime);
     
     if (tickTime > this.config.lagThresholdMs) {
