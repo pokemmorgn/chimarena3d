@@ -112,6 +112,11 @@ class BattleRoomTester {
   }
 
   private async setupTestUsers(): Promise<void> {
+    // Vérifier que JWT_SECRET est défini
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET not found in environment variables');
+    }
+
     // Récupérer 2 utilisateurs test depuis la DB
     this.testUsers = await UserData.find({}).limit(2);
     if (this.testUsers.length < 2) {
@@ -125,8 +130,13 @@ class BattleRoomTester {
 
     // Générer les tokens JWT
     for (const user of this.testUsers) {
-      const token = TokenService.generateAccessToken(user);
-      console.log(`   Token generated for ${user.username}: ${token.substring(0, 20)}...`);
+      try {
+        const token = TokenService.generateAccessToken(user);
+        console.log(`   Token generated for ${user.username}: ${token.substring(0, 20)}...`);
+      } catch (error) {
+        console.error(`   ❌ Failed to generate token for ${user.username}:`, error);
+        throw new Error(`Token generation failed for ${user.username}`);
+      }
     }
   }
 
@@ -156,7 +166,20 @@ class BattleRoomTester {
 
   private async connectPlayer(user: any, isSpectator: boolean): Promise<BattleClient> {
     return new Promise((resolve, reject) => {
-      const token = TokenService.generateAccessToken(user);
+      let token: string;
+      
+      try {
+        // Vérifier JWT_SECRET avant génération
+        if (!process.env.JWT_SECRET) {
+          throw new Error('JWT_SECRET not defined in environment');
+        }
+        
+        token = TokenService.generateAccessToken(user);
+        console.log(`   🔑 Token generated for ${user.username}`);
+      } catch (error) {
+        reject(new Error(`Token generation failed: ${error}`));
+        return;
+      }
       
       // Connexion WebSocket Colyseus
       const ws = new WebSocket(`${SERVER_URL}/battle`);
@@ -356,13 +379,25 @@ class BattleRoomTester {
 
   private async connectSpectator(user: any): Promise<BattleClient> {
     return new Promise((resolve, reject) => {
-      // Générer un token simple pour le spectateur
-      const fakeToken = TokenService.generateAccessToken({
-        _id: user._id,
-        username: user.username,
-        email: 'spectator@test.com',
-        displayName: user.displayName
-      } as any);
+      let fakeToken: string;
+      
+      try {
+        // Vérifier JWT_SECRET
+        if (!process.env.JWT_SECRET) {
+          throw new Error('JWT_SECRET not defined');
+        }
+        
+        // Générer un token simple pour le spectateur
+        fakeToken = TokenService.generateAccessToken({
+          _id: user._id,
+          username: user.username,
+          email: 'spectator@test.com',
+          displayName: user.displayName
+        } as any);
+      } catch (error) {
+        reject(new Error(`Spectator token generation failed: ${error}`));
+        return;
+      }
 
       const ws = new WebSocket(`${SERVER_URL}/battle`);
       
@@ -551,6 +586,26 @@ async function main() {
 
   console.log('🚀 BattleRoom Test Suite');
   console.log('=========================');
+
+  // Vérifier les variables d'environnement nécessaires
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET not found in environment variables');
+    console.error('');
+    console.error('🔧 Fix:');
+    console.error('   1. Check your .env file exists in server/ directory');
+    console.error('   2. Verify JWT_SECRET is defined in .env');
+    console.error('   3. Restart the script');
+    process.exit(1);
+  }
+
+  if (!process.env.MONGODB_URI) {
+    console.error('❌ MONGODB_URI not found in environment variables');
+    process.exit(1);
+  }
+
+  console.log('✅ Environment variables loaded');
+  console.log(`   JWT_SECRET: ${process.env.JWT_SECRET.substring(0, 10)}...`);
+  console.log(`   MONGODB_URI: ${process.env.MONGODB_URI}`);
 
   try {
     await tester.connectDatabase();
