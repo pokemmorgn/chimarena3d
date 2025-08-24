@@ -619,21 +619,6 @@ class CardsTab {
     
     // Nettoyer tous les drag-over et les transformations
     this.cleanupVisualEffects();
-  }transform = ""; // Reset transform
-    });
-    
-    // Nettoyer tous les deck-slots pour être sûr
-    this.tabElement.querySelectorAll(".deck-slot").forEach(el => {
-      el.classList.remove("drag-over");
-      el.style.transform = "";
-    });
-    
-    // Nettoyer les cartes qui traînent avec des transformations
-    this.tabElement.querySelectorAll(".my-card, .collection-card").forEach(el => {
-      if (!el.matches(':hover')) {
-        el.style.transform = "";
-      }
-    });
   }
 
   async handleCardDrop(e, slotIndex) {
@@ -646,7 +631,7 @@ class CardsTab {
 
     console.log(`🎯 Drop carte ${this.draggedCard.cardId} sur slot ${slotIndex}`);
     
-    // Nettoyer immédiatement les effets visuels
+    // Nettoyer immédiatement les effets visuels du slot
     e.target.classList.remove("drag-over");
     e.target.style.transform = "";
     
