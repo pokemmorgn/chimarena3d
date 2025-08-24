@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema, Types } from 'mongoose';
+import mongoose, { Document, Schema, Types, Model } from 'mongoose';
 
 // Interface pour un joueur dans la bataille
 export interface IBattlePlayer {
@@ -85,11 +85,29 @@ export interface IBattleSession extends Document {
   createdAt: Date;
   updatedAt: Date;
   
-  // Methods
+  // Methods d'instance
   addAction(playerId: string, action: any): Promise<void>;
   updatePlayerState(playerId: string, updates: Partial<IBattlePlayer>): void;
   updateBattleState(updates: Partial<IBattleState>): void;
   finalizeBattle(winnerId?: string): Promise<void>;
+}
+
+// Interface pour les méthodes statiques
+export interface IBattleSessionModel extends Model<IBattleSession> {
+  createBattle(
+    player1Data: any,
+    player2Data: any,
+    roomId: string,
+    options?: any
+  ): Promise<IBattleSession>;
+  
+  getPlayerBattles(
+    userId: string,
+    limit?: number,
+    status?: string
+  ): Promise<IBattleSession[]>;
+  
+  getBattleStats(timeframe?: number): Promise<any[]>;
 }
 
 // Schema pour un joueur
@@ -218,7 +236,7 @@ const BattleStateSchema = new Schema<IBattleState>({
 }, { _id: false });
 
 // Schema principal BattleSession
-const BattleSessionSchema = new Schema<IBattleSession>({
+const BattleSessionSchema = new Schema<IBattleSession, IBattleSessionModel>({
   battleId: {
     type: String,
     required: true,
@@ -417,7 +435,7 @@ BattleSessionSchema.statics.createBattle = function(
   player2Data: any,
   roomId: string,
   options: any = {}
-) {
+): Promise<IBattleSession> {
   const battleSession = new this({
     roomId,
     player1: {
@@ -455,7 +473,7 @@ BattleSessionSchema.statics.getPlayerBattles = function(
   userId: string,
   limit: number = 20,
   status?: string
-) {
+): Promise<IBattleSession[]> {
   const filter: any = {
     $or: [
       { 'player1.userId': userId },
@@ -476,7 +494,7 @@ BattleSessionSchema.statics.getPlayerBattles = function(
 /**
  * Obtenir les statistiques de bataille
  */
-BattleSessionSchema.statics.getBattleStats = function(timeframe: number = 24) {
+BattleSessionSchema.statics.getBattleStats = function(timeframe: number = 24): Promise<any[]> {
   const startTime = new Date();
   startTime.setHours(startTime.getHours() - timeframe);
   
@@ -493,4 +511,7 @@ BattleSessionSchema.statics.getBattleStats = function(timeframe: number = 24) {
   ]);
 };
 
-export default mongoose.model<IBattleSession>('BattleSession', BattleSessionSchema);
+// Créer et exporter le model avec le bon typage
+const BattleSession = mongoose.model<IBattleSession, IBattleSessionModel>('BattleSession', BattleSessionSchema);
+
+export default BattleSession;
