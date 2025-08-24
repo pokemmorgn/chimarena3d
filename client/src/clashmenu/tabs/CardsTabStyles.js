@@ -80,22 +80,23 @@ class CardsTabStyles {
   border-radius: 6px;
 }
 
-/* === Badge niveau avec étoile === */
+/* Badge étoile niveau */
 .card-level {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: -8px;   /* déborde un peu */
+  left: -8px;  /* déborde un peu */
   width: 28px;
   height: 28px;
   background: url('/icons/GradeIcon_Star_s_Yellow.png') no-repeat center/contain;
-  color: #fff;
-  font-size: 13px;
-  font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-  z-index: 2;
+  font-size: 12px;
+  font-weight: bold;
+  color: #1a1f2b; /* contraste sombre */
+  text-shadow: 0 0 2px rgba(255,255,255,0.7);
+  z-index: 3;
+  pointer-events: none; /* évite de bloquer les clics */
 }
 .card-level.common   { filter: drop-shadow(0 0 4px #90a4ae); }
 .card-level.rare     { filter: drop-shadow(0 0 4px #42a5f5); }
