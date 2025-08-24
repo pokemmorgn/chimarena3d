@@ -3,7 +3,7 @@ class CardsTabStyles {
     return `
 .cards-tab {
   position: absolute;
-  top: 60px; /* garde la hauteur de la topbar */
+  top: 60px;
   left: 0;
   width: 100%;
   height: calc(100% - 140px);
@@ -14,7 +14,6 @@ class CardsTabStyles {
   font-family: sans-serif;
   overflow-y: auto;
 
-  /* Masquer la scrollbar */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -81,51 +80,43 @@ class CardsTabStyles {
   border-radius: 6px;
 }
 
-/* === Badge niveau stylé === */
+/* === Badge niveau avec étoile === */
 .card-level {
   position: absolute;
   top: 4px;
   left: 4px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  background: url('/ui/GradeIcon_Star_s_Yellow.png') no-repeat center/contain;
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 6px rgba(0,0,0,0.6);
-  border: 2px solid #fff;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
   z-index: 2;
 }
+.card-level.common   { filter: drop-shadow(0 0 4px #90a4ae); }
+.card-level.rare     { filter: drop-shadow(0 0 4px #42a5f5); }
+.card-level.epic     { filter: drop-shadow(0 0 4px #ab47bc); }
+.card-level.legendary{ filter: drop-shadow(0 0 6px #ffca28); }
 
-/* Variation par rareté */
-.card-level.common {
-  background: radial-gradient(circle at 30% 30%, #b0bec5, #546e7a);
+/* === Bordures par rareté === */
+.my-card.common, .deck-slot.common, .game-card.common {
+  border-color: #90a4ae;
 }
-.card-level.rare {
-  background: radial-gradient(circle at 30% 30%, #42a5f5, #0d47a1);
+.my-card.rare, .deck-slot.rare, .game-card.rare {
+  border-color: #42a5f5;
 }
-.card-level.epic {
-  background: radial-gradient(circle at 30% 30%, #ab47bc, #4a148c);
+.my-card.epic, .deck-slot.epic, .game-card.epic {
+  border-color: #ab47bc;
 }
-.card-level.legendary {
-  background: radial-gradient(circle at 30% 30%, #ffb300, #e65100);
-}
-
-/* Petite étoile décorative */
-.card-level::before {
-  content: "★";
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  font-size: 12px;
-  color: #00e5ff;
-  text-shadow: 0 0 4px rgba(0,229,255,0.7);
+.my-card.legendary, .deck-slot.legendary, .game-card.legendary {
+  border-color: #ffca28;
 }
 
-/* === Barre progression (deck + collection) === */
+/* Barre progression */
 .card-progress {
   position: absolute;
   bottom: 0;
@@ -173,8 +164,6 @@ class CardsTabStyles {
   background: rgba(46,204,113,0.1);
   border-radius: 8px;
   border: 1px solid rgba(46,204,113,0.3);
-
-  /* Masquer scrollbar */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
