@@ -85,6 +85,8 @@ class CardModalStyles {
   margin-left: 10px;
   font-weight: bold;
 }
+
+/* Stats */
 .cm-stats {
   margin: 10px 0;
   padding: 10px;
@@ -92,19 +94,32 @@ class CardModalStyles {
   border-radius: 6px;
   font-size: 13px;
 }
-.cm-stats ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.cm-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
 }
-.cm-stats li {
-  margin: 3px 0;
-  padding: 2px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+.cm-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.2);
+  padding: 6px 8px;
+  border-radius: 4px;
 }
-.cm-stats li:last-child {
-  border-bottom: none;
+.cm-stat-icon {
+  font-size: 14px;
 }
+.cm-stat-label {
+  font-weight: bold;
+  flex: 1;
+}
+.cm-stat-value {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Upgrade section */
 .cm-upgrade {
   margin: 12px 0;
   padding: 10px;
@@ -138,6 +153,8 @@ class CardModalStyles {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Actions */
 .card-modal-actions {
   text-align: center;
   border-top: 1px solid #34495e;
