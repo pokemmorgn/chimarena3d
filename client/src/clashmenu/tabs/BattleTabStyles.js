@@ -1,7 +1,3 @@
-/**
- * Battle Tab Styles - CSS en JavaScript
- * Styles spécifiques à l’onglet Bataille façon Clash Royale
- */
 class BattleTabStyles {
   static get colors() {
     return {
@@ -21,16 +17,16 @@ class BattleTabStyles {
   }
 
   static getBattleTabStyles() {
-    const { white, gold, green, darkBlue, royalBlue } = this.colors;
+    const { white, gold, darkBlue, royalBlue } = this.colors;
 
     return `
     .battle-tab {
       position: absolute;
-      top: 0;
+      top: 60px; /* descend sous le header global */
       left: 0;
       width: 100%;
-      height: calc(100% - 80px);
-      padding: 10px 15px;
+      height: calc(100% - 140px); /* ajuste hauteur */
+      padding: 10px 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -43,26 +39,26 @@ class BattleTabStyles {
       justify-content: space-between;
       align-items: center;
       width: 100%;
-      padding: 8px 12px;
+      padding: 8px 16px;
       margin-bottom: 10px;
       background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      border-radius: 0; /* full width bar */
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
 
     .topbar-left, .topbar-right {
       display: flex;
-      gap: 8px;
+      gap: 10px;
     }
 
     .topbar-btn {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       border: none;
       background: rgba(255,255,255,0.1);
       color: ${white};
-      font-size: 18px;
+      font-size: 20px;
       cursor: pointer;
       transition: transform 0.2s ease, background 0.2s ease;
     }
@@ -78,22 +74,50 @@ class BattleTabStyles {
       align-items: center;
     }
 
-    .player-info {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: ${white};
-      font-weight: bold;
-    }
-
     .player-name {
       font-size: 16px;
-      margin-bottom: 2px;
+      font-weight: bold;
+      color: ${white};
     }
 
     .player-trophies {
       font-size: 14px;
       color: ${gold};
+    }
+
+    /* --- Menu déroulant --- */
+    .dropdown-menu {
+      position: absolute;
+      top: 60px; /* même hauteur que la topbar */
+      right: 10px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      width: 200px;
+      display: none;
+      flex-direction: column;
+      z-index: 100;
+    }
+
+    .dropdown-menu.active {
+      display: flex;
+    }
+
+    .dropdown-item {
+      padding: 12px 15px;
+      color: ${white};
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(255,255,255,0.1);
     }
 
     /* --- Arena --- */
@@ -107,7 +131,7 @@ class BattleTabStyles {
 
     .arena-image {
       max-width: 100%;
-      max-height: 240px;
+      max-height: 220px;
       object-fit: contain;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.5);
@@ -119,7 +143,7 @@ class BattleTabStyles {
       align-items: center;
       justify-content: center;
       gap: 15px;
-      margin: 20px 0;
+      margin: 15px 0;
     }
 
     .battle-main-btn {
@@ -145,13 +169,13 @@ class BattleTabStyles {
     }
 
     .battle-mode-btn {
-      width: 50px;
-      height: 50px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
       color: ${white};
       border: 2px solid ${gold};
-      font-size: 20px;
+      font-size: 22px;
       cursor: pointer;
       transition: transform 0.2s ease;
     }
@@ -166,7 +190,7 @@ class BattleTabStyles {
       justify-content: space-around;
       align-items: center;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       margin-bottom: 10px;
     }
 
