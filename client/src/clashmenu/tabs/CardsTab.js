@@ -16,6 +16,13 @@ class CardsTab {
     
     // Accès au NetworkManager pour les tokens
     this.networkManager = window.ClashRoyaleApp?.networkManager || null;
+    
+    // Variables pour le drag & drop
+    this.isDragging = false;
+    this.draggedCard = null;
+    
+    // Injecter le CSS pour le drag & drop
+    this.injectDragDropCSS();
   }
 
   async initialize(container) {
@@ -386,6 +393,22 @@ class CardsTab {
         this.emit("deck:select-slot", { index, slot });
       });
 
+      // Event listeners pour le drop
+      slotEl.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        slotEl.classList.add("drag-over");
+      });
+
+      slotEl.addEventListener("dragleave", (e) => {
+        slotEl.classList.remove("drag-over");
+      });
+
+      slotEl.addEventListener("drop", (e) => {
+        e.preventDefault();
+        slotEl.classList.remove("drag-over");
+        this.handleCardDrop(e, index);
+      });
+
       deckContainer.appendChild(slotEl);
     });
 
@@ -397,6 +420,206 @@ class CardsTab {
     }
 
     console.log("✅ Rendu du deck terminé, 8 slots créés");
+  }
+
+  /**
+   * Gestion du drag & drop et sauvegarde
+   */
+  handleCardDragStart(e, card) {
+    console.log("🎯 Début du drag:", card.cardId);
+    this.isDragging = true;
+    
+    // Stocker les données de la carte
+    this.draggedCard = card;
+    e.dataTransfer.setData("text/plain", card.cardId);
+    e.dataTransfer.effectAllowed = "copy";
+    
+    // Ajouter une classe visuelle
+    e.target.classList.add("dragging");
+  }
+
+  handleCardDragEnd(e) {
+    console.log("🎯 Fin du drag");
+    this.isDragging = false;
+    this.draggedCard = null;
+    
+    // Nettoyer les classes visuelles
+    e.target.classList.remove("dragging");
+    
+    // Nettoyer tous les drag-over
+    this.tabElement.querySelectorAll(".drag-over").forEach(el => {
+      el.classList.remove("drag-over");
+    });
+  }
+
+  async handleCardDrop(e, slotIndex) {
+    e.preventDefault();
+    
+    if (!this.draggedCard) {
+      console.warn("❌ Aucune carte en cours de drag");
+      return;
+    }
+
+    console.log(`🎯 Drop carte ${this.draggedCard.cardId} sur slot ${slotIndex}`);
+    
+    // Mettre à jour le deck local
+    await this.updateDeckSlot(slotIndex, this.draggedCard);
+  }
+
+  handleCardClick(card) {
+    console.log("🖱️ Clic sur carte pour sélection:", card.cardId);
+    
+    // Mode sélection pour mobile - chercher un slot vide
+    const emptySlotIndex = this.findEmptyDeckSlot();
+    
+    if (emptySlotIndex !== -1) {
+      console.log(`📱 Ajout de ${card.cardId} au slot ${emptySlotIndex}`);
+      this.updateDeckSlot(emptySlotIndex, card);
+    } else {
+      // Montrer un message que le deck est plein
+      this.showMessage("Deck complet ! Glissez une carte vers un slot occupé pour la remplacer.", "warning");
+    }
+  }
+
+  findEmptyDeckSlot() {
+    const currentDeck = this.getCurrentDeckCards();
+    for (let i = 0; i < 8; i++) {
+      if (!currentDeck[i] || !currentDeck[i].cardId) {
+        return i;
+      }
+    }
+    return -1; // Pas de slot vide
+  }
+
+  getCurrentDeckCards() {
+    if (this.currentDeck && this.currentDeck.cards) {
+      return this.currentDeck.cards;
+    }
+    return Array(8).fill(null);
+  }
+
+  async updateDeckSlot(slotIndex, card) {
+    try {
+      console.log(`🔄 Mise à jour slot ${slotIndex} avec ${card.cardId}`);
+      
+      // Construire le nouveau deck
+      const currentDeckCards = this.getCurrentDeckCards();
+      const newDeck = [...currentDeckCards];
+      
+      // Mettre à jour le slot spécifique
+      newDeck[slotIndex] = {
+        cardId: card.cardId,
+        position: slotIndex,
+        level: card.level,
+        isActive: true,
+        cardInfo: card.cardInfo
+      };
+
+      // Créer le tableau des cardIds pour l'API (en filtrant les nulls)
+      const cardIds = newDeck.map(slot => slot?.cardId).filter(Boolean);
+      
+      // Si moins de 8 cartes, ajouter des cartes par défaut ou laisser vide selon l'API
+      while (cardIds.length < 8) {
+        cardIds.push(null); // ou une carte par défaut
+      }
+
+      console.log("📤 Envoi du nouveau deck:", cardIds);
+
+      // Sauvegarder via l'API
+      const deckIndex = this.currentDeck?.deckIndex || 0;
+      const saved = await this.saveDeck(deckIndex, cardIds.filter(Boolean));
+      
+      if (saved) {
+        // Mettre à jour l'affichage local
+        if (this.currentDeck) {
+          this.currentDeck.cards = newDeck;
+        }
+        
+        this.renderDeck();
+        this.showMessage(`✅ ${card.cardInfo?.nameKey || card.cardId} ajouté au deck !`, "success");
+        
+        console.log("✅ Deck mis à jour avec succès");
+      } else {
+        this.showMessage("❌ Erreur lors de la sauvegarde du deck", "error");
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur lors de la mise à jour du deck:", error);
+      this.showMessage("❌ Erreur lors de la mise à jour du deck", "error");
+    }
+  }
+
+  async saveDeck(deckIndex, cardIds) {
+    try {
+      const validCardIds = cardIds.filter(id => id !== null && id !== undefined);
+      
+      if (validCardIds.length === 0) {
+        console.warn("⚠️ Tentative de sauvegarde d'un deck vide");
+        return false;
+      }
+
+      console.log(`💾 Sauvegarde deck ${deckIndex}:`, validCardIds);
+
+      const data = await this.authenticatedFetch(`${this.apiBase}/deck`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          deckIndex: deckIndex,
+          cardIds: validCardIds
+        })
+      });
+
+      if (data.success) {
+        console.log("✅ Deck sauvegardé avec succès");
+        return true;
+      } else {
+        console.error("❌ Erreur de sauvegarde:", data.message);
+        this.showMessage(`Erreur: ${data.message}`, "error");
+        return false;
+      }
+
+    } catch (error) {
+      console.error("❌ Erreur lors de la sauvegarde:", error);
+      return false;
+    }
+  }
+
+  showMessage(message, type = "info") {
+    // Créer une notification temporaire
+    const notification = document.createElement("div");
+    notification.className = `deck-notification ${type}`;
+    notification.textContent = message;
+    
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      z-index: 10000;
+      animation: slideIn 0.3s ease-out;
+      max-width: 300px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      ${type === 'success' ? 'background: #2ecc71;' : ''}
+      ${type === 'error' ? 'background: #e74c3c;' : ''}
+      ${type === 'warning' ? 'background: #f39c12;' : ''}
+      ${type === 'info' ? 'background: #3498db;' : ''}
+    `;
+
+    document.body.appendChild(notification);
+
+    // Supprimer après 3 secondes
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = "slideOut 0.3s ease-out";
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }
+    }, 3000);
   }
 
   renderCollection() {
@@ -437,6 +660,11 @@ class CardsTab {
 
       const cardEl = document.createElement("div");
       cardEl.className = "collection-card";
+      
+      // Rendre la carte draggable
+      cardEl.draggable = true;
+      cardEl.dataset.cardId = card.cardId;
+      cardEl.dataset.cardLevel = card.level;
 
       if (sprite) {
         cardEl.innerHTML = `
@@ -447,9 +675,9 @@ class CardsTab {
             <span>Niveau ${card.level}</span>
             <span>x${card.count}</span>
           </div>
+          <div class="drag-hint">📱 Glisser vers le deck</div>
         `;
       } else {
-        // Génère un visuel CSS si pas d'image
         cardEl.innerHTML = `
           <div class="collection-card-fallback">
             <span>${card.cardId}</span>
@@ -459,18 +687,30 @@ class CardsTab {
             <span>Niveau ${card.level}</span>
             <span>x${card.count}</span>
           </div>
+          <div class="drag-hint">📱 Glisser vers le deck</div>
         `;
       }
 
+      // Event listeners pour le drag & drop
+      cardEl.addEventListener("dragstart", (e) => {
+        this.handleCardDragStart(e, card);
+      });
+
+      cardEl.addEventListener("dragend", (e) => {
+        this.handleCardDragEnd(e);
+      });
+
+      // Clic alternatif pour mobile/touch
       cardEl.addEventListener("click", () => {
-        console.log("🖱️ Clic sur carte:", card);
-        this.emit("collection:select-card", card);
+        if (!this.isDragging) {
+          this.handleCardClick(card);
+        }
       });
 
       colContainer.appendChild(cardEl);
     });
 
-    console.log("✅ Rendu de la collection terminé");
+    console.log("✅ Rendu de la collection terminé avec drag & drop");
   }
 
   calculateAvgElixir(deck) {
