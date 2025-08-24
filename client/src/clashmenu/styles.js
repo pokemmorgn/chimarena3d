@@ -77,7 +77,7 @@ static getContainerStyles() {
     
     return `
       .tab-navigation {
-        position: fixed;
+        position: absolute;
         bottom: 0;
         left: 0;
         width: 100%;
@@ -154,7 +154,7 @@ static getContainerStyles() {
     
     return `
       .battle-tab {
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
         width: 100%;
@@ -378,7 +378,7 @@ static getContainerStyles() {
     
     return `
       .coming-soon-message {
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
         width: 100%;
