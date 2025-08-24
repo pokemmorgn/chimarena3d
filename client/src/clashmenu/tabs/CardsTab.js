@@ -494,8 +494,7 @@ if (slot.cardInfo) {
    cardEl.draggable = true;
    cardEl.dataset.cardId = card.cardId;
    cardEl.dataset.cardLevel = card.level;
-  if (!this.isDragging) this.cardModal.open(card);
-});
+   
    // Ajouter classe si upgradable
    if (card.canUpgrade) {
      cardEl.classList.add("can-upgrade");
