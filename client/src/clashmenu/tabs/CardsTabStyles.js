@@ -25,6 +25,25 @@ class CardsTabStyles {
         padding: 15px;
       }
 
+.collection-card-fallback {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: repeating-linear-gradient(
+    45deg,
+    #333,
+    #333 10px,
+    #444 10px,
+    #444 20px
+  );
+  border-radius: 6px;
+  color: #bbb;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px;
+}
+
       /* === Deck Section === */
       .deck-section h2 {
         margin: 0 0 10px 0;
