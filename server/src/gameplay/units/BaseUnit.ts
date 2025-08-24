@@ -166,7 +166,7 @@ export class BaseUnit extends Schema {
   @type("string") unitType: UnitType = 'troop';
   
   // === VISUEL ===
-  @type("string") model: string = "";   // <-- ajouté pour le .glb
+  @type("string") modelFile: string = "";   // <-- ajouté pour le .glb
   
   // === POSITION ===
   @type("number") x: number = 0;
@@ -244,7 +244,7 @@ export class BaseUnit extends Schema {
     this.unitType = this.cardData.type as UnitType;
     
     // Définir le modèle 3D (.glb)
-    this.model = this.cardData.model || "";
+    this.modelFile = this.cardData.modelFile || "";
     
     // Charger les stats pour le niveau spécifique
     this.loadStatsForLevel(level);
