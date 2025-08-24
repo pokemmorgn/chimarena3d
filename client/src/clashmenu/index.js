@@ -2,6 +2,7 @@
 import TabNavigation from './components/TabNavigation';
 import BattleTab from './tabs/BattleTab';
 import styles from './styles';
+import Header from './components/Header.js';
 
 /**
  * Clash Menu Manager - Gestionnaire principal du menu
@@ -17,7 +18,8 @@ class ClashMenuManager {
     // Components
     this.tabNavigation = null;
     this.battleTab = null;
-    
+    this.header = null; // ✅ nouveau
+
     // HTML container
     this.mainContainer = null;
     
@@ -36,7 +38,9 @@ class ClashMenuManager {
       
       this.createMainContainer();
       this.injectStyles();
-      
+      this.header = new Header();
+const headerEl = this.header.create();
+this.mainContainer.appendChild(headerEl);
       // Initialize components
       this.tabNavigation = new TabNavigation();
       this.battleTab = new BattleTab();
@@ -146,6 +150,10 @@ createMainContainer() {
     if (this.battleTab && user) {
       this.battleTab.updatePlayerData(user);
     }
+if (this.header && user) {
+  this.header.updatePlayerData(user);
+}
+
     
     console.log('⚔️ ClashMenuManager activated');
   }
@@ -381,7 +389,9 @@ createMainContainer() {
     if (this.mainContainer && this.mainContainer.parentNode) {
       this.mainContainer.parentNode.removeChild(this.mainContainer);
     }
-    
+    if (this.header) {
+  this.header.cleanup();
+}
     // Remove styles
     const styleSheet = document.getElementById('clash-menu-styles');
     if (styleSheet) {
