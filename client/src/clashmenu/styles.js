@@ -57,17 +57,16 @@ static getContainerStyles() {
   const { darkBlue, royalBlue } = this.colors;
 
   return `
-    .clash-menu-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-      font-family: 'Arial', sans-serif;
-      overflow: hidden;
-      z-index: 9999;
-    }
+   .clash-menu-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: ...;
+  z-index: 1000; /* supérieur au canvas */
+}
+
   `;
 }
 
