@@ -1,17 +1,12 @@
 class CardsTab {
-  constructor(api) {
+  constructor(apiBase = "/api/collection") {
+    this.apiBase = apiBase;
     this.isActive = false;
-    this.currentUser = null;
-
-    // API client (wrapper fetch vers ton backend)
-    this.api = api;
-
     this.container = null;
     this.tabElement = null;
 
-    // Data
     this.decks = [];
-    this.currentDeckIndex = 0;
+    this.currentDeck = null;
     this.collection = [];
 
     this.eventListeners = new Map();
@@ -20,174 +15,160 @@ class CardsTab {
   async initialize(container) {
     this.container = container;
     this.createTabElement();
-    await this.loadData();
     this.renderLayout();
-    this.setupEventListeners();
+
+    // Charger données depuis backend
+    await this.loadDecks();
+    await this.loadCollection();
+    this.renderDeck();
   }
 
   createTabElement() {
     this.tabElement = document.createElement("div");
     this.tabElement.className = "cards-tab";
-    this.tabElement.id = "cards-tab";
     this.container.appendChild(this.tabElement);
-  }
-
-  async loadData() {
-    try {
-      // Récupérer les decks
-      const decksRes = await this.api.get("/collection/decks");
-      this.decks = decksRes.data.decks;
-      this.currentDeckIndex = decksRes.data.currentDeckIndex;
-
-      // Récupérer la collection
-      const colRes = await this.api.get("/collection/cards");
-      this.collection = colRes.data.cards;
-    } catch (err) {
-      console.error("❌ Failed to load cards tab data:", err);
-    }
   }
 
   renderLayout() {
     this.tabElement.innerHTML = `
-      <div class="cards-header">
-        <h2>🃏 My Decks</h2>
+      <div class="cards-tab-content">
+        <div class="deck-section">
+          <h2>Mon Deck</h2>
+          <div class="deck-cards"></div>
+          <div class="deck-footer">
+            <span>Moyenne élixir: <span id="deck-elixir">0.0</span></span>
+            <button id="btn-show-collection">Voir la collection</button>
+          </div>
+        </div>
+        <div class="collection-section" style="display: none;">
+          <h2>Collection</h2>
+          <div class="collection-grid"></div>
+          <button id="btn-back-deck">Retour au deck</button>
+        </div>
       </div>
-
-      <!-- Deck actif -->
-      <div class="active-deck">
-        ${this.renderDeck(this.decks[this.currentDeckIndex])}
-      </div>
-
-      <!-- Boutons deck -->
-      <div class="deck-selector">
-        ${this.decks.map(
-          (d, i) => `
-          <button class="deck-btn ${i === this.currentDeckIndex ? "active" : ""}" 
-                  data-index="${i}">
-            Deck ${i + 1}
-          </button>`
-        ).join("")}
-      </div>
-
-      <!-- Bouton collection -->
-      <div class="collection-btn-wrapper">
-        <button id="btn-show-collection">📚 View Collection</button>
-      </div>
-
-      <!-- Zone collection -->
-      <div class="collection-grid" id="collection-grid" style="display:none;">
-        ${this.renderCollection()}
-      </div>
-
-      <!-- Popup carte -->
-      <div class="card-popup" id="card-popup" style="display:none;"></div>
     `;
+
+    // Boutons
+    this.tabElement
+      .querySelector("#btn-show-collection")
+      .addEventListener("click", () => this.showCollection());
+    this.tabElement
+      .querySelector("#btn-back-deck")
+      .addEventListener("click", () => this.showDeck());
   }
 
-  renderDeck(deck) {
-    if (!deck) return "<div class='deck-empty'>No deck</div>";
-    return `
-      <div class="deck-cards">
-        ${deck.cards.map(slot => `
-          <div class="deck-slot">
-            <img src="/cards/${slot.cardInfo.sprite}" 
-                 alt="${slot.cardInfo.nameKey}" 
-                 class="deck-card"
-                 data-cardid="${slot.cardId}" />
-          </div>
-        `).join("")}
-      </div>
-      <div class="deck-elixir">Avg Elixir: ${(deck.totalElixirCost / 8).toFixed(1)}</div>
-    `;
+  async loadDecks() {
+    try {
+      const res = await fetch(`${this.apiBase}/decks`, { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        this.decks = data.data.decks;
+        const currentIndex = data.data.currentDeckIndex;
+        this.currentDeck = this.decks.find(d => d.deckIndex === currentIndex) || null;
+      }
+    } catch (err) {
+      console.error("❌ Failed to load decks", err);
+    }
+  }
+
+  async loadCollection() {
+    try {
+      const res = await fetch(`${this.apiBase}/cards`, { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        this.collection = data.data.cards;
+      }
+    } catch (err) {
+      console.error("❌ Failed to load collection", err);
+    }
+  }
+
+  renderDeck() {
+    const deckContainer = this.tabElement.querySelector(".deck-cards");
+    deckContainer.innerHTML = "";
+
+    const deck = this.currentDeck?.cards || Array(8).fill(null);
+
+    deck.forEach((slot, index) => {
+      const slotEl = document.createElement("div");
+      slotEl.className = "deck-slot";
+
+      if (slot && slot.cardInfo) {
+        slotEl.innerHTML = `
+          <img src="/cards/${slot.cardInfo.sprite}" alt="${slot.cardInfo.nameKey}" class="deck-card"/>
+          <div class="deck-level">Lvl ${slot.level || 1}</div>
+        `;
+      } else {
+        slotEl.innerHTML = `<div class="deck-empty">+</div>`;
+        slotEl.classList.add("empty-slot");
+      }
+
+      slotEl.addEventListener("click", () => {
+        this.emit("deck:select-slot", { index, slot });
+      });
+
+      deckContainer.appendChild(slotEl);
+    });
+
+    const avgElixir = this.calculateAvgElixir(deck);
+    this.tabElement.querySelector("#deck-elixir").textContent = avgElixir.toFixed(1);
   }
 
   renderCollection() {
-    if (!this.collection) return "";
-    return this.collection.map(card => `
-      <div class="collection-card ${card.isUnlocked ? "" : "locked"}" 
-           data-cardid="${card.cardId}">
-        <img src="/cards/${card.cardInfo?.sprite || "unknown.png"}" />
-        <div class="card-level">Lvl ${card.level}</div>
-        <div class="card-count">${card.count || 0}</div>
-      </div>
-    `).join("");
-  }
+    const colContainer = this.tabElement.querySelector(".collection-grid");
+    colContainer.innerHTML = "";
 
-  renderCardPopup(card) {
-    return `
-      <div class="popup-content">
-        <h3>${card.cardInfo?.nameKey || card.cardId}</h3>
-        <img src="/cards/${card.cardInfo?.sprite}" class="popup-img" />
-
-        <p>Level: ${card.level}</p>
-        <p>Count: ${card.count}</p>
-        <p>Rarity: ${card.cardInfo?.rarity}</p>
-        <p>Elixir: ${card.cardInfo?.elixirCost}</p>
-
-        ${
-          card.upgradeAvailable
-            ? `<button id="btn-upgrade-card" data-cardid="${card.cardId}">⬆️ Upgrade</button>`
-            : "<p>Upgrade not available</p>"
-        }
-
-        <button id="btn-close-popup">❌ Close</button>
-      </div>
-    `;
-  }
-
-  setupEventListeners() {
-    // Deck switch
-    this.tabElement.querySelectorAll(".deck-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const idx = parseInt(btn.dataset.index);
-        await this.api.put(`/collection/active-deck/${idx}`);
-        this.currentDeckIndex = idx;
-        this.renderLayout();
-        this.setupEventListeners();
-      });
-    });
-
-    // Toggle collection
-    this.tabElement.querySelector("#btn-show-collection")
-      .addEventListener("click", () => {
-        const grid = this.tabElement.querySelector("#collection-grid");
-        grid.style.display = grid.style.display === "none" ? "grid" : "none";
-      });
-
-    // Card click → popup
-    this.tabElement.querySelectorAll(".collection-card").forEach(cardEl => {
+    this.collection.forEach(card => {
+      const cardEl = document.createElement("div");
+      cardEl.className = "collection-card";
+      cardEl.innerHTML = `
+        <img src="/cards/${card.cardInfo?.sprite}" alt="${card.cardId}" />
+        <div class="collection-info">
+          <span>${card.cardInfo?.nameKey || card.cardId}</span>
+          <span>Niveau ${card.level}</span>
+          <span>x${card.count}</span>
+        </div>
+      `;
       cardEl.addEventListener("click", () => {
-        const cardId = cardEl.dataset.cardid;
-        const card = this.collection.find(c => c.cardId === cardId);
-        const popup = this.tabElement.querySelector("#card-popup");
-        popup.innerHTML = this.renderCardPopup(card);
-        popup.style.display = "block";
-
-        // Close
-        popup.querySelector("#btn-close-popup").addEventListener("click", () => {
-          popup.style.display = "none";
-        });
-
-        // Upgrade
-        const upgradeBtn = popup.querySelector("#btn-upgrade-card");
-        if (upgradeBtn) {
-          upgradeBtn.addEventListener("click", async () => {
-            await this.api.post("/collection/upgrade-card", { cardId });
-            await this.loadData();
-            this.renderLayout();
-            this.setupEventListeners();
-          });
-        }
+        this.emit("collection:select-card", card);
       });
+      colContainer.appendChild(cardEl);
     });
   }
 
+  calculateAvgElixir(deck) {
+    const costs = deck
+      .filter(c => c && c.cardInfo)
+      .map(c => c.cardInfo.elixirCost || 0);
+    if (costs.length === 0) return 0;
+    return costs.reduce((a, b) => a + b, 0) / costs.length;
+  }
+
+  showCollection() {
+    this.tabElement.querySelector(".deck-section").style.display = "none";
+    this.tabElement.querySelector(".collection-section").style.display = "block";
+    this.renderCollection();
+  }
+
+  showDeck() {
+    this.tabElement.querySelector(".collection-section").style.display = "none";
+    this.tabElement.querySelector(".deck-section").style.display = "block";
+    this.renderDeck();
+  }
+
+  // --- Onglet API ---
   show() { this.tabElement.classList.add("active"); this.isActive = true; }
   hide() { this.tabElement.classList.remove("active"); this.isActive = false; }
 
-  on(event, callback) {
+  on(event, cb) {
     if (!this.eventListeners.has(event)) this.eventListeners.set(event, new Set());
-    this.eventListeners.get(event).add(callback);
+    this.eventListeners.get(event).add(cb);
+  }
+
+  emit(event, data) {
+    if (this.eventListeners.has(event)) {
+      this.eventListeners.get(event).forEach(cb => cb(data));
+    }
   }
 }
 
