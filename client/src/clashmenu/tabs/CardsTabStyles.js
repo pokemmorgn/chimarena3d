@@ -113,7 +113,7 @@ class CardsTabStyles {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
         gap: 10px;
-        max-height: 200px;
+        max-height: 265px;
         overflow-y: auto;
         padding: 10px;
         background: rgba(46,204,113,0.1);
