@@ -4,14 +4,14 @@ class BattleTab {
     this.isSearching = false;
     this.currentUser = null;
 
-    this.currentMode = 'Ladder';
-    this.modes = ['Ladder', 'Training', 'Challenge'];
+    this.currentMode = 'PVP';
+    this.modes = ['PVE', 'PVP', 'Ranked', '2v2'];
 
     this.container = null;
     this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
-    this.modeLabel = null;
+    this.modeDropdown = null;
     this.dropdownMenu = null;
 
     this.eventListeners = new Map();
@@ -51,7 +51,7 @@ class BattleTab {
         </div>
       </div>
 
-      <!-- Dropdown menu -->
+      <!-- Dropdown menu (topbar) -->
       <div class="dropdown-menu" id="dropdown-menu">
         <div class="dropdown-item" data-action="news">📰 News</div>
         <div class="dropdown-item" data-action="leaderboard">🏆 Leaderboard</div>
@@ -60,7 +60,7 @@ class BattleTab {
         <div class="dropdown-item" data-action="logout">🚪 Logout</div>
       </div>
 
-      <!-- Arena in the middle -->
+      <!-- Arena -->
       <div class="arena-section">
         <img src="assets/arena_placeholder.png" alt="Arena" class="arena-image" />
       </div>
@@ -68,11 +68,8 @@ class BattleTab {
       <!-- Bottom: Battle + mode + chests -->
       <div class="battle-bottom">
         <div class="battle-action">
-          <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
-            <div class="mode-label" id="mode-label">Ladder</div>
-          </div>
+          <button class="battle-main-btn" id="battle-main-btn">⚔️ ${this.currentMode}</button>
+          <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
         </div>
         <div class="battle-chests">
           <div class="chest-slot" data-slot="1"></div>
@@ -81,37 +78,53 @@ class BattleTab {
           <div class="chest-slot" data-slot="4"></div>
         </div>
       </div>
+
+      <!-- Mode dropdown -->
+      <div class="mode-dropdown" id="mode-dropdown">
+        ${this.modes.map(mode => `<div class="mode-dropdown-item" data-mode="${mode}">${mode}</div>`).join('')}
+      </div>
     `;
 
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
     this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
-    this.modeLabel = this.tabElement.querySelector('#mode-label');
+    this.modeDropdown = this.tabElement.querySelector('#mode-dropdown');
     this.dropdownMenu = this.tabElement.querySelector('#dropdown-menu');
   }
 
   setupEventListeners() {
     this.battleBtn.addEventListener('click', () => this.handleMainBattle());
 
-    // Mode: cycle + emit
-    this.modeBtn.addEventListener('click', () => {
-      const idx = this.modes.indexOf(this.currentMode);
-      const next = this.modes[(idx + 1) % this.modes.length];
-      this.setMode(next);
-      this.emit('battle:mode', { mode: next });
+    // Open/close mode dropdown
+    this.modeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.modeDropdown.classList.toggle('active');
     });
 
-    const avatar = this.tabElement.querySelector('#player-avatar');
-    avatar.addEventListener('click', () => this.emit('player:change-avatar'));
+    // Mode selection
+    this.modeDropdown.querySelectorAll('.mode-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const selectedMode = item.dataset.mode;
+        this.setMode(selectedMode);
+        this.modeDropdown.classList.remove('active');
+        this.emit('battle:mode', { mode: selectedMode });
+      });
+    });
 
-    const banner = this.tabElement.querySelector('#topbar-banner');
-    banner.addEventListener('click', () => this.emit('player:change-banner'));
+    // Close dropdown if clicking outside
+    document.addEventListener('click', (e) => {
+      if (this.modeDropdown.classList.contains('active') &&
+          !this.modeDropdown.contains(e.target) &&
+          e.target.id !== 'battle-mode-btn') {
+        this.modeDropdown.classList.remove('active');
+      }
+    });
 
+    // Topbar menu
     const menuBtn = this.tabElement.querySelector('#btn-menu');
     menuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.dropdownMenu.classList.toggle('active');
     });
-
     document.addEventListener('click', (e) => {
       if (this.dropdownMenu.classList.contains('active')) {
         if (!this.dropdownMenu.contains(e.target) && e.target.id !== 'btn-menu') {
@@ -119,18 +132,23 @@ class BattleTab {
         }
       }
     });
-
     this.dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
         this.dropdownMenu.classList.remove('active');
         this.emit(`menu:${item.dataset.action}`);
       });
     });
+
+    // Avatar/banner click
+    this.tabElement.querySelector('#player-avatar')
+      .addEventListener('click', () => this.emit('player:change-avatar'));
+    this.tabElement.querySelector('#topbar-banner')
+      .addEventListener('click', () => this.emit('player:change-banner'));
   }
 
   setMode(mode) {
     this.currentMode = mode;
-    if (this.modeLabel) this.modeLabel.textContent = mode;
+    this.battleBtn.textContent = `⚔️ ${mode}`;
   }
 
   updatePlayerData(user) {
@@ -140,7 +158,6 @@ class BattleTab {
       user.displayName || user.username || 'Player';
     this.tabElement.querySelector('#topbar-player-trophies').textContent =
       `🏆 ${user.trophies || 0}`;
-
     if (user.avatarUrl) this.tabElement.querySelector('#player-avatar').src = user.avatarUrl;
     if (user.bannerUrl) this.tabElement.querySelector('#topbar-banner').src = user.bannerUrl;
   }
@@ -158,7 +175,7 @@ class BattleTab {
 
   cancelBattleSearch() {
     this.isSearching = false;
-    this.battleBtn.textContent = '⚔️ Battle';
+    this.battleBtn.textContent = `⚔️ ${this.currentMode}`;
     this.emit('battle:cancel');
   }
 
