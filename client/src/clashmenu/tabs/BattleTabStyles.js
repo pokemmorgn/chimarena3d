@@ -4,11 +4,10 @@ class BattleTabStyles {
       white: '#ffffff',
       gold: '#ffd700',
       green: '#4caf50',
-      red: '#f44336',
-      orange: '#ff9800',
       darkBlue: '#0f1419',
       royalBlue: '#1a237e',
-      neonBlue: '#00bcd4'
+      neonBlue: '#00bcd4',
+      gray: '#9e9e9e'
     };
   }
 
@@ -17,7 +16,7 @@ class BattleTabStyles {
   }
 
   static getBattleTabStyles() {
-    const { white, gold, darkBlue, royalBlue } = this.colors;
+    const { white, gold, darkBlue, royalBlue, neonBlue, gray } = this.colors;
 
     return `
     .battle-tab {
@@ -25,12 +24,12 @@ class BattleTabStyles {
       top: 60px; /* below global header */
       left: 0;
       width: 100%;
-      height: calc(100% - 140px);
+      height: calc(100% - 100px);
       padding: 10px 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      overflow-y: auto;
     }
 
     /* --- Top bar --- */
@@ -68,56 +67,77 @@ class BattleTabStyles {
       background: rgba(255,255,255,0.2);
     }
 
-    .topbar-center {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    /* --- Player Banner --- */
+    .player-banner {
+      position: relative;
+      width: 95%;
+      max-width: 500px;
+      height: 120px;
+      border-radius: 15px;
+      margin: 10px 0 20px 0;
+      overflow: hidden;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
     }
 
-    .player-name {
-      font-size: 16px;
-      font-weight: bold;
+    .banner-bg {
+      position: absolute;
+      inset: 0;
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+      filter: brightness(0.7);
+    }
+
+    .banner-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 15px;
       color: ${white};
     }
 
-    .player-trophies {
+    .player-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 3px solid ${gold};
+      background: ${gray};
+      margin-right: 15px;
+      object-fit: cover;
+      cursor: pointer;
+    }
+
+    .banner-info {
+      flex: 1;
+    }
+
+    .banner-name {
+      font-size: 18px;
+      font-weight: bold;
+      color: ${white};
+      margin-bottom: 5px;
+    }
+
+    .banner-trophies {
       font-size: 14px;
       color: ${gold};
     }
 
-    /* --- Dropdown menu --- */
-    .dropdown-menu {
-      position: absolute;
-      top: 60px;
-      right: 10px;
-      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
-      border: 2px solid rgba(255,255,255,0.2);
-      border-radius: 10px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-      width: 200px;
-      display: none;
-      flex-direction: column;
-      z-index: 100;
-    }
-
-    .dropdown-menu.active {
-      display: flex;
-    }
-
-    .dropdown-item {
-      padding: 12px 15px;
+    .banner-edit-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 8px;
       color: ${white};
+      padding: 6px 10px;
       cursor: pointer;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
       transition: background 0.2s ease;
     }
 
-    .dropdown-item:last-child {
-      border-bottom: none;
-    }
-
-    .dropdown-item:hover {
-      background: rgba(255,255,255,0.1);
+    .banner-edit-btn:hover {
+      background: rgba(255,255,255,0.35);
     }
 
     /* --- Arena --- */
@@ -182,30 +202,6 @@ class BattleTabStyles {
 
     .battle-mode-btn:hover {
       transform: scale(1.1);
-    }
-
-    /* --- Chests --- */
-    .battle-chests {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      width: 100%;
-      max-width: 420px;
-      margin-bottom: 10px;
-    }
-
-    .chest-slot {
-      width: 70px;
-      height: 70px;
-      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
-      border: 2px solid rgba(255,255,255,0.2);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: ${white};
-      font-size: 14px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
     `;
   }
