@@ -3,6 +3,7 @@ import TabNavigation from './components/TabNavigation';
 import BattleTab from './tabs/BattleTab';
 import styles from './styles';
 import Header from './components/Header.js';
+import ProfileOverlay from './components/ProfileOverlay.js';
 
 /**
  * Clash Menu Manager - Gestionnaire principal du menu
@@ -19,6 +20,7 @@ class ClashMenuManager {
     this.tabNavigation = null;
     this.battleTab = null;
     this.header = null; // ✅ nouveau
+this.profileOverlay = null;
 
     // HTML container
     this.mainContainer = null;
@@ -47,6 +49,16 @@ this.mainContainer.appendChild(headerEl);
       
       await this.tabNavigation.initialize(this.mainContainer);
       await this.battleTab.initialize(this.mainContainer);
+
+      this.profileOverlay = new ProfileOverlay();
+this.profileOverlay.initialize(this.mainContainer);
+
+// quand l’overlay émet un update → on peut mettre à jour les données du joueur
+this.profileOverlay.on("profile:update", (data) => {
+  console.log("✅ Profile updated:", data);
+  // ici tu envoies au serveur pour save en DB
+  this.updatePlayerData(data);
+});
       
       // Setup event listeners
       this.setupEventListeners();
