@@ -132,6 +132,7 @@ class CardsTabStyles {
         padding: 5px;
         cursor: pointer;
         transition: transform 0.15s;
+        position: relative;
       }
 
       .collection-card:hover {
@@ -153,6 +154,23 @@ class CardsTabStyles {
         gap: 2px;
       }
 
+      /* === Cartes verrouillées === */
+      .collection-card.locked {
+        filter: grayscale(100%) brightness(0.5);
+        cursor: default;
+      }
+
+      .collection-card.locked::after {
+        content: "🔒";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 22px;
+        color: #fff;
+        text-shadow: 0 0 4px #000;
+      }
+
       .collection-section button {
         margin-top: 15px;
         width: 100%;
@@ -169,7 +187,7 @@ class CardsTabStyles {
         background: #1e7e34;
       }
 
-      /* Responsive */
+      /* === Responsive === */
       @media (max-width: 600px) {
         .deck-cards {
           grid-template-columns: repeat(2, 1fr);
