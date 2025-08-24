@@ -23,8 +23,8 @@ class BattleTabStyles {
       top: 60px;
       left: 0;
       width: 100%;
-height: 100%;     
-display: flex;
+      height: calc(100% - 120px);
+      display: flex;
       flex-direction: column;
       align-items: center;
     }
@@ -39,9 +39,9 @@ display: flex;
   flex: 1;
   width: 100%;
   background: url('/arena/Arena1.png') center/cover no-repeat;
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
 }
-
-
 
 .edit-profile-btn {
   background: none;
