@@ -100,22 +100,22 @@
     }
     
     /* Container principal avec background animé */
-.app-container {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  align-items: center; /* ✅ Centrage vertical */
-  justify-content: center; /* ✅ Centrage horizontal */
-  background: linear-gradient(135deg, 
-    var(--bg-secondary) 0%, 
-    var(--bg-tertiary) 35%, 
-    var(--bg-quaternary) 70%, 
-    var(--bg-secondary) 100%);
-  background-size: 400% 400%;
-  animation: backgroundFlow 20s ease-in-out infinite;
-  overflow: visible;
-}
+    .app-container {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, 
+        var(--bg-secondary) 0%, 
+        var(--bg-tertiary) 35%, 
+        var(--bg-quaternary) 70%, 
+        var(--bg-secondary) 100%);
+      background-size: 400% 400%;
+      animation: backgroundFlow 20s ease-in-out infinite;
+      overflow: hidden;
+    }
     
     /* Background particles animées */
     .background-particles {
@@ -138,26 +138,25 @@
     }
     
     /* Viewport mobile fixe au centre */
-.mobile-viewport {
-  position: relative;
-  width: var(--mobile-width);
-  height: var(--mobile-height);
-  max-width: 100vw;
-  max-height: 100vh;
-  background: linear-gradient(180deg, 
-    var(--bg-secondary) 0%, 
-    var(--bg-tertiary) 50%, 
-    var(--bg-quaternary) 100%);
-  border-radius: 25px;
-  box-shadow: 
-    0 0 60px rgba(74, 144, 226, 0.3),
-    0 0 120px rgba(74, 144, 226, 0.15),
-    inset 0 0 40px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-  border: 2px solid rgba(74, 144, 226, 0.4);
-  z-index: 10;
-  transform-origin: top left; /* ✅ nécessaire si scale est appliqué */
-}
+    .mobile-viewport {
+      position: relative;
+      width: var(--mobile-width);
+      height: var(--mobile-height);
+      max-width: 100vw;
+      max-height: 100vh;
+      background: linear-gradient(180deg, 
+        var(--bg-secondary) 0%, 
+        var(--bg-tertiary) 50%, 
+        var(--bg-quaternary) 100%);
+      border-radius: 25px;
+      box-shadow: 
+        0 0 60px rgba(74, 144, 226, 0.3),
+        0 0 120px rgba(74, 144, 226, 0.15),
+        inset 0 0 40px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      border: 2px solid rgba(74, 144, 226, 0.4);
+      z-index: 10;
+    }
     
     /* Glow border effect */
     .mobile-viewport::before {
@@ -179,17 +178,17 @@
     }
     
     /* Canvas de jeu Three.js */
-#game-canvas {
-  display: block;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-  pointer-events: none;
-}
-
+    #game-canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      border-radius: 23px;
+      background: var(--bg-secondary);
+    }
     
     /* Status bar mobile simulation */
     .mobile-status-bar {
@@ -408,7 +407,6 @@
 
 <body>
   <!-- Container principal avec background animé -->
-    <canvas id="game-canvas"></canvas>
   <div class="app-container">
     <!-- Background particles (générées par JS) -->
     <div class="background-particles" id="background-particles"></div>
@@ -416,7 +414,23 @@
     <!-- Viewport mobile fixe au centre -->
     <div class="mobile-viewport" id="mobile-viewport">
       <!-- Status bar mobile (simulation) -->
-   
+      <div class="mobile-status-bar">
+        <div class="status-left">
+          <span id="current-time">9:41</span>
+        </div>
+        <div class="status-right">
+          <div class="signal-bars">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+          <span>WiFi</span>
+          <div class="battery">
+            <div class="battery-level"></div>
+          </div>
+        </div>
+      </div>
       
       <!-- Canvas Three.js sera injecté ici par GameEngine -->
     </div>
@@ -504,35 +518,31 @@
       }
       
       // Mobile viewport scaling
-function updateMobileViewportScale() {
-  const viewport = document.getElementById('mobile-viewport');
-  if (!viewport) return;
-
-  const isMobile = window.innerWidth <= 425;
-
-  if (isMobile) {
-    // Mode mobile natif
-    viewport.style.transform = 'none';
-    viewport.style.width = '100vw';
-    viewport.style.height = '100vh';
-  } else {
-    // Mode desktop avec scale
-    const mobileWidth = window.innerWidth >= 1200 ? 425 : 375;
-    const mobileHeight = window.innerWidth >= 1200 ? 920 : 812;
-
-    const scaleX = window.innerWidth / mobileWidth;
-    const scaleY = window.innerHeight / mobileHeight;
-    const scale = Math.min(scaleX, scaleY, 1);
-
-    viewport.style.transform = `scale(${scale})`;
-    viewport.style.width = `${mobileWidth}px`;
-    viewport.style.height = `${mobileHeight}px`;
-  }
-
-  // Centrage (garanti par app-container en flex)
-  viewport.style.margin = '0';
-  viewport.style.position = 'relative';
-}
+      function updateMobileViewportScale() {
+        const viewport = document.getElementById('mobile-viewport');
+        if (!viewport) return;
+        
+        const isMobile = window.innerWidth <= 425;
+        
+        if (isMobile) {
+          // Native mobile mode
+          viewport.style.transform = 'none';
+          viewport.style.width = '100vw';
+          viewport.style.height = '100vh';
+        } else {
+          // Desktop mode with scaled mobile viewport
+          const mobileWidth = window.innerWidth >= 1200 ? 425 : 375;
+          const mobileHeight = window.innerWidth >= 1200 ? 920 : 812;
+          
+          const scaleX = Math.min(window.innerWidth / mobileWidth * 0.9, 1.2);
+          const scaleY = Math.min(window.innerHeight / mobileHeight * 0.9, 1.2);
+          const scale = Math.min(scaleX, scaleY, 1.0);
+          
+          viewport.style.transform = `scale(${scale})`;
+          viewport.style.width = mobileWidth + 'px';
+          viewport.style.height = mobileHeight + 'px';
+        }
+      }
       
       // Feature detection
       function checkRequiredFeatures() {
