@@ -13,7 +13,6 @@ class CardsTabStyles {
   color: #fff;
   font-family: sans-serif;
   overflow-y: auto;
-
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -29,14 +28,12 @@ class CardsTabStyles {
   color: #ffd700;
   text-align: center;
 }
-
 .deck-cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(80px, 1fr));
   gap: 10px;
   margin-bottom: 15px;
 }
-
 .deck-slot {
   width: 100%;
   aspect-ratio: 3/4;
@@ -51,7 +48,6 @@ class CardsTabStyles {
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-
 #btn-show-all-cards,
 #btn-back-deck {
   background: #007bff;
@@ -80,44 +76,24 @@ class CardsTabStyles {
   border-radius: 6px;
 }
 
-/* Badge étoile niveau */
+/* === Badge niveau (deck + collection) === */
 .card-level {
   position: absolute;
-  top: -8px;   /* déborde un peu */
-  left: -8px;  /* déborde un peu */
+  top: -8px;
+  left: -8px;
   width: 28px;
   height: 28px;
-  background: url('/icons/GradeIcon_Star_s_Yellow.png') no-repeat center/contain;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: url('/icons/GradeIcon_Star_s_Yellow.png') no-repeat center center;
+  background-size: contain;
+  color: #fff;
   font-size: 12px;
   font-weight: bold;
-  color: #1a1f2b; /* contraste sombre */
-  text-shadow: 0 0 2px rgba(255,255,255,0.7);
-  z-index: 3;
-  pointer-events: none; /* évite de bloquer les clics */
-}
-.card-level.common   { filter: drop-shadow(0 0 4px #90a4ae); }
-.card-level.rare     { filter: drop-shadow(0 0 4px #42a5f5); }
-.card-level.epic     { filter: drop-shadow(0 0 4px #ab47bc); }
-.card-level.legendary{ filter: drop-shadow(0 0 6px #ffca28); }
-
-/* === Bordures par rareté === */
-.my-card.common, .deck-slot.common, .game-card.common {
-  border-color: #90a4ae;
-}
-.my-card.rare, .deck-slot.rare, .game-card.rare {
-  border-color: #42a5f5;
-}
-.my-card.epic, .deck-slot.epic, .game-card.epic {
-  border-color: #ab47bc;
-}
-.my-card.legendary, .deck-slot.legendary, .game-card.legendary {
-  border-color: #ffca28;
+  text-align: center;
+  line-height: 28px;
+  z-index: 5;
 }
 
-/* Barre progression */
+/* === Barre progression (deck + collection) === */
 .card-progress {
   position: absolute;
   bottom: 0;
@@ -146,6 +122,12 @@ class CardsTabStyles {
   z-index: 1;
 }
 
+/* === Couleurs par rareté === */
+.card-common     { border: 2px solid #bdc3c7; }   /* gris clair */
+.card-rare       { border: 2px solid #3498db; }   /* bleu */
+.card-epic       { border: 2px solid #9b59b6; }   /* violet */
+.card-legendary  { border: 2px solid #f1c40f; }   /* doré */
+
 /* === Mes cartes === */
 .my-cards-section { margin-top: 20px; }
 .my-cards-section h2 {
@@ -154,7 +136,6 @@ class CardsTabStyles {
   color: #2ecc71;
   text-align: center;
 }
-
 .my-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
@@ -174,12 +155,11 @@ class CardsTabStyles {
   width: 100%;
   aspect-ratio: 3/4;
   background: #222;
-  border: 2px solid #2ecc71;
   border-radius: 8px;
   text-align: center;
   cursor: grab;
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* autorise l’icône étoile à dépasser */
 }
 .my-card img {
   width: 100%;
@@ -187,7 +167,6 @@ class CardsTabStyles {
   object-fit: contain;
   border-radius: 4px;
 }
-
 .my-card-fallback {
   width: 100%;
   aspect-ratio: 3/4;
@@ -217,7 +196,7 @@ class CardsTabStyles {
   padding: 4px;
   position: relative;
   font-size: 10px;
-  overflow: hidden;
+  overflow: visible; /* pareil pour l’étoile */
 }
 .game-card img {
   width: 100%;
@@ -254,28 +233,7 @@ class CardsTabStyles {
   color: #aaa;
 }
 
-/* Laisse déborder l'étoile hors de la carte */
-.deck-slot,
-.my-card,
-.game-card {
-  overflow: visible;   /* au lieu de hidden */
-}
-
-/* Si tu avais déjà mis overflow:hidden quelque part, ceci force l’override */
-.cards-tab .deck-slot,
-.cards-tab .my-card,
-.cards-tab .game-card {
-  overflow: visible !important;
-}
-
-/* L’étoile reste au-dessus du visuel */
-.card-level {
-  z-index: 3;
-  pointer-events: none;
-}
-
-
-/* Notifications */
+/* === Notifications === */
 .deck-notification {
   position: fixed;
   top: 80px;
