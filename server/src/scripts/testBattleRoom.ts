@@ -11,10 +11,10 @@ import { TokenService } from '../middleware/AuthData';
  * Script de test pour BattleRoom Colyseus
  * Usage: npx ts-node server/src/scripts/testBattleRoom.ts [command]
  * 
- * Note: Utilise le client Colyseus existant au lieu de WebSocket brut
+ * Note: Utilise WebSocket avec protocol Colyseus correct
  */
 
-const { Client } = require('colyseus.js');
+const WebSocket = require('ws');
 const SERVER_URL = 'ws://localhost:2567';
 
 interface BattleClient {
@@ -511,7 +511,6 @@ class BattleRoomTester {
         break;
     }
   }
-
 
   private async cleanup(): Promise<void> {
     console.log('\n🧹 Cleaning up connections...');
