@@ -53,28 +53,29 @@ class ClashMenuStyles {
   /**
    * Styles du container principal
    */
-  static getContainerStyles() {
-    const { darkBlue, royalBlue } = this.colors;
-    
-    return `
-      .clash-menu-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-        z-index: 1000;
-        font-family: 'Arial', sans-serif;
-        overflow: hidden;
-        display: none;
-      }
-      
-      .clash-menu-container.active {
-        display: block;
-      }
-    `;
-  }
+static getContainerStyles() {
+  const { darkBlue, royalBlue } = this.colors;
+
+  return `
+    .clash-menu-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
+      z-index: 10;
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+      display: none;
+    }
+
+    .clash-menu-container.active {
+      display: block;
+    }
+  `;
+}
+
 
   /**
    * Styles de la navigation par onglets
