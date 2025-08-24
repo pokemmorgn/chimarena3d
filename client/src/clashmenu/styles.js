@@ -53,28 +53,41 @@ class ClashMenuStyles {
   /**
    * Styles du container principal
    */
-  static getContainerStyles() {
-    const { darkBlue, royalBlue } = this.colors;
-    
-    return `
-      .clash-menu-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-        z-index: 1000;
-        font-family: 'Arial', sans-serif;
-        overflow: hidden;
-        display: none;
-      }
-      
-      .clash-menu-container.active {
-        display: block;
-      }
-    `;
-  }
+static getContainerStyles() {
+  const { darkBlue, royalBlue } = this.colors;
+
+  return `
+    #clash-phone-wrapper {
+      width: 390px; /* Format mobile */
+      height: 844px;
+      margin: 20px auto;
+      border: 1px solid #333;
+      border-radius: 20px;
+      overflow: hidden;
+      background-color: #000;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .clash-menu-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
+      z-index: 1000;
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+      display: none;
+    }
+
+    .clash-menu-container.active {
+      display: block;
+    }
+  `;
+}
+
 
   /**
    * Styles de la navigation par onglets
