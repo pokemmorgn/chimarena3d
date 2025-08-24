@@ -1,19 +1,19 @@
 class CardsTabStyles {
   static getCSS() {
     return `
-      .cards-tab {
-        position: absolute;
-        top: 60px;
-        left: 0;
-        width: 100%;
-        height: calc(100% - 120px);
-        display: none;
-        flex-direction: column;
-        background: linear-gradient(180deg, #1a1f2b, #0f1419);
-        color: #fff;
-        font-family: sans-serif;
-        overflow-y: auto;
-      }
+.cards-tab {
+  position: absolute;
+  top: 60px; /* garde la hauteur de la topbar */
+  left: 0;
+  width: 100%;
+  height: calc(100% - 60px); /* juste la barre du bas */
+  display: none;
+  flex-direction: column;
+  background: linear-gradient(180deg, #1a1f2b, #0f1419);
+  color: #fff;
+  font-family: sans-serif;
+  overflow-y: auto;
+}
 
       .cards-tab.active {
         display: flex;
