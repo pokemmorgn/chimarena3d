@@ -30,7 +30,8 @@ this.cardModal = new CardModal(this);
     this.createTabElement();
     this.renderLayout();
 this.cardModal.initialize(this.container);
-
+  // AJOUT : Injecter les styles de la modal
+  this.injectModalStyles();
     // Charger données depuis backend avec debug
     await this.loadDecks();
         await this.loadAllCards();
@@ -493,7 +494,6 @@ if (slot.cardInfo) {
    cardEl.draggable = true;
    cardEl.dataset.cardId = card.cardId;
    cardEl.dataset.cardLevel = card.level;
-   cardEl.addEventListener("click", () => {
   if (!this.isDragging) this.cardModal.open(card);
 });
    // Ajouter classe si upgradable
@@ -1113,6 +1113,17 @@ renderAllCards() {
       this.currentDeck = this.decks.find(d => d.isActive) || this.decks[0];
       this.renderDeck();
     }
+  }
+  // AJOUTEZ LA MÉTHODE ICI :
+  injectModalStyles() {
+    // Vérifier si les styles sont déjà injectés
+    if (document.getElementById('card-modal-styles')) return;
+    
+    const styleElement = document.createElement('style');
+    styleElement.id = 'card-modal-styles';
+    styleElement.textContent = CardModalStyles.getCSS();
+    document.head.appendChild(styleElement);
+    console.log("✅ Styles de modal injectés");
   }
 
 }
