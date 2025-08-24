@@ -1,6 +1,8 @@
 import { Schema, type } from '@colyseus/schema';
 import CardData, { ICardData } from '../../models/CardData';
 import { getActionLogger } from '../../services/ActionLoggerService';
+import { getCombatSystem, ICombatant, IAttackConfig, ICombatResult } from '../systems/CombatSystem';
+import { getTargetingSystem, ITargetableEntity, ITargetingResult } from '../systems/TargetingSystem';
 
 // === INTERFACES ET TYPES ===
 
@@ -155,9 +157,9 @@ class CardDataCache {
   }
 }
 
-// === CLASSE BASEUNIT PRINCIPALE ===
+// === CLASSE BASEUNIT PRINCIPALE INTÉGRÉE AVEC COMBATSYSTEM ===
 
-export class BaseUnit extends Schema {
+export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   // === IDENTIFIANTS ===
   @type("string") id: string = "";
   @type("string") cardId: string = "";
@@ -168,11 +170,11 @@ export class BaseUnit extends Schema {
   // === VISUEL ===
   @type("string") modelFile: string = "";   // <-- ajouté pour le .glb
   
-  // === POSITION ===
+  // === POSITION (pour ICombatant et ITargetableEntity) ===
   @type("number") x: number = 0;
   @type("number") y: number = 0;
   
-  // === STATS ACTUELLES ===
+  // === STATS ACTUELLES (pour ICombatant) ===
   @type("number") currentHitpoints: number = 100;
   @type("number") maxHitpoints: number = 100;
   @type("number") currentDamage: number = 50;
@@ -190,6 +192,10 @@ export class BaseUnit extends Schema {
   private behavior!: IUnitBehavior;
   private logger = getActionLogger();
   
+  // Combat System Integration
+  private combatSystem = getCombatSystem();
+  private targetingSystem = getTargetingSystem();
+  
   // Cache des vitesses pour optimisation
   private static readonly SPEED_VALUES: Record<string, number> = {
     'slow': 0.5,        // 0.5 tile/sec
@@ -197,6 +203,36 @@ export class BaseUnit extends Schema {
     'fast': 1.5,        // 1.5 tile/sec
     'very-fast': 2.0    // 2.0 tile/sec
   };
+
+  // === ICombatant IMPLEMENTATION ===
+  get position(): IPosition { return { x: this.x, y: this.y }; }
+  get type(): TargetType { return this.unitType === 'building' ? 'building' : 'unit'; }
+  get isAlive(): boolean { return this.currentHitpoints > 0 && this.state !== 'dead'; }
+  get hitpoints(): number { return this.currentHitpoints; }
+  set hitpoints(value: number) { this.currentHitpoints = Math.max(0, value); }
+  
+  // Propriétés de combat
+  get canAttack(): boolean { return this.isAlive && !this.behavior?.buffs.has('freeze'); }
+  get attackRange(): number { return this.baseStats?.range || 1; }
+  get attackDamage(): number { return this.currentDamage; }
+  get attackSpeed(): number { return Math.round((this.baseStats?.attackSpeed || 1.5) * 20); } // Convert to ticks
+  get lastAttackTick(): number { return this.behavior?.lastAttackTick || 0; }
+  set lastAttackTick(value: number) { if (this.behavior) this.behavior.lastAttackTick = value; }
+  
+  // Propriétés ITargetableEntity
+  get isFlying(): boolean | undefined { return this.baseStats?.targets === 'air'; }
+  get isTank(): boolean | undefined { return this.baseStats?.mass > 2 || this.maxHitpoints > 1000; }
+  get isBuilding(): boolean | undefined { return this.unitType === 'building'; }
+  get mass(): number | undefined { return this.baseStats?.mass; }
+  
+  // État de combat (ICombatant optionals)
+  isStunned?: boolean = false;
+  stunEndTick?: number | undefined;
+  isInvulnerable?: boolean = false;
+  invulnerabilityEndTick?: number | undefined;
+  armor?: number = 0;
+  spellResistance?: number = 0;
+  shield?: number = 0;
 
   // === FACTORY METHOD (Recommandé pour async loading) ===
   
@@ -218,56 +254,59 @@ export class BaseUnit extends Schema {
   /**
    * Initialisation avec chargement async des données
    */
- private async initialize(
-  cardId: string,
-  level: number,
-  ownerId: string,
-  position: IPosition,
-  spawnTick: number
-): Promise<void> {
-  try {
-    // Générer ID unique
-    this.id = `unit_${spawnTick}_${Math.random().toString(36).substr(2, 6)}`;
-    this.cardId = cardId;
-    this.ownerId = ownerId;
-    this.level = level;
-    this.x = position.x;
-    this.y = position.y;
-    this.spawnTick = spawnTick;
-    this.lastUpdateTick = spawnTick;
-    
-    // Charger les données de carte depuis le cache
-    const cache = CardDataCache.getInstance();
-    this.cardData = await cache.getCardData(cardId);
-    
-    // Définir le type d'unité
-    this.unitType = this.cardData.type as UnitType;
-    
-    // Définir le modèle 3D (.glb)
-    this.modelFile = this.cardData.modelFile || "";
-    
-    // Charger les stats pour le niveau spécifique
-    this.loadStatsForLevel(level);
-    
-    // Initialiser le comportement
-    this.initializeBehavior();
-    
-    // Logger la création (sync pour éviter les problèmes)
-    this.logger.logBattle('unit_deployed', ownerId, {
-      unitId: this.id,
-      cardId: this.cardId,
-      level: this.level,
-      position: { x: this.x, y: this.y },
-      hitpoints: this.currentHitpoints,
-      damage: this.currentDamage,
-      spawnTick
-    });
-    
-  } catch (error) {
-    console.error(`Failed to initialize unit ${cardId}:`, error);
-    throw error;
+  private async initialize(
+    cardId: string,
+    level: number,
+    ownerId: string,
+    position: IPosition,
+    spawnTick: number
+  ): Promise<void> {
+    try {
+      // Générer ID unique
+      this.id = `unit_${spawnTick}_${Math.random().toString(36).substr(2, 6)}`;
+      this.cardId = cardId;
+      this.ownerId = ownerId;
+      this.level = level;
+      this.x = position.x;
+      this.y = position.y;
+      this.spawnTick = spawnTick;
+      this.lastUpdateTick = spawnTick;
+      
+      // Charger les données de carte depuis le cache
+      const cache = CardDataCache.getInstance();
+      this.cardData = await cache.getCardData(cardId);
+      
+      // Définir le type d'unité
+      this.unitType = this.cardData.type as UnitType;
+      
+      // Définir le modèle 3D (.glb)
+      this.modelFile = this.cardData.modelFile || "";
+      
+      // Charger les stats pour le niveau spécifique
+      this.loadStatsForLevel(level);
+      
+      // Initialiser le comportement
+      this.initializeBehavior();
+      
+      // Enregistrer dans le CombatSystem
+      this.combatSystem.registerCombatant(this);
+      
+      // Logger la création (sync pour éviter les problèmes)
+      this.logger.logBattle('unit_deployed', ownerId, {
+        unitId: this.id,
+        cardId: this.cardId,
+        level: this.level,
+        position: { x: this.x, y: this.y },
+        hitpoints: this.currentHitpoints,
+        damage: this.currentDamage,
+        spawnTick
+      });
+      
+    } catch (error) {
+      console.error(`Failed to initialize unit ${cardId}:`, error);
+      throw error;
+    }
   }
-}
 
   /**
    * Charger les stats pour le niveau spécifique
@@ -277,7 +316,6 @@ export class BaseUnit extends Schema {
     const levelStats = this.cardData.getStatsForLevel(level);
     
     // Créer les stats avec valeurs par défaut correctes
-    // D'abord construire un objet complet avec toutes les propriétés requises
     this.baseStats = {
       hitpoints: levelStats.hitpoints ?? this.cardData.stats.hitpoints ?? 100,
       damage: levelStats.damage ?? this.cardData.stats.damage ?? 50,
@@ -360,10 +398,10 @@ export class BaseUnit extends Schema {
     }, deployTimeTicks * 50); // 50ms par tick
   }
   
-  // === MÉTHODES PRINCIPALES ===
+  // === MÉTHODES PRINCIPALES AVEC INTEGRATION COMBATSYSTEM ===
   
   /**
-   * Mise à jour principale appelée chaque tick
+   * Mise à jour principale appelée chaque tick - Intégrée avec CombatSystem
    */
   update(currentTick: number, deltaTime: number): void {
     this.lastUpdateTick = currentTick;
@@ -404,14 +442,14 @@ export class BaseUnit extends Schema {
   }
   
   /**
-   * Logique état idle - chercher des cibles
+   * Logique état idle - chercher des cibles avec TargetingSystem
    */
   private updateIdle(currentTick: number): void {
     // Chercher des cibles si cooldown écoulé
     if (currentTick >= this.behavior.lastRetarget + this.behavior.retargetCooldown) {
-      const target = this.findTarget();
-      if (target) {
-        this.setTarget(target);
+      const targetingResult = this.findTargetWithSystem(currentTick);
+      if (targetingResult.target) {
+        this.setTarget(targetingResult.target);
         this.setState('moving');
       }
       this.behavior.lastRetarget = currentTick;
@@ -454,7 +492,7 @@ export class BaseUnit extends Schema {
   }
   
   /**
-   * Logique d'attaque
+   * Logique d'attaque - Intégrée avec CombatSystem
    */
   private updateAttacking(currentTick: number): void {
     if (!this.behavior.currentTarget) {
@@ -469,10 +507,82 @@ export class BaseUnit extends Schema {
       return;
     }
     
-    // Vérifier si on peut attaquer
+    // Vérifier si on peut attaquer avec le CombatSystem
     if (currentTick >= this.behavior.nextAttackTick) {
-      this.performAttack(currentTick);
+      this.performAttackWithSystem(currentTick);
     }
+  }
+  
+  /**
+   * Effectuer une attaque via le CombatSystem
+   */
+  private performAttackWithSystem(currentTick: number): void {
+    if (!this.behavior.currentTarget) return;
+    
+    const attackConfig: IAttackConfig = {
+      attackerId: this.id,
+      targetId: this.behavior.currentTarget.id,
+      damage: this.getCurrentDamage(),
+      damageType: this.getDamageType(),
+      
+      // Configuration splash si applicable
+      hasSplash: this.baseStats.splashDamage,
+      splashRadius: this.baseStats.splashRadius,
+      splashDamagePercent: 100,
+      
+      // Configuration projectile si ranged
+      isProjectile: this.isRangedUnit(),
+      projectileSpeed: this.getProjectileSpeed(),
+      
+      // Effets spéciaux selon les abilities
+      stun: this.getStunDuration(),
+      knockback: this.getKnockbackForce()
+    };
+    
+    // Déléguer au CombatSystem
+    const result = this.combatSystem.performAttack(attackConfig);
+    
+    if (result) {
+      // Mettre à jour le cooldown d'attaque
+      this.behavior.nextAttackTick = currentTick + this.attackSpeed;
+      this.behavior.lastAttackTick = currentTick;
+      
+      // Callback d'attaque réussie
+      this.onAttackPerformed(result);
+    }
+  }
+  
+  /**
+   * Callback quand une attaque est effectuée
+   */
+  private onAttackPerformed(result: ICombatResult): void {
+    // Log de l'attaque
+    this.logger.logBattle('card_played', this.ownerId, {
+      unitId: this.id,
+      targetId: result.primaryTargetId,
+      damage: result.damageDealt,
+      targetsHit: result.targetsHit.length,
+      damageType: result.damageType,
+      tick: result.tick,
+      actionType: 'unit_attack'
+    });
+    
+    // Effets visuels, sons, etc. peuvent être ajoutés ici
+  }
+  
+  /**
+   * Trouver une cible avec le TargetingSystem
+   */
+  private findTargetWithSystem(currentTick: number): ITargetingResult {
+    // TODO: Obtenir la liste des entités disponibles depuis BattleRoom
+    const availableTargets: ITargetableEntity[] = []; // Sera fourni par BattleRoom
+    
+    return this.targetingSystem.findBestTarget(
+      this,                               // Cette unité comme attacker
+      availableTargets,                   // Toutes les cibles possibles
+      this.behavior.currentTarget,        // Cible actuelle (si existe)
+      currentTick                        // Tick actuel
+    );
   }
   
   /**
@@ -492,6 +602,9 @@ export class BaseUnit extends Schema {
     
     if (currentTick >= this.behavior.lastStateChange + deathDuration) {
       this.setState('dead');
+      
+      // Désinscrire du CombatSystem
+      this.combatSystem.unregisterCombatant(this.id);
       
       // Spawn des unités si nécessaire (ex: Skeleton Army)
       if (this.baseStats.spawns) {
@@ -519,21 +632,23 @@ export class BaseUnit extends Schema {
     }
   }
   
-  // === MÉTHODES DE COMBAT ===
+  // === MÉTHODES DE COMBAT INTÉGRÉES ===
   
   /**
-   * Infliger des dégâts à cette unité
+   * Infliger des dégâts à cette unité - via CombatSystem
    */
   takeDamage(damage: number, attackerId?: string, damageType: string = 'normal'): boolean {
-    const actualDamage = this.calculateActualDamage(damage, damageType);
+    const oldHp = this.currentHitpoints;
     
-    this.currentHitpoints = Math.max(0, this.currentHitpoints - actualDamage);
+    // Le calcul de dégâts est maintenant géré par CombatSystem
+    // Cette méthode est principalement pour les callbacks
+    this.currentHitpoints = Math.max(0, this.currentHitpoints - damage);
     
-    // Logger les dégâts (sync pour éviter les problèmes dans le tick)
+    // Logger les dégâts
     this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
       attackerId,
-      damage: actualDamage,
+      damage: oldHp - this.currentHitpoints,
       remainingHP: this.currentHitpoints,
       damageType,
       actionType: 'unit_damaged'
@@ -548,71 +663,88 @@ export class BaseUnit extends Schema {
     return false; // Unité survivante
   }
   
-  /**
-   * Calculer les dégâts réels (après armor, shields, etc.)
-   */
-  private calculateActualDamage(baseDamage: number, damageType: string): number {
-    let actualDamage = baseDamage;
+  // === ICombatant CALLBACK IMPLEMENTATIONS ===
+  
+  onTakeDamage = (damage: number, attacker: ICombatant, damageType: string): void => {
+    // Callback quand cette unité prend des dégâts
+    console.log(`${this.id} took ${damage} ${damageType} damage from ${attacker.id}`);
     
-    // Appliquer les modificateurs de dégâts
-    for (const buff of this.behavior.buffs.values()) {
-      if (buff.type === 'shield' && damageType === 'normal') {
-        actualDamage = Math.max(0, actualDamage - buff.value);
-      }
+    // Interruption de certaines actions si nécessaire
+    if (this.state === 'special' && damage > this.maxHitpoints * 0.1) {
+      this.setState('idle'); // Interrompre les capacités spéciales
+    }
+  };
+  
+  onDeath = (killer: ICombatant): void => {
+    // Callback quand cette unité meurt
+    console.log(`${this.id} killed by ${killer.id}`);
+    
+    this.logger.logBattle('card_played', this.ownerId, {
+      unitId: this.id,
+      killerId: killer.id,
+      lifespan: this.lastUpdateTick - this.spawnTick,
+      actionType: 'unit_killed'
+    });
+  };
+  
+  onAttack = (target: ICombatant): void => {
+    // Callback quand cette unité attaque
+    console.log(`${this.id} attacks ${target.id}`);
+  };
+  
+  // === MÉTHODES UTILITAIRES POUR COMBATSYSTEM ===
+  
+  private getDamageType(): 'physical' | 'spell' | 'crown_tower' {
+    // Déterminer le type de dégâts selon la carte
+    if (this.cardData.type === 'spell') {
+      return 'spell';
     }
     
-    return Math.round(actualDamage);
+    // Les dégâts sur crown towers sont réduits pour certaines unités
+    if (this.baseStats.crownTowerDamage !== undefined) {
+      return 'crown_tower';
+    }
+    
+    return 'physical';
   }
   
-  /**
-   * Effectuer une attaque
-   */
-  private performAttack(currentTick: number): void {
-    if (!this.behavior.currentTarget) return;
-    
-    const attackSpeedTicks = Math.round(this.baseStats.attackSpeed * 20); // Convertir en ticks
-    this.behavior.nextAttackTick = currentTick + attackSpeedTicks;
-    this.behavior.lastAttackTick = currentTick;
-    this.behavior.isAttacking = true;
-    
-    // Programmer l'impact après le windup
-    setTimeout(() => {
-      this.dealDamage();
-      this.behavior.isAttacking = false;
-    }, this.behavior.attackWindup * 50); // 50ms par tick
+  private isRangedUnit(): boolean {
+    // Unité ranged si range > 1.5 tiles (approximation CR)
+    return this.baseStats.range > 1.5;
   }
   
-  /**
-   * Infliger des dégâts à la cible
-   */
-  private dealDamage(): void {
-    if (!this.behavior.currentTarget) return;
+  private getProjectileSpeed(): number | undefined {
+    if (!this.isRangedUnit()) return undefined;
     
-    const damage = this.getCurrentDamage();
+    // Vitesses approximatives des projectiles dans CR
+    const projectileSpeeds: Record<string, number> = {
+      'archers': 8,
+      'musketeer': 10,
+      'wizard': 5,
+      'fireball': 12,
+      'arrows': 15
+    };
     
-    // Logger l'attaque (sync)
-    this.logger.logBattle('card_played', this.ownerId, {
-      attackerId: this.id,
-      targetId: this.behavior.currentTarget.id,
-      damage,
-      attackType: this.baseStats.splashDamage ? 'splash' : 'single',
-      actionType: 'unit_attack'
-    });
-    
-    // TODO: Intégrer avec CombatSystem pour appliquer les dégâts
-    // CombatSystem.dealDamage(this, this.behavior.currentTarget, damage);
+    return projectileSpeeds[this.cardId] || 8; // Default speed
+  }
+  
+  private getStunDuration(): number | undefined {
+    // Durée de stun selon les abilities
+    if (this.baseStats.abilities?.includes('stun')) {
+      return 10; // 0.5 seconde à 20 TPS
+    }
+    return undefined;
+  }
+  
+  private getKnockbackForce(): number | undefined {
+    // Force de knockback selon les abilities
+    if (this.baseStats.abilities?.includes('knockback')) {
+      return 1.5; // 1.5 tiles
+    }
+    return undefined;
   }
   
   // === MÉTHODES DE TARGETING ===
-  
-  /**
-   * Trouver la meilleure cible
-   */
-  private findTarget(): ITarget | null {
-    // TODO: Intégrer avec un système de targeting global
-    // Pour l'instant, retourner null (pas de cible)
-    return null;
-  }
   
   /**
    * Définir une nouvelle cible
@@ -700,6 +832,9 @@ export class BaseUnit extends Schema {
     // Mettre à jour les stats actuelles
     this.currentDamage = Math.round(this.baseStats.damage * damageMultiplier);
     this.behavior.moveSpeed = this.baseStats.walkingSpeed * speedMultiplier;
+    
+    // Mettre à jour les états de combat pour CombatSystem
+    this.isStunned = this.behavior.debuffs.has('freeze');
   }
   
   // === MÉTHODES UTILITAIRES ===
@@ -753,6 +888,10 @@ export class BaseUnit extends Schema {
    * Nettoyer l'unité (appelé avant suppression)
    */
   cleanup(): void {
+    // Désinscrire du CombatSystem
+    this.combatSystem.unregisterCombatant(this.id);
+    
+    // Nettoyer les buffs/debuffs
     this.behavior.buffs.clear();
     this.behavior.debuffs.clear();
     
@@ -764,6 +903,71 @@ export class BaseUnit extends Schema {
       lifespan: this.lastUpdateTick - this.spawnTick,
       actionType: 'unit_destroyed'
     });
+  }
+  
+  // === MÉTHODES PUBLIQUES POUR BATTLEROOM INTEGRATION ===
+  
+  /**
+   * Fournir la liste des cibles disponibles (appelé par BattleRoom)
+   */
+  updateAvailableTargets(availableTargets: ITargetableEntity[]): void {
+    // Stocker les cibles disponibles pour le targeting
+    // Cette méthode sera appelée par BattleRoom à chaque tick
+    this.availableTargets = availableTargets;
+  }
+  
+  private availableTargets: ITargetableEntity[] = [];
+  
+  /**
+   * Trouver une cible avec les entités disponibles
+   */
+  private findTargetWithSystem(currentTick: number): ITargetingResult {
+    return this.targetingSystem.findBestTarget(
+      this,                               // Cette unité comme attacker
+      this.availableTargets,              // Toutes les cibles possibles
+      this.behavior.currentTarget,        // Cible actuelle (si existe)
+      currentTick                        // Tick actuel
+    );
+  }
+  
+  /**
+   * Obtenir les informations de combat pour BattleRoom
+   */
+  getCombatInfo() {
+    return {
+      id: this.id,
+      position: this.getPosition(),
+      ownerId: this.ownerId,
+      hitpoints: this.currentHitpoints,
+      maxHitpoints: this.maxHitpoints,
+      damage: this.currentDamage,
+      range: this.baseStats.range,
+      isAlive: this.isAlive,
+      canAttack: this.canAttack,
+      currentTarget: this.behavior.currentTarget,
+      state: this.state,
+      isStunned: this.isStunned,
+      lastAttackTick: this.behavior.lastAttackTick
+    };
+  }
+  
+  /**
+   * Forcer une attaque sur une cible spécifique (pour debug/test)
+   */
+  forceAttack(targetId: string): ICombatResult | null {
+    const attackConfig: IAttackConfig = {
+      attackerId: this.id,
+      targetId: targetId,
+      damage: this.getCurrentDamage(),
+      damageType: this.getDamageType(),
+      hasSplash: this.baseStats.splashDamage,
+      splashRadius: this.baseStats.splashRadius,
+      splashDamagePercent: 100,
+      isProjectile: this.isRangedUnit(),
+      projectileSpeed: this.getProjectileSpeed()
+    };
+    
+    return this.combatSystem.performAttack(attackConfig);
   }
   
   // === MÉTHODES STATIQUES UTILITAIRES ===
@@ -845,6 +1049,81 @@ export class BaseUnit extends Schema {
       console.error(`Failed to get stats for ${cardId}:`, error);
       return null;
     }
+  }
+  
+  // === MÉTHODES DE CONVERSION POUR COMPATIBILITÉ ===
+  
+  /**
+   * Convertir en ITargetableEntity pour TargetingSystem
+   */
+  toTargetableEntity(): ITargetableEntity {
+    return {
+      id: this.id,
+      position: this.getPosition(),
+      ownerId: this.ownerId,
+      type: this.type,
+      isAlive: this.isAlive,
+      hitpoints: this.currentHitpoints,
+      maxHitpoints: this.maxHitpoints,
+      isFlying: this.isFlying,
+      isTank: this.isTank,
+      isBuilding: this.isBuilding,
+      mass: this.mass
+    };
+  }
+  
+  /**
+   * Convertir en ICombatant pour CombatSystem (déjà implémenté via interface)
+   */
+  toCombatant(): ICombatant {
+    return this; // BaseUnit implémente déjà ICombatant
+  }
+  
+  // === FACTORY METHODS POUR CARTES SPÉCIFIQUES ===
+  
+  /**
+   * Créer un Knight spécifiquement
+   */
+  static async createKnight(ownerId: string, position: IPosition, level: number, spawnTick: number): Promise<BaseUnit> {
+    const knight = await BaseUnit.create('knight', level, ownerId, position, spawnTick);
+    
+    // Configurations spéciales pour Knight (tank)
+    knight.armor = 10; // Armor légère
+    
+    return knight;
+  }
+  
+  /**
+   * Créer des Archers spécifiquement  
+   */
+  static async createArchers(ownerId: string, position: IPosition, level: number, spawnTick: number): Promise<BaseUnit[]> {
+    const archers: BaseUnit[] = [];
+    
+    // Les Archers viennent par 2 dans CR
+    for (let i = 0; i < 2; i++) {
+      const offsetPosition = {
+        x: position.x + (i === 0 ? -0.5 : 0.5), // Décaler légèrement
+        y: position.y
+      };
+      
+      const archer = await BaseUnit.create('archers', level, ownerId, offsetPosition, spawnTick);
+      archers.push(archer);
+    }
+    
+    return archers;
+  }
+  
+  /**
+   * Créer un Cannon (bâtiment défensif)
+   */
+  static async createCannon(ownerId: string, position: IPosition, level: number, spawnTick: number): Promise<BaseUnit> {
+    const cannon = await BaseUnit.create('cannon', level, ownerId, position, spawnTick);
+    
+    // Configurations spéciales pour Cannon
+    cannon.isInvulnerable = true;
+    cannon.invulnerabilityEndTick = spawnTick + 20; // 1 seconde d'invulnérabilité au déploiement
+    
+    return cannon;
   }
 }
 
