@@ -1,5 +1,6 @@
 // CardsTab.js - Version corrigée avec meilleure gestion des tokens
 import CardModal from "./CardModal.js";
+import CardModalStyles from "./CardModalStyles.js";
 
 class CardsTab {
   constructor(apiBase = "/api/collection") {
