@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 
 // Charger le .env depuis le dossier server/ (fonctionne depuis n'importe où)
 dotenv.config({ path: './server/.env' });
+
 import mongoose from 'mongoose';
 import UserData from '../models/UserData';
 import { TokenService } from '../middleware/AuthData';
@@ -184,37 +185,7 @@ class BattleRoomTester {
         return;
       }
       
-      // Connexion WebSocket Colyseus
-      const ws = new WebSocket(`${SERVER_URL}/battle`);
-      
-      const client: BattleClient = {
-        ws,
-        userId: user._id.toString(),
-        username: user.username,
-        token,
-        isSpectator,
-        connected: false,
-        messages: []
-      };
-
-  private async connectPlayer(user: any, isSpectator: boolean): Promise<BattleClient> {
-    return new Promise((resolve, reject) => {
-      let token: string;
-      
-      try {
-        // Vérifier JWT_SECRET avant génération
-        if (!process.env.JWT_SECRET) {
-          throw new Error('JWT_SECRET not defined in environment');
-        }
-        
-        token = TokenService.generateAccessToken(user);
-        console.log(`   🔑 Token generated for ${user.username}`);
-      } catch (error) {
-        reject(new Error(`Token generation failed: ${error}`));
-        return;
-      }
-      
-      // Connexion WebSocket directe (pas via Colyseus client)
+      // Test simple avec le client Colyseus.js - format plus simple
       const ws = new WebSocket(`${SERVER_URL}`);
       
       const client: BattleClient = {
@@ -230,20 +201,20 @@ class BattleRoomTester {
       ws.on('open', () => {
         console.log(`   🔌 WebSocket opened for ${user.username}`);
         
-        // Protocol Colyseus correct: [room_id, [room_name, options]]
-        const joinMessage = [
-          1,  // Message ID
-          'battle',  // Room name
-          {
+        // Essayer le format simple Colyseus
+        const joinMessage = JSON.stringify({
+          type: 'join_room',
+          room: 'battle',
+          options: {
             authToken: token,
             isSpectator: isSpectator,
             gameMode: 'casual',
             matchId: 'test_match_123'
           }
-        ];
+        });
         
         console.log(`   📤 Sending join message for ${user.username}`);
-        ws.send(JSON.stringify(joinMessage));
+        ws.send(joinMessage);
       });
 
       ws.on('message', (data: Buffer) => {
@@ -251,10 +222,12 @@ class BattleRoomTester {
           const message = this.parseColyseusMessage(data);
           client.messages.push(message);
           
+          console.log(`   📨 ${user.username} received: ${message.type || 'unknown'}`);
+          
           // Gérer les messages spécifiques
           this.handleClientMessage(client, message);
           
-          if (message.type === 'battle_joined' || message.type === 'spectator_joined') {
+          if (message.type === 'battle_joined' || message.type === 'room_joined') {
             client.connected = true;
             if (message.data?.battleId) {
               this.battleId = message.data.battleId;
@@ -275,19 +248,24 @@ class BattleRoomTester {
         reject(error);
       });
 
-      ws.on('close', () => {
-        console.log(`   🔌 WebSocket closed for ${user.username}`);
+      ws.on('close', (code: number, reason: string) => {
+        console.log(`   🔌 WebSocket closed for ${user.username}: ${code} ${reason}`);
         client.connected = false;
       });
 
       this.clients.push(client);
 
-      // Timeout
+      // Timeout plus long pour debug
       setTimeout(() => {
         if (!client.connected) {
+          console.log(`   ⏰ Connection timeout for ${user.username}`);
+          console.log(`   📊 Messages received: ${client.messages.length}`);
+          client.messages.forEach((msg, i) => {
+            console.log(`      ${i + 1}. ${JSON.stringify(msg).substring(0, 100)}`);
+          });
           reject(new Error(`Connection timeout for ${user.username}`));
         }
-      }, 10000);
+      }, 15000); // 15 secondes
     });
   }
 
@@ -433,7 +411,7 @@ class BattleRoomTester {
         return;
       }
 
-      const ws = new WebSocket(`${SERVER_URL}/battle`);
+      const ws = new WebSocket(`${SERVER_URL}`);
       
       const client: BattleClient = {
         ws,
@@ -446,16 +424,16 @@ class BattleRoomTester {
       };
 
       ws.on('open', () => {
-        const joinMessage = [
-          1,  // Message ID  
-          'battle',  // Room name
-          {
+        const joinMessage = JSON.stringify({
+          type: 'join_room',
+          room: 'battle',
+          options: {
             authToken: fakeToken,
             isSpectator: true
           }
-        ];
+        });
         
-        ws.send(JSON.stringify(joinMessage));
+        ws.send(joinMessage);
       });
 
       ws.on('message', (data: Buffer) => {
@@ -463,7 +441,7 @@ class BattleRoomTester {
           const message = this.parseColyseusMessage(data);
           client.messages.push(message);
           
-          if (message.type === 'spectator_joined') {
+          if (message.type === 'spectator_joined' || message.type === 'room_joined') {
             client.connected = true;
             resolve(client);
           }
@@ -573,7 +551,7 @@ class BattleRoomTester {
       }
       
       // Message binaire Colyseus - on retourne un objet générique
-      return { type: 'binary_message', data: text };
+      return { type: 'binary_message', raw: text, data: text };
       
     } catch (error) {
       return { type: 'parse_error', raw: data.toString() };
