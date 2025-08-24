@@ -1,3 +1,5 @@
+// CardsTab.js - Version corrigée avec meilleure gestion des tokens
+
 class CardsTab {
   constructor(apiBase = "/api/collection") {
     this.apiBase = apiBase;
@@ -11,6 +13,9 @@ class CardsTab {
     this.allCards = [];     // toutes les cartes du jeu
 
     this.eventListeners = new Map();
+    
+    // Accès au NetworkManager pour les tokens
+    this.networkManager = window.ClashRoyaleApp?.networkManager || null;
   }
 
   async initialize(container) {
@@ -47,6 +52,7 @@ class CardsTab {
           <div class="collection-debug" style="margin-bottom: 10px; color: #ffd700; font-size: 12px;">
             <div id="debug-collection-count">Cartes chargées: 0</div>
             <div id="debug-collection-status">Status: En attente...</div>
+            <div id="debug-auth-status">Auth: Vérification...</div>
           </div>
           <div class="collection-grid"></div>
           <button id="btn-back-deck">Retour au deck</button>
@@ -63,11 +69,92 @@ class CardsTab {
       .addEventListener("click", () => this.showDeck());
   }
 
+  /**
+   * Créer les headers d'authentification pour les requêtes
+   */
+  getAuthHeaders() {
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Récupérer le token depuis NetworkManager ou localStorage
+    let token = null;
+    
+    if (this.networkManager) {
+      token = this.networkManager.getAccessToken();
+      console.log('🔑 Token depuis NetworkManager:', token ? 'Présent' : 'Absent');
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('clash_royale_access_token');
+      console.log('🔑 Token depuis localStorage:', token ? 'Présent' : 'Absent');
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Authorization header ajouté');
+    } else {
+      console.warn('⚠️ Aucun token disponible pour l\'authentification');
+    }
+
+    return headers;
+  }
+
+  /**
+   * Faire un appel API avec authentification
+   */
+  async authenticatedFetch(url, options = {}) {
+    const headers = this.getAuthHeaders();
+    
+    const config = {
+      credentials: 'include',
+      headers,
+      ...options
+    };
+
+    console.log(`🔄 Appel API: ${url}`);
+    console.log('📋 Config requête:', config);
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+      
+      console.log(`📦 Réponse de ${url}:`, {
+        status: response.status,
+        ok: response.ok,
+        data: data
+      });
+
+      // Si token expiré, essayer de le rafraîchir
+      if (response.status === 401 && this.networkManager) {
+        console.log('🔄 Token expiré, tentative de rafraîchissement...');
+        const refreshed = await this.networkManager.verifyToken();
+        
+        if (refreshed) {
+          console.log('✅ Token rafraîchi, nouvelle tentative...');
+          // Refaire l'appel avec le nouveau token
+          const newHeaders = this.getAuthHeaders();
+          const retryResponse = await fetch(url, {
+            ...config,
+            headers: newHeaders
+          });
+          return await retryResponse.json();
+        }
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`❌ Erreur lors de l'appel à ${url}:`, error);
+      throw error;
+    }
+  }
+
   async loadDecks() {
     try {
       console.log("🔄 Chargement des decks...");
-      const res = await fetch(`${this.apiBase}/decks`, { credentials: "include" });
-      const data = await res.json();
+      this.updateAuthDebug('Chargement des decks...');
+      
+      const data = await this.authenticatedFetch(`${this.apiBase}/decks`);
       
       console.log("📦 Réponse decks:", data);
       
@@ -76,19 +163,23 @@ class CardsTab {
         const currentIndex = data.data.currentDeckIndex;
         this.currentDeck = this.decks.find(d => d.deckIndex === currentIndex) || null;
         console.log("✅ Decks chargés:", this.decks.length, "deck actuel:", currentIndex);
+        this.updateAuthDebug('✅ Decks chargés');
       } else {
         console.error("❌ Erreur lors du chargement des decks:", data.message);
+        this.updateAuthDebug(`❌ Erreur decks: ${data.message}`);
       }
     } catch (err) {
       console.error("❌ Failed to load decks", err);
+      this.updateAuthDebug(`❌ Échec decks: ${err.message}`);
     }
   }
 
   async loadCollection() {
     try {
       console.log("🔄 Chargement de la collection...");
-      const res = await fetch(`${this.apiBase}/cards`, { credentials: "include" });
-      const data = await res.json();
+      this.updateAuthDebug('Chargement de la collection...');
+      
+      const data = await this.authenticatedFetch(`${this.apiBase}/cards`);
       
       console.log("📦 Réponse collection complète:", data);
       
@@ -99,21 +190,31 @@ class CardsTab {
         
         // Mise à jour du debug dans l'UI
         this.updateCollectionDebug();
+        this.updateAuthDebug(`✅ ${this.collection.length} cartes chargées`);
       } else {
         console.error("❌ Erreur lors du chargement de la collection:", data.message);
         this.updateCollectionDebug("Erreur: " + data.message);
+        this.updateAuthDebug(`❌ Erreur: ${data.message}`);
+        
+        // Si erreur d'auth, afficher des infos utiles
+        if (data.code === 'TOKEN_MISSING' || data.code === 'TOKEN_EXPIRED') {
+          this.showAuthError(data.message);
+        }
       }
     } catch (err) {
       console.error("❌ Failed to load collection", err);
       this.updateCollectionDebug("Erreur réseau: " + err.message);
+      this.updateAuthDebug(`❌ Réseau: ${err.message}`);
     }
   }
 
   async loadAllCards() {
     try {
       console.log("🔄 Chargement de toutes les cartes...");
-      const res = await fetch("/api/cards", { credentials: "include" });
-      const data = await res.json();
+      
+      // Cette API ne nécessite pas d'authentification
+      const response = await fetch("/api/cards", { credentials: "include" });
+      const data = await response.json();
       
       console.log("📦 Réponse toutes les cartes:", data);
       
@@ -145,6 +246,39 @@ class CardsTab {
         debugStatus.textContent = `Status: ⚠️ Aucune carte dans la collection`;
       }
     }
+  }
+
+  updateAuthDebug(status) {
+    const debugAuth = this.tabElement.querySelector("#debug-auth-status");
+    if (debugAuth) {
+      debugAuth.textContent = `Auth: ${status}`;
+    }
+  }
+
+  showAuthError(message) {
+    const colContainer = this.tabElement.querySelector(".collection-grid");
+    if (!colContainer) return;
+    
+    colContainer.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; color: #e74c3c; padding: 20px; border: 2px dashed #e74c3c; border-radius: 10px;">
+        <h3>🔒 Authentification Requise</h3>
+        <p>${message}</p>
+        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+          Veuillez vous reconnecter ou actualiser la page
+        </p>
+        <button onclick="window.location.reload()" style="
+          background: #e74c3c; 
+          color: white; 
+          border: none; 
+          padding: 10px 20px; 
+          border-radius: 5px; 
+          cursor: pointer;
+          margin-top: 10px;
+        ">
+          Actualiser la page
+        </button>
+      </div>
+    `;
   }
 
   renderDeck() {
@@ -197,6 +331,17 @@ class CardsTab {
         <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
           <p>Aucune carte dans votre collection</p>
           <p style="font-size: 12px;">Vérifiez la console pour plus de détails</p>
+          <button onclick="this.parentElement.parentElement.parentElement.querySelector('#btn-back-deck').click()" style="
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer;
+            margin-top: 10px;
+          ">
+            Retour au deck
+          </button>
         </div>
       `;
       return;
