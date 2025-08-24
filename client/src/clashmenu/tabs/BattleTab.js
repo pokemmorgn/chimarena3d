@@ -1,33 +1,49 @@
 /**
- * Battle Tab - Main Battle Interface (Clash Royale style)
- * Shows arena, battle button, topbar and dropdown menu
+ * Battle Tab - Clash Royale style
+ * Arena view, topbar, connection status, battle button, chest slots
  */
 class BattleTab {
   constructor() {
     this.isActive = false;
     this.isSearching = false;
     this.currentUser = null;
-    this.currentMode = 'Ladder';
+    this.currentMode = 'ladder';
 
     // HTML elements
     this.container = null;
     this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
-    this.dropdownMenu = null;
+    this.connectionStatus = null;
 
     // Event system
     this.eventListeners = new Map();
+
+    console.log('⚔️ BattleTab created');
   }
 
+  /**
+   * Initialize battle tab
+   */
   async initialize(container) {
     if (!container) throw new Error('Container is required for BattleTab');
     this.container = container;
-    this.createTabElement();
-    this.renderLayout();
-    this.setupEventListeners();
+
+    try {
+      console.log('⚔️ Initializing BattleTab...');
+      this.createTabElement();
+      this.renderLayout();
+      this.setupEventListeners();
+      console.log('✅ BattleTab initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize BattleTab:', error);
+      throw error;
+    }
   }
 
+  /**
+   * Create main tab wrapper
+   */
   createTabElement() {
     this.tabElement = document.createElement('div');
     this.tabElement.className = 'battle-tab';
@@ -35,13 +51,16 @@ class BattleTab {
     this.container.appendChild(this.tabElement);
   }
 
+  /**
+   * Render full layout
+   */
   renderLayout() {
     this.tabElement.innerHTML = `
       <!-- Top bar -->
       <div class="battle-topbar">
         <div class="topbar-left">
-          <button class="topbar-btn" id="btn-friends" title="Friends">👥</button>
-          <button class="topbar-btn" id="btn-messages" title="Messages">💬</button>
+          <button class="topbar-btn" id="btn-friends">👥</button>
+          <button class="topbar-btn" id="btn-messages">💬</button>
         </div>
         <div class="topbar-center">
           <div class="player-info">
@@ -50,15 +69,13 @@ class BattleTab {
           </div>
         </div>
         <div class="topbar-right">
-          <button class="topbar-btn" id="btn-menu" title="Menu">☰</button>
-          <div class="dropdown-menu" id="dropdown-menu">
-            <ul>
-              <li id="menu-leaderboard">🏆 Leaderboard</li>
-              <li id="menu-history">📜 Battle History</li>
-              <li id="menu-options">⚙️ Options</li>
-            </ul>
-          </div>
+          <button class="topbar-btn" id="btn-menu">☰</button>
         </div>
+      </div>
+
+      <!-- Connection status -->
+      <div class="connection-status connecting" id="battle-connection-status">
+        Connecting to server...
       </div>
 
       <!-- Arena -->
@@ -68,53 +85,39 @@ class BattleTab {
 
       <!-- Battle button + mode -->
       <div class="battle-action">
-        <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle • ${this.currentMode}</button>
-        <button class="battle-mode-btn" id="battle-mode-btn" title="Select Mode">🎮</button>
+        <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
+        <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
+      </div>
+
+      <!-- Chests -->
+      <div class="battle-chests">
+        <div class="chest-slot" data-slot="1"></div>
+        <div class="chest-slot" data-slot="2"></div>
+        <div class="chest-slot" data-slot="3"></div>
+        <div class="chest-slot" data-slot="4"></div>
       </div>
     `;
 
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
     this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
-    this.dropdownMenu = this.tabElement.querySelector('#dropdown-menu');
+    this.connectionStatus = this.tabElement.querySelector('#battle-connection-status');
   }
 
+  /**
+   * Setup event listeners
+   */
   setupEventListeners() {
     if (this.battleBtn) {
       this.battleBtn.addEventListener('click', () => this.handleMainBattle());
     }
     if (this.modeBtn) {
-      this.modeBtn.addEventListener('click', () => this.emit('battle:mode'));
+      this.modeBtn.addEventListener('click', () => this.handleModeChange());
     }
-
-    const friendsBtn = this.tabElement.querySelector('#btn-friends');
-    const messagesBtn = this.tabElement.querySelector('#btn-messages');
-    const menuBtn = this.tabElement.querySelector('#btn-menu');
-
-    if (friendsBtn) friendsBtn.addEventListener('click', () => this.emit('battle:friends'));
-    if (messagesBtn) messagesBtn.addEventListener('click', () => this.emit('battle:messages'));
-
-    if (menuBtn) {
-      menuBtn.addEventListener('click', () => {
-        this.dropdownMenu.classList.toggle('show');
-      });
-    }
-
-    // Dropdown menu actions
-    this.tabElement.querySelector('#menu-leaderboard')
-      .addEventListener('click', () => this.emit('battle:leaderboard'));
-    this.tabElement.querySelector('#menu-history')
-      .addEventListener('click', () => this.emit('battle:history'));
-    this.tabElement.querySelector('#menu-options')
-      .addEventListener('click', () => this.emit('battle:options'));
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (this.dropdownMenu && !this.dropdownMenu.contains(e.target) && e.target.id !== 'btn-menu') {
-        this.dropdownMenu.classList.remove('show');
-      }
-    });
   }
 
+  /**
+   * Update player data (topbar)
+   */
   updatePlayerData(user) {
     if (!user) return;
     this.currentUser = user;
@@ -126,32 +129,65 @@ class BattleTab {
     if (trophiesEl) trophiesEl.textContent = `🏆 ${user.trophies || 0}`;
   }
 
+  /**
+   * Update connection status (compatible with ClashMenuManager)
+   */
+  updateConnectionStatus(message, status) {
+    if (!this.connectionStatus) return;
+    this.connectionStatus.className = `connection-status ${status}`;
+    this.connectionStatus.textContent = message;
+  }
+
+  /**
+   * Enable/disable features
+   */
+  enableBattleFeatures(enabled) {
+    if (this.battleBtn) {
+      this.battleBtn.disabled = !enabled;
+    }
+  }
+
+  /**
+   * Handle main battle button
+   */
   handleMainBattle() {
     if (this.isSearching) {
       this.cancelBattleSearch();
     } else {
-      this.startBattleSearch();
+      this.startBattleSearch(this.currentMode);
     }
   }
 
-  startBattleSearch() {
-    if (this.isSearching) return;
+  handleModeChange() {
+    // Cycle through modes (simplified)
+    const modes = ['ladder', 'training', 'challenge'];
+    let idx = modes.indexOf(this.currentMode);
+    this.currentMode = modes[(idx + 1) % modes.length];
+    console.log(`⚔️ Mode changed to: ${this.currentMode}`);
+  }
+
+  startBattleSearch(mode = 'ladder') {
     this.isSearching = true;
-    if (this.battleBtn) {
-      this.battleBtn.textContent = '❌ Cancel Search';
-      this.battleBtn.classList.add('searching');
-    }
-    this.emit('battle:search');
+    this.updateConnectionStatus('Searching for opponent...', 'searching');
+    this.emit('battle:search', { mode });
   }
 
   cancelBattleSearch() {
-    if (!this.isSearching) return;
     this.isSearching = false;
-    if (this.battleBtn) {
-      this.battleBtn.textContent = `⚔️ Battle • ${this.currentMode}`;
-      this.battleBtn.classList.remove('searching');
-    }
+    this.updateConnectionStatus('Connected to game world', 'connected');
     this.emit('battle:cancel');
+  }
+
+  handleBattleFound(battleData) {
+    this.isSearching = false;
+    this.updateConnectionStatus('Battle found! Loading...', 'connected');
+    console.log('⚔️ Battle found:', battleData);
+  }
+
+  handleBattleCancelled(data) {
+    this.isSearching = false;
+    this.updateConnectionStatus('Connected to game world', 'connected');
+    console.log('⚔️ Battle cancelled:', data);
   }
 
   show() {
@@ -168,6 +204,11 @@ class BattleTab {
     }
   }
 
+  deactivate() {
+    if (this.isSearching) this.cancelBattleSearch();
+    this.hide();
+  }
+
   on(event, callback) {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
@@ -181,22 +222,22 @@ class BattleTab {
         try {
           cb(data);
         } catch (err) {
-          console.error(`Error in event listener ${event}`, err);
+          console.error(`Error in BattleTab listener for ${event}:`, err);
         }
       });
     }
   }
 
   async cleanup() {
+    if (this.isSearching) this.cancelBattleSearch();
+    this.eventListeners.clear();
     if (this.tabElement && this.tabElement.parentNode) {
       this.tabElement.parentNode.removeChild(this.tabElement);
     }
-    this.eventListeners.clear();
-    this.container = null;
     this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
-    this.dropdownMenu = null;
+    this.connectionStatus = null;
   }
 }
 
