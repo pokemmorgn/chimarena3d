@@ -35,6 +35,14 @@ class BattleTabStyles {
   gap: 4px;
 }
 
+.arena-background {
+  flex: 1;
+  width: 100%;
+  background: url('/arena/Arena1.png') center/cover no-repeat;
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+
 .edit-profile-btn {
   background: none;
   border: none;
