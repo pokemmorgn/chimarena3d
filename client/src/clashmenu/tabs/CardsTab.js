@@ -336,7 +336,7 @@ class CardsTab {
            alt="${slot.cardInfo.nameKey || slot.cardId}" 
            class="deck-card"
            onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-      <div class="card-level">Lvl ${slot.level || 1}</div>
+      <div class="card-level">${slot.level || 1}</div>
       <div class="card-progress">
         <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
         <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
