@@ -51,33 +51,31 @@ class CardsTabStyles {
         margin-bottom: 15px;
       }
 
-   .deck-slot {
-  width: 120px;
-  height: 160px;
-  border: 2px solid #444;
-  border-radius: 8px;
-  background: #222;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  position: relative;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
+      .deck-slot {
+        width: 120px;
+        height: 160px;
+        border: 2px solid #444;
+        border-radius: 8px;
+        background: #222;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
 
       .deck-slot:hover {
         border-color: #666;
       }
 
       .deck-slot.empty-slot {
+        width: 120px;
+        height: 160px;
         background: rgba(255,255,255,0.05);
         border: 2px dashed #555;
         font-size: 32px;
         color: #888;
-        transform: scale(1);
-        max-width: 120px;
-        max-height: 160px;
       }
 
       .deck-slot.empty-slot:hover {
@@ -100,7 +98,6 @@ class CardsTabStyles {
         border-color: #00bcd4 !important;
         background-color: rgba(0,188,212,0.1) !important;
         box-shadow: 0 0 15px rgba(0,188,212,0.5);
-        transform: scale(1);
       }
 
       .deck-slot.drag-over::after {
@@ -115,13 +112,15 @@ class CardsTabStyles {
         text-shadow: 0 1px 2px rgba(0,0,0,0.7);
         pointer-events: none;
       }
-      
-.deck-card {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* au lieu de cover pour éviter la déformation */
-  border-radius: 6px;
-}
+
+      .deck-card {
+        width: 100%;
+        height: 100%;
+        max-width: 120px;
+        max-height: 160px;
+        object-fit: contain;
+        border-radius: 6px;
+      }
 
       .deck-level {
         position: absolute;
@@ -193,7 +192,6 @@ class CardsTabStyles {
         cursor: grab;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         position: relative;
-        transform: scale(1);
       }
 
       .my-card:hover:not(.dragging) {
@@ -459,97 +457,36 @@ class CardsTabStyles {
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       }
 
-      .deck-notification.success {
-        background: #2ecc71;
-      }
-
-      .deck-notification.error {
-        background: #e74c3c;
-      }
-
-      .deck-notification.warning {
-        background: #f39c12;
-      }
-
-      .deck-notification.info {
-        background: #3498db;
-      }
+      .deck-notification.success { background: #2ecc71; }
+      .deck-notification.error { background: #e74c3c; }
+      .deck-notification.warning { background: #f39c12; }
+      .deck-notification.info { background: #3498db; }
 
       @keyframes slideIn {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
       }
 
       @keyframes slideOut {
-        from {
-          transform: translateX(0);
-          opacity: 1;
-        }
-        to {
-          transform: translateX(100%);
-          opacity: 0;
-        }
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
       }
 
       @media (max-width: 768px) {
-        .deck-cards {
-          grid-template-columns: repeat(2, 1fr);
-        }
-
-        .my-cards-grid {
-          grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-          max-height: 150px;
-        }
-
-        .all-cards-grid {
-          grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-        }
-
-        .arena-title h3 {
-          font-size: 14px;
-        }
+        .deck-cards { grid-template-columns: repeat(2, 1fr); }
+        .my-cards-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); max-height: 150px; }
+        .all-cards-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+        .arena-title h3 { font-size: 14px; }
       }
 
       @media (max-width: 600px) {
-        .collection-grid {
-          grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-          gap: 8px;
-        }
-
-        .my-cards-grid {
-          grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
-          gap: 6px;
-          max-height: 120px;
-        }
-
-        .all-cards-grid {
-          grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-          gap: 6px;
-        }
-
-        .collection-info,
-        .my-card-info,
-        .game-card-info {
-          font-size: 9px;
-        }
-
-        .my-cards-section {
-          margin-top: 15px;
-        }
-
-        .my-cards-section h2 {
-          font-size: 16px;
-        }
-
-        .all-cards-section h2 {
-          font-size: 18px;
-        }
+        .collection-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; }
+        .my-cards-grid { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 6px; max-height: 120px; }
+        .all-cards-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 6px; }
+        .collection-info, .my-card-info, .game-card-info { font-size: 9px; }
+        .my-cards-section { margin-top: 15px; }
+        .my-cards-section h2 { font-size: 16px; }
+        .all-cards-section h2 { font-size: 18px; }
       }
     `;
   }
