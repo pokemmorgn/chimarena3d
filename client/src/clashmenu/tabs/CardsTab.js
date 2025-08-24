@@ -325,24 +325,26 @@ class CardsTab {
       const slotEl = document.createElement("div");
       slotEl.className = "deck-slot";
       slotEl.dataset.slotIndex = index;
+      if (slot?.cardInfo?.rarity) {
+  slotEl.classList.add(`card-${slot.cardInfo.rarity}`);
+}
 
       console.log(`🃏 Slot ${index}:`, slot);
 
      if (slot && (slot.cardInfo || slot.cardId)) {
   // Cas 1: slot avec cardInfo déjà enrichi
-  if (slot.cardInfo) {
-    slotEl.innerHTML = `
-      <img src="/cards/${slot.cardInfo.sprite}" 
-           alt="${slot.cardInfo.nameKey || slot.cardId}" 
-           class="deck-card"
-           onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-      <div class="card-level">${slot.level || 1}</div>
-      <div class="card-progress">
-        <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
-        <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
-      </div>
-    `;
-  } 
+if (slot.cardInfo) {
+  const rarityClass = `card-${slot.cardInfo.rarity || 'common'}`;
+  slotEl.classList.add(rarityClass);
+
+  slotEl.innerHTML = `
+    <img src="/cards/${slot.cardInfo.sprite}" 
+         alt="${slot.cardInfo.nameKey || slot.cardId}" 
+         class="deck-card"
+         onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+    <div class="card-level">${slot.level || 1}</div>
+  `;
+}
   // Cas 2: slot avec seulement cardId (chercher dans allCards)
   else if (slot.cardId && this.allCards.length > 0) {
     const cardInfo = this.allCards.find(c => c.id === slot.cardId);
@@ -454,6 +456,9 @@ class CardsTab {
 
       const cardEl = document.createElement("div");
       cardEl.className = "my-card";
+      if (card.cardInfo?.rarity) {
+      cardEl.classList.add(`card-${card.cardInfo.rarity}`);
+      }
       
       // Rendre la carte draggable
       cardEl.draggable = true;
@@ -542,6 +547,10 @@ renderAllCards() {
 
     const cardEl = document.createElement("div");
     cardEl.className = "game-card";
+    if (card.rarity) {
+  cardEl.classList.add(`card-${card.rarity}`);
+}
+
     if (!owned) cardEl.classList.add("not-owned");
     else cardEl.classList.add("owned");
 
