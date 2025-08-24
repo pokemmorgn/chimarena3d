@@ -11,19 +11,14 @@ import { TokenService } from '../middleware/AuthData';
  * Script de test pour BattleRoom Colyseus
  * Usage: npx ts-node server/src/scripts/testBattleRoom.ts [command]
  * 
- * Teste:
- * - Connexion et authentification JWT
- * - Gameplay complet (placement cartes, sorts, emotes)
- * - Spectateurs
- * - Conditions de victoire
- * - Game loop 20 TPS
+ * Note: Utilise le client Colyseus existant au lieu de WebSocket brut
  */
 
-const WebSocket = require('ws');
+const { Client } = require('colyseus.js');
 const SERVER_URL = 'ws://localhost:2567';
 
 interface BattleClient {
-  ws: any;
+  room: any;  // Colyseus Room instance
   userId: string;
   username: string;
   token: string;
@@ -169,7 +164,7 @@ class BattleRoomTester {
   }
 
   private async connectPlayer(user: any, isSpectator: boolean): Promise<BattleClient> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let token: string;
       
       try {
@@ -185,11 +180,11 @@ class BattleRoomTester {
         return;
       }
       
-      // Test simple avec le client Colyseus.js - format plus simple
-      const ws = new WebSocket(`${SERVER_URL}`);
+      // Utiliser le vrai client Colyseus
+      const colyseusClient = new Client(SERVER_URL);
       
       const client: BattleClient = {
-        ws,
+        room: null,
         userId: user._id.toString(),
         username: user.username,
         token,
@@ -198,74 +193,63 @@ class BattleRoomTester {
         messages: []
       };
 
-      ws.on('open', () => {
-        console.log(`   🔌 WebSocket opened for ${user.username}`);
+      try {
+        console.log(`   🔌 Connecting ${user.username} to BattleRoom...`);
         
-        // Essayer le format simple Colyseus
-        const joinMessage = JSON.stringify({
-          type: 'join_room',
-          room: 'battle',
-          options: {
-            authToken: token,
-            isSpectator: isSpectator,
-            gameMode: 'casual',
-            matchId: 'test_match_123'
+        // Joindre la room battle avec options
+        const room = await colyseusClient.joinOrCreate('battle', {
+          authToken: token,
+          isSpectator: isSpectator,
+          gameMode: 'casual',
+          matchId: 'test_match_123'
+        });
+        
+        client.room = room;
+        client.connected = true;
+        
+        console.log(`   ✅ ${user.username} connected to room ${room.id}`);
+        
+        // Setup des event listeners
+        room.onMessage('battle_joined', (message: any) => {
+          console.log(`   📝 ${user.username} joined battle as player${message.playerNumber}`);
+          client.playerNumber = message.playerNumber;
+          if (message.battleId) {
+            this.battleId = message.battleId;
           }
         });
         
-        console.log(`   📤 Sending join message for ${user.username}`);
-        ws.send(joinMessage);
-      });
-
-      ws.on('message', (data: Buffer) => {
-        try {
-          const message = this.parseColyseusMessage(data);
-          client.messages.push(message);
-          
-          console.log(`   📨 ${user.username} received: ${message.type || 'unknown'}`);
-          
-          // Gérer les messages spécifiques
-          this.handleClientMessage(client, message);
-          
-          if (message.type === 'battle_joined' || message.type === 'room_joined') {
-            client.connected = true;
-            if (message.data?.battleId) {
-              this.battleId = message.data.battleId;
-            }
-            if (message.data?.playerNumber) {
-              client.playerNumber = message.data.playerNumber;
-            }
-            resolve(client);
+        room.onMessage('spectator_joined', (message: any) => {
+          console.log(`   👁️ ${user.username} joined as spectator`);
+          if (message.battleId) {
+            this.battleId = message.battleId;
           }
-          
-        } catch (error) {
-          console.error(`   ❌ Failed to parse message for ${user.username}:`, error);
-        }
-      });
-
-      ws.on('error', (error: Error) => {
-        console.error(`   ❌ WebSocket error for ${user.username}:`, error.message);
+        });
+        
+        room.onMessage('*', (type: string, message: any) => {
+          client.messages.push({ type, data: message });
+          this.handleClientMessage(client, { type, data: message });
+        });
+        
+        room.onError((code: number, message: string) => {
+          console.error(`   ❌ Room error for ${user.username}: ${code} ${message}`);
+        });
+        
+        room.onLeave((code: number) => {
+          console.log(`   🚪 ${user.username} left room: ${code}`);
+          client.connected = false;
+        });
+        
+        this.clients.push(client);
+        
+        // Attendre un peu pour que les messages arrivent
+        setTimeout(() => {
+          resolve(client);
+        }, 1000);
+        
+      } catch (error) {
+        console.error(`   ❌ Failed to join room for ${user.username}:`, error);
         reject(error);
-      });
-
-      ws.on('close', (code: number, reason: string) => {
-        console.log(`   🔌 WebSocket closed for ${user.username}: ${code} ${reason}`);
-        client.connected = false;
-      });
-
-      this.clients.push(client);
-
-      // Timeout plus long pour debug
-      setTimeout(() => {
-        if (!client.connected) {
-          console.log(`   ⏰ Connection timeout for ${user.username}`);
-          console.log(`   📊 Messages received: ${client.messages.length}`);
-          client.messages.forEach((msg, i) => {
-            console.log(`      ${i + 1}. ${JSON.stringify(msg).substring(0, 100)}`);
-          });
-          reject(new Error(`Connection timeout for ${user.username}`));
-        }
-      }, 15000); // 15 secondes
+      }
     });
   }
 
@@ -278,18 +262,12 @@ class BattleRoomTester {
     console.log('   Marking players as ready...');
 
     // Player 1 ready
-    players[0].ws.send(JSON.stringify({
-      type: 'ready',
-      data: { isReady: true }
-    }));
+    players[0].room.send('ready', { isReady: true });
 
     await this.sleep(500);
 
     // Player 2 ready
-    players[1].ws.send(JSON.stringify({
-      type: 'ready',
-      data: { isReady: true }
-    }));
+    players[1].room.send('ready', { isReady: true });
 
     // Attendre le countdown et le start
     console.log('   Waiting for battle countdown...');
@@ -314,41 +292,32 @@ class BattleRoomTester {
     console.log('   Testing card placement...');
     
     // Player 1 place une carte
-    players[0].ws.send(JSON.stringify({
-      type: 'place_card',
-      data: {
-        cardId: 'knight',
-        position: { x: 9, y: 20 }, // Côté joueur 1
-        deckIndex: 0
-      }
-    }));
+    players[0].room.send('place_card', {
+      cardId: 'knight',
+      position: { x: 9, y: 20 }, // Côté joueur 1
+      deckIndex: 0
+    });
 
     await this.sleep(1000);
 
     console.log('   Testing spell casting...');
     
     // Player 2 lance un sort
-    players[1].ws.send(JSON.stringify({
-      type: 'cast_spell',
-      data: {
-        spellId: 'arrows',
-        position: { x: 9, y: 15 }, // Centre
-        deckIndex: 1
-      }
-    }));
+    players[1].room.send('cast_spell', {
+      spellId: 'arrows',
+      position: { x: 9, y: 15 }, // Centre
+      deckIndex: 1
+    });
 
     await this.sleep(1000);
 
     console.log('   Testing emotes...');
     
     // Player 1 utilise un emote
-    players[0].ws.send(JSON.stringify({
-      type: 'emote',
-      data: {
-        emoteId: 'thumbs_up',
-        position: { x: 9, y: 16 }
-      }
-    }));
+    players[0].room.send('emote', {
+      emoteId: 'thumbs_up',
+      position: { x: 9, y: 16 }
+    });
 
     await this.sleep(1000);
 
@@ -356,10 +325,7 @@ class BattleRoomTester {
     
     // Test ping
     const pingTime = Date.now();
-    players[0].ws.send(JSON.stringify({
-      type: 'ping',
-      data: { timestamp: pingTime }
-    }));
+    players[0].room.send('ping', { timestamp: pingTime });
 
     await this.sleep(500);
 
@@ -470,10 +436,7 @@ class BattleRoomTester {
     console.log('   Testing battle surrender...');
     
     // Player 1 surrender
-    players[0].ws.send(JSON.stringify({
-      type: 'surrender',
-      data: { confirm: true }
-    }));
+    players[0].room.send('surrender', { confirm: true });
 
     // Attendre la fin de bataille
     await this.sleep(3000);
