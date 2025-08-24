@@ -914,15 +914,6 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     // Stocker les cibles disponibles pour le targeting
     // Cette méthode sera appelée par BattleRoom à chaque tick
     this.availableTargets = availableTargets;
-    
-    // Utiliser le targeting si nécessaire
-    if (this.state === 'idle' && this.lastUpdateTick % 20 === 0) { // Check toutes les secondes
-      const targetingResult = this.findTargetWithSystem(this.lastUpdateTick);
-      if (targetingResult.target) {
-        this.setTarget(targetingResult.target);
-        this.setState('moving');
-      }
-    }
   }
   
   private availableTargets: ITargetableEntity[] = [];
@@ -987,7 +978,7 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   static async preloadCommonCards(): Promise<void> {
     const commonCards = [
       'knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon',
-      'wizard', 'minions', 'barbarians', 'skeleton_army'
+      'giant', 'wizard', 'minions', 'barbarians', 'skeleton_army'
     ];
     
     const cache = CardDataCache.getInstance();
