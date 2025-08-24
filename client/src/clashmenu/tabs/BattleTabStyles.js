@@ -23,7 +23,7 @@ class BattleTabStyles {
       top: 60px;
       left: 0;
       width: 100%;
-      height: calc(100% - 100px);
+      height: calc(100% - 80px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -35,7 +35,6 @@ class BattleTabStyles {
       position: relative;
       width: 100%;
       height: 100px;
-      border-radius: 0;
       margin-bottom: 15px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
@@ -120,17 +119,53 @@ class BattleTabStyles {
       background: rgba(255,255,255,0.25);
     }
 
+    /* Dropdown menu */
+    .dropdown-menu {
+      position: absolute;
+      top: 110px;
+      right: 15px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      width: 200px;
+      display: none;
+      flex-direction: column;
+      z-index: 100;
+    }
+
+    .dropdown-menu.active {
+      display: flex;
+    }
+
+    .dropdown-item {
+      padding: 12px 15px;
+      color: ${white};
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.2s ease;
+    }
+
+    .dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
     /* --- Arena --- */
     .arena-section {
-      flex: 1;
+      flex: 0;
       display: flex;
       align-items: center;
       justify-content: center;
+      margin: 10px 0;
     }
 
     .arena-image {
       max-width: 100%;
-      max-height: 220px;
+      max-height: 200px;
       object-fit: contain;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.5);
