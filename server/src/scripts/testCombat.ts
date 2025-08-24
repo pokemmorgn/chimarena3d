@@ -4,7 +4,6 @@
 
 import BaseUnit from '../gameplay/units/BaseUnit';
 import { getCombatSystem } from '../gameplay/systems/CombatSystem';
-import { getTargetingSystem } from '../gameplay/systems/TargetingSystem';
 import { ITargetableEntity } from '../gameplay/systems/TargetingSystem';
 
 /**
