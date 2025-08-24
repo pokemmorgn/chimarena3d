@@ -22,10 +22,10 @@ class BattleTabStyles {
     return `
     .battle-tab {
       position: absolute;
-      top: 60px; /* descend sous le header global */
+      top: 60px; /* below global header */
       left: 0;
       width: 100%;
-      height: calc(100% - 140px); /* ajuste hauteur */
+      height: calc(100% - 140px);
       padding: 10px 0;
       display: flex;
       flex-direction: column;
@@ -42,7 +42,7 @@ class BattleTabStyles {
       padding: 8px 16px;
       margin-bottom: 10px;
       background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
-      border-radius: 0; /* full width bar */
+      border-radius: 0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
 
@@ -85,10 +85,10 @@ class BattleTabStyles {
       color: ${gold};
     }
 
-    /* --- Menu déroulant --- */
+    /* --- Dropdown menu --- */
     .dropdown-menu {
       position: absolute;
-      top: 60px; /* même hauteur que la topbar */
+      top: 60px;
       right: 10px;
       background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
       border: 2px solid rgba(255,255,255,0.2);
