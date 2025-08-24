@@ -52,8 +52,8 @@ class CardsTabStyles {
       }
 
       .deck-slot {
-        width: 120px;
-        height: 160px;
+        width: 100%;
+        aspect-ratio: 3/4; /* même taille que les anciennes cases vides */
         border: 2px solid #444;
         border-radius: 8px;
         background: #222;
@@ -70,54 +70,15 @@ class CardsTabStyles {
       }
 
       .deck-slot.empty-slot {
-        width: 120px;
-        height: 160px;
         background: rgba(255,255,255,0.05);
         border: 2px dashed #555;
         font-size: 32px;
         color: #888;
       }
 
-      .deck-slot.empty-slot:hover {
-        border-color: #777;
-      }
-
-      .deck-slot.empty-slot:hover::after {
-        content: "Add Card";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #888;
-        font-size: 10px;
-        font-weight: bold;
-        white-space: nowrap;
-      }
-
-      .deck-slot.drag-over {
-        border-color: #00bcd4 !important;
-        background-color: rgba(0,188,212,0.1) !important;
-        box-shadow: 0 0 15px rgba(0,188,212,0.5);
-      }
-
-      .deck-slot.drag-over::after {
-        content: "Drop Here";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #00bcd4;
-        font-size: 12px;
-        font-weight: bold;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.7);
-        pointer-events: none;
-      }
-
       .deck-card {
         width: 100%;
         height: 100%;
-        max-width: 120px;
-        max-height: 160px;
         object-fit: contain;
         border-radius: 6px;
       }
@@ -383,64 +344,6 @@ class CardsTabStyles {
         display: flex;
         flex-direction: column;
         gap: 2px;
-      }
-
-      .drag-hint {
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        right: 0;
-        background: rgba(0,188,212,0.9);
-        color: white;
-        font-size: 10px;
-        text-align: center;
-        padding: 2px;
-        border-radius: 0 0 6px 6px;
-        opacity: 0;
-        transition: opacity 0.2s;
-      }
-
-      .collection-card:hover .drag-hint,
-      .my-card:hover .drag-hint {
-        opacity: 1;
-      }
-
-      .collection-debug,
-      .all-cards-debug {
-        background: rgba(255,215,0,0.1);
-        border: 1px solid rgba(255,215,0,0.3);
-        border-radius: 4px;
-        padding: 8px;
-        margin-bottom: 10px;
-      }
-
-      .collection-debug div,
-      .all-cards-debug div {
-        margin: 2px 0;
-        font-size: 11px;
-      }
-
-      .collection-card.locked {
-        filter: grayscale(100%) brightness(0.5);
-        cursor: default;
-      }
-
-      .collection-section button,
-      .all-cards-section button {
-        margin-top: 15px;
-        width: 100%;
-        background: #28a745;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        padding: 8px 12px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-
-      .collection-section button:hover,
-      .all-cards-section button:hover {
-        background: #1e7e34;
       }
 
       .deck-notification {
