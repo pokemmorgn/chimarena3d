@@ -45,10 +45,10 @@ class BattleTab {
 
       <!-- Dropdown menu -->
       <div class="dropdown-menu" id="dropdown-menu">
-        <div class="dropdown-item" data-action="leaderboard">🏆 Classement</div>
-        <div class="dropdown-item" data-action="history">📜 Historique</div>
-        <div class="dropdown-item" data-action="options">⚙️ Options</div>
-        <div class="dropdown-item" data-action="logout">🚪 Déconnexion</div>
+        <div class="dropdown-item" data-action="leaderboard">🏆 Leaderboard</div>
+        <div class="dropdown-item" data-action="history">📜 Battle History</div>
+        <div class="dropdown-item" data-action="options">⚙️ Settings</div>
+        <div class="dropdown-item" data-action="logout">🚪 Logout</div>
       </div>
 
       <!-- Arena -->
@@ -58,7 +58,7 @@ class BattleTab {
 
       <!-- Battle button + mode -->
       <div class="battle-action">
-        <button class="battle-main-btn" id="battle-main-btn">⚔️ Combat</button>
+        <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
         <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
       </div>
 
@@ -81,10 +81,21 @@ class BattleTab {
     this.modeBtn.addEventListener('click', () => this.emit('battle:mode'));
 
     const menuBtn = this.tabElement.querySelector('#btn-menu');
-    menuBtn.addEventListener('click', () => {
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // prevent immediate close
       this.dropdownMenu.classList.toggle('active');
     });
 
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (this.dropdownMenu.classList.contains('active')) {
+        if (!this.dropdownMenu.contains(e.target) && e.target.id !== 'btn-menu') {
+          this.dropdownMenu.classList.remove('active');
+        }
+      }
+    });
+
+    // Menu item clicks
     this.dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
         this.dropdownMenu.classList.remove('active');
@@ -107,13 +118,13 @@ class BattleTab {
 
   startBattleSearch() {
     this.isSearching = true;
-    this.battleBtn.textContent = '❌ Annuler';
+    this.battleBtn.textContent = '❌ Cancel';
     this.emit('battle:search');
   }
 
   cancelBattleSearch() {
     this.isSearching = false;
-    this.battleBtn.textContent = '⚔️ Combat';
+    this.battleBtn.textContent = '⚔️ Battle';
     this.emit('battle:cancel');
   }
 
