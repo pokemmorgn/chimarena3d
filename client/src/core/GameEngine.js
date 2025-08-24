@@ -1071,3 +1071,5 @@ class GameEngine {
     return null;
   }
 }
+
+export default GameEngine;
