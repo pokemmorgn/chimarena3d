@@ -128,11 +128,6 @@ createMainContainer() {
     
     this.currentUser = user;
     
-    // Show main container
-    if (this.mainContainer) {
-      this.mainContainer.style.display = 'block';
-    }
-    
     // Activate components
     if (this.tabNavigation) {
       this.tabNavigation.activate();
