@@ -254,6 +254,27 @@ class CardsTabStyles {
   color: #aaa;
 }
 
+/* Laisse déborder l'étoile hors de la carte */
+.deck-slot,
+.my-card,
+.game-card {
+  overflow: visible;   /* au lieu de hidden */
+}
+
+/* Si tu avais déjà mis overflow:hidden quelque part, ceci force l’override */
+.cards-tab .deck-slot,
+.cards-tab .my-card,
+.cards-tab .game-card {
+  overflow: visible !important;
+}
+
+/* L’étoile reste au-dessus du visuel */
+.card-level {
+  z-index: 3;
+  pointer-events: none;
+}
+
+
 /* Notifications */
 .deck-notification {
   position: fixed;
