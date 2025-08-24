@@ -15,8 +15,8 @@ class CardsTabStyles {
   overflow-y: auto;
 
   /* Masquer la scrollbar */
-  scrollbar-width: none;       /* Firefox */
-  -ms-overflow-style: none;    /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .cards-tab::-webkit-scrollbar { display: none; }
 
@@ -49,6 +49,7 @@ class CardsTabStyles {
   align-items: center;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -73,17 +74,54 @@ class CardsTabStyles {
   font-size: 32px;
   color: #888;
 }
-.deck-card { width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
+.deck-card {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
 
-.deck-level {
+/* Badge niveau (deck + collection) */
+.card-level {
   position: absolute;
-  bottom: 2px;
-  right: 4px;
-  background: rgba(0,0,0,0.6);
+  top: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.7);
   color: #fff;
-  font-size: 12px;
-  padding: 2px 4px;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
   border-radius: 4px;
+  z-index: 2;
+}
+
+/* Barre progression (deck + collection) */
+.card-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  background: rgba(0,0,0,0.6);
+  border-radius: 0 0 6px 6px;
+  font-size: 10px;
+  color: #fff;
+  text-align: center;
+  line-height: 16px;
+  overflow: hidden;
+}
+.card-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #2ecc71;
+  border-radius: 0 0 6px 6px;
+  z-index: 0;
+}
+.card-progress span {
+  position: relative;
+  z-index: 1;
 }
 
 /* === Mes cartes === */
@@ -128,49 +166,6 @@ class CardsTabStyles {
   height: 100%;
   object-fit: contain;
   border-radius: 4px;
-}
-
-/* Badge niveau en haut gauche */
-.card-level {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-  font-size: 11px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 4px;
-  z-index: 2;
-}
-
-/* Barre progression */
-.card-progress {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 16px;
-  background: rgba(0,0,0,0.6);
-  border-radius: 0 0 6px 6px;
-  font-size: 10px;
-  color: #fff;
-  text-align: center;
-  line-height: 16px;
-  overflow: hidden;
-}
-.card-progress-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: #2ecc71;
-  border-radius: 0 0 6px 6px;
-  z-index: 0;
-}
-.card-progress span {
-  position: relative;
-  z-index: 1;
 }
 
 .my-card-fallback {
