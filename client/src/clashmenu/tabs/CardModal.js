@@ -140,7 +140,7 @@ class CardModal {
           upgradeBtn.onclick = async () => {
             console.log("🔧 Upgrade requested for", card.cardId);
             try {
-              const result = await this.cardsTab.authenticatedFetch(`/api/collection/upgrade`, {
+await this.cardsTab.authenticatedFetch(`/api/collection/upgrade-card`, {
                 method: "POST",
                 body: JSON.stringify({ cardId: card.cardId })
               });
