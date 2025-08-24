@@ -61,12 +61,11 @@ class WelcomeMenuScene {
   /**
    * Create animated background
    */
- createBackground() {
-const geometry = new THREE.PlaneGeometry(2, 2);
+createBackground() {
+  const geometry = new THREE.PlaneGeometry(2, 2);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       time: { value: 0 },
-      resolution: { value: new THREE.Vector2() },
       color1: { value: new THREE.Color(0x1a1a2e) },
       color2: { value: new THREE.Color(0x16213e) },
       color3: { value: new THREE.Color(0x0f3460) }
@@ -75,12 +74,11 @@ const geometry = new THREE.PlaneGeometry(2, 2);
       varying vec2 vUv;
       void main() {
         vUv = uv;
-        gl_Position = vec4(position, 1.0); // NDC space [-1,1]
+        gl_Position = vec4(position, 1.0); // full screen quad
       }
     `,
     fragmentShader: `
       uniform float time;
-      uniform vec2 resolution;
       uniform vec3 color1;
       uniform vec3 color2;
       uniform vec3 color3;
@@ -97,28 +95,20 @@ const geometry = new THREE.PlaneGeometry(2, 2);
         gl_FragColor = vec4(color, 1.0);
       }
     `,
-    depthWrite: false,
     depthTest: false,
-    side: THREE.DoubleSide
+    depthWrite: false,
+    transparent: false
   });
 
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.frustumCulled = false; // always rendered
-  mesh.renderOrder = -1; // render before everything else
+  this.backgroundPlane = new THREE.Mesh(geometry, material);
+  this.backgroundPlane.frustumCulled = false;
 
-  this.backgroundPlane = mesh;
-  this.rootObject.add(mesh);
+  // Crée une scène de fond spéciale
+  this.backgroundScene = new THREE.Scene();
+  this.backgroundCamera = new THREE.Camera(); // caméra orthographique
 
-  // Set resolution once and on resize
-  const updateResolution = () => {
-    const size = this.gameEngine.getRenderer().getSize(new THREE.Vector2());
-    material.uniforms.resolution.value.set(size.x, size.y);
-  };
-
-  updateResolution();
-  window.addEventListener('resize', updateResolution);
+  this.backgroundScene.add(this.backgroundPlane);
 }
-
 
   /**
    * Create simple floating elements for ambiance
