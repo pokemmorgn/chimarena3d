@@ -512,10 +512,6 @@ class BattleRoomTester {
     }
   }
 
-  private parseColyseusMessage(data: any): any {
-    // Plus besoin de parser les messages binaires avec le vrai client Colyseus
-    return data;
-  }
 
   private async cleanup(): Promise<void> {
     console.log('\n🧹 Cleaning up connections...');
