@@ -32,6 +32,7 @@ class CardsTab {
     await this.loadCollection();
     await this.loadAllCards();
     this.renderDeck();
+    this.renderMyCards(); // Afficher mes cartes sous le deck
   }
 
   createTabElement() {
@@ -48,26 +49,33 @@ class CardsTab {
           <div class="deck-cards"></div>
           <div class="deck-footer">
             <span>Moyenne élixir: <span id="deck-elixir">0.0</span></span>
-            <button id="btn-show-collection">Voir la collection</button>
+            <button id="btn-show-all-cards">Voir toutes les cartes</button>
           </div>
         </div>
-        <div class="collection-section" style="display: none;">
-          <h2>Collection</h2>
-          <div class="collection-debug" style="margin-bottom: 10px; color: #ffd700; font-size: 12px;">
-            <div id="debug-collection-count">Cartes chargées: 0</div>
-            <div id="debug-collection-status">Status: En attente...</div>
-            <div id="debug-auth-status">Auth: Vérification...</div>
+        
+        <!-- Nouvelle section: Mes cartes -->
+        <div class="my-cards-section">
+          <h2>Mes Cartes</h2>
+          <div class="my-cards-grid"></div>
+        </div>
+
+        <!-- Section pour toutes les cartes du jeu -->
+        <div class="all-cards-section" style="display: none;">
+          <h2>Toutes les Cartes du Jeu</h2>
+          <div class="all-cards-debug" style="margin-bottom: 10px; color: #ffd700; font-size: 12px;">
+            <div id="debug-all-cards-count">Cartes du jeu: 0</div>
+            <div id="debug-all-cards-status">Status: En attente...</div>
           </div>
-          <div class="collection-grid"></div>
-          <button id="btn-back-deck">Retour au deck</button>
+          <div class="all-cards-grid"></div>
+          <button id="btn-back-deck">Retour</button>
         </div>
       </div>
     `;
 
     // Boutons
     this.tabElement
-      .querySelector("#btn-show-collection")
-      .addEventListener("click", () => this.showCollection());
+      .querySelector("#btn-show-all-cards")
+      .addEventListener("click", () => this.showAllCards());
     this.tabElement
       .querySelector("#btn-back-deck")
       .addEventListener("click", () => this.showDeck());
@@ -192,12 +200,11 @@ class CardsTab {
         console.log("✅ Collection chargée:", this.collection.length, "cartes");
         console.log("🃏 Première carte exemple:", this.collection[0]);
         
-        // Mise à jour du debug dans l'UI
-        this.updateCollectionDebug();
+        // Mise à jour de l'affichage
+        this.renderMyCards(); // Mettre à jour mes cartes
         this.updateAuthDebug(`✅ ${this.collection.length} cartes chargées`);
       } else {
         console.error("❌ Erreur lors du chargement de la collection:", data.message);
-        this.updateCollectionDebug("Erreur: " + data.message);
         this.updateAuthDebug(`❌ Erreur: ${data.message}`);
         
         // Si erreur d'auth, afficher des infos utiles
@@ -207,7 +214,6 @@ class CardsTab {
       }
     } catch (err) {
       console.error("❌ Failed to load collection", err);
-      this.updateCollectionDebug("Erreur réseau: " + err.message);
       this.updateAuthDebug(`❌ Réseau: ${err.message}`);
     }
   }
@@ -225,6 +231,11 @@ class CardsTab {
       if (data.success) {
         this.allCards = data.data.cards || [];
         console.log("✅ Toutes les cartes chargées:", this.allCards.length);
+        
+        // Si on est dans la vue "toutes les cartes", mettre à jour l'affichage
+        if (this.tabElement.querySelector(".all-cards-section").style.display !== "none") {
+          this.renderAllCards();
+        }
       } else {
         console.error("❌ Erreur lors du chargement de toutes les cartes:", data.message);
       }
@@ -233,35 +244,14 @@ class CardsTab {
     }
   }
 
-  updateCollectionDebug(status = null) {
-    const debugCount = this.tabElement.querySelector("#debug-collection-count");
-    const debugStatus = this.tabElement.querySelector("#debug-collection-status");
-    
-    if (debugCount) {
-      debugCount.textContent = `Cartes chargées: ${this.collection.length}`;
-    }
-    
-    if (debugStatus) {
-      if (status) {
-        debugStatus.textContent = `Status: ${status}`;
-      } else if (this.collection.length > 0) {
-        debugStatus.textContent = `Status: ✅ ${this.collection.length} cartes trouvées`;
-      } else {
-        debugStatus.textContent = `Status: ⚠️ Aucune carte dans la collection`;
-      }
-    }
-  }
-
   updateAuthDebug(status) {
-    const debugAuth = this.tabElement.querySelector("#debug-auth-status");
-    if (debugAuth) {
-      debugAuth.textContent = `Auth: ${status}`;
-    }
+    // Cette méthode n'est plus nécessaire car pas de debug auth sur la page principale
+    console.log("Auth status:", status);
   }
 
   showAuthError(message) {
-    const colContainer = this.tabElement.querySelector(".collection-grid");
-    if (!colContainer) return;
+    const myCardsContainer = this.tabElement.querySelector(".my-cards-grid");
+    if (!myCardsContainer) return;
     
     colContainer.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; color: #e74c3c; padding: 20px; border: 2px dashed #e74c3c; border-radius: 10px;">
@@ -420,6 +410,190 @@ class CardsTab {
   }
 
   /**
+   * Afficher mes cartes (collection du joueur) sous le deck
+   */
+  renderMyCards() {
+    const myCardsContainer = this.tabElement.querySelector(".my-cards-grid");
+    if (!myCardsContainer) return;
+    
+    myCardsContainer.innerHTML = "";
+
+    console.log("🎨 Rendu de mes cartes:", this.collection.length, "cartes");
+
+    if (this.collection.length === 0) {
+      myCardsContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
+          <p>Aucune carte dans votre collection</p>
+          <p style="font-size: 12px;">Commencez à jouer pour débloquer des cartes !</p>
+        </div>
+      `;
+      return;
+    }
+
+    this.collection.forEach((card, index) => {
+      const sprite = card.cardInfo?.sprite 
+        ? `/cards/${card.cardInfo.sprite}` 
+        : null;
+
+      const cardEl = document.createElement("div");
+      cardEl.className = "my-card";
+      
+      // Rendre la carte draggable
+      cardEl.draggable = true;
+      cardEl.dataset.cardId = card.cardId;
+      cardEl.dataset.cardLevel = card.level;
+
+      if (sprite) {
+        cardEl.innerHTML = `
+          <img src="${sprite}" alt="${card.cardId}" 
+               onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+          <div class="my-card-info">
+            <span>${card.cardInfo?.nameKey || card.cardId}</span>
+            <span>Niveau ${card.level}</span>
+            <span>x${card.count}</span>
+          </div>
+          <div class="drag-hint">📱 Glisser vers le deck</div>
+        `;
+      } else {
+        cardEl.innerHTML = `
+          <div class="my-card-fallback">
+            <span>${card.cardId}</span>
+          </div>
+          <div class="my-card-info">
+            <span>${card.cardInfo?.nameKey || card.cardId}</span>
+            <span>Niveau ${card.level}</span>
+            <span>x${card.count}</span>
+          </div>
+          <div class="drag-hint">📱 Glisser vers le deck</div>
+        `;
+      }
+
+      // Event listeners pour le drag & drop
+      cardEl.addEventListener("dragstart", (e) => {
+        this.handleCardDragStart(e, card);
+      });
+
+      cardEl.addEventListener("dragend", (e) => {
+        this.handleCardDragEnd(e);
+      });
+
+      // Clic alternatif pour mobile/touch
+      cardEl.addEventListener("click", () => {
+        if (!this.isDragging) {
+          this.handleCardClick(card);
+        }
+      });
+
+      myCardsContainer.appendChild(cardEl);
+    });
+
+    console.log("✅ Rendu de mes cartes terminé avec drag & drop");
+  }
+
+  /**
+   * Afficher toutes les cartes du jeu (pas seulement celles possédées)
+   */
+  renderAllCards() {
+    const allCardsContainer = this.tabElement.querySelector(".all-cards-grid");
+    if (!allCardsContainer) return;
+    
+    allCardsContainer.innerHTML = "";
+
+    console.log("🎨 Rendu de toutes les cartes du jeu:", this.allCards.length, "cartes");
+
+    if (this.allCards.length === 0) {
+      allCardsContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
+          <p>Chargement des cartes du jeu...</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Grouper par arène pour une meilleure organisation
+    const cardsByArena = {};
+    this.allCards.forEach(card => {
+      if (!cardsByArena[card.arena]) {
+        cardsByArena[card.arena] = [];
+      }
+      cardsByArena[card.arena].push(card);
+    });
+
+    // Afficher par arène
+    Object.keys(cardsByArena).sort((a, b) => parseInt(a) - parseInt(b)).forEach(arena => {
+      // Titre de l'arène
+      const arenaTitle = document.createElement("div");
+      arenaTitle.className = "arena-title";
+      arenaTitle.innerHTML = `<h3>Arène ${arena}</h3>`;
+      allCardsContainer.appendChild(arenaTitle);
+
+      // Cartes de cette arène
+      cardsByArena[arena].forEach(card => {
+        const cardEl = document.createElement("div");
+        cardEl.className = "game-card";
+        
+        // Vérifier si le joueur possède cette carte
+        const ownedCard = this.collection.find(c => c.cardId === card.id);
+        if (ownedCard) {
+          cardEl.classList.add("owned");
+        } else {
+          cardEl.classList.add("not-owned");
+        }
+
+        const sprite = card.sprite ? `/cards/${card.sprite}` : null;
+
+        if (sprite) {
+          cardEl.innerHTML = `
+            <img src="${sprite}" alt="${card.id}" 
+                 onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+            <div class="game-card-info">
+              <span>${card.nameKey || card.id}</span>
+              <span>${card.elixirCost}⚡ - ${card.rarity}</span>
+              ${ownedCard ? `<span class="owned-badge">✅ Possédée (x${ownedCard.count})</span>` : '<span class="not-owned-badge">🔒 Non possédée</span>'}
+            </div>
+          `;
+        } else {
+          cardEl.innerHTML = `
+            <div class="game-card-fallback">
+              <span>${card.id}</span>
+            </div>
+            <div class="game-card-info">
+              <span>${card.nameKey || card.id}</span>
+              <span>${card.elixirCost}⚡ - ${card.rarity}</span>
+              ${ownedCard ? `<span class="owned-badge">✅ Possédée (x${ownedCard.count})</span>` : '<span class="not-owned-badge">🔒 Non possédée</span>'}
+            </div>
+          `;
+        }
+
+        allCardsContainer.appendChild(cardEl);
+      });
+    });
+
+    this.updateAllCardsDebug();
+    console.log("✅ Rendu de toutes les cartes du jeu terminé");
+  }
+
+  updateAllCardsDebug() {
+    const debugCount = this.tabElement.querySelector("#debug-all-cards-count");
+    const debugStatus = this.tabElement.querySelector("#debug-all-cards-status");
+    
+    if (debugCount) {
+      debugCount.textContent = `Cartes du jeu: ${this.allCards.length}`;
+    }
+    
+    if (debugStatus) {
+      if (this.allCards.length > 0) {
+        const owned = this.allCards.filter(card => 
+          this.collection.find(c => c.cardId === card.id)
+        ).length;
+        debugStatus.textContent = `Status: ✅ ${owned}/${this.allCards.length} cartes possédées`;
+      } else {
+        debugStatus.textContent = `Status: ⚠️ Chargement...`;
+      }
+    }
+  }
+
+  /**
    * Gestion du drag & drop et sauvegarde
    */
   handleCardDragStart(e, card) {
@@ -533,6 +707,7 @@ class CardsTab {
         }
         
         this.renderDeck();
+        this.renderMyCards(); // Mettre à jour aussi mes cartes
         this.showMessage(`✅ ${card.cardInfo?.nameKey || card.cardId} ajouté au deck !`, "success");
         
         console.log("✅ Deck mis à jour avec succès");
@@ -749,18 +924,21 @@ class CardsTab {
     return total / costs.length;
   }
 
-  showCollection() {
-    console.log("👁️ Affichage de la collection");
+  showAllCards() {
+    console.log("👁️ Affichage de toutes les cartes du jeu");
     this.tabElement.querySelector(".deck-section").style.display = "none";
-    this.tabElement.querySelector(".collection-section").style.display = "block";
-    this.renderCollection();
+    this.tabElement.querySelector(".my-cards-section").style.display = "none";
+    this.tabElement.querySelector(".all-cards-section").style.display = "block";
+    this.renderAllCards();
   }
 
   showDeck() {
-    console.log("👁️ Affichage du deck");
-    this.tabElement.querySelector(".collection-section").style.display = "none";
+    console.log("👁️ Affichage du deck et mes cartes");
+    this.tabElement.querySelector(".all-cards-section").style.display = "none";
     this.tabElement.querySelector(".deck-section").style.display = "block";
+    this.tabElement.querySelector(".my-cards-section").style.display = "block";
     this.renderDeck();
+    this.renderMyCards();
   }
 
   // --- Onglet API ---
