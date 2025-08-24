@@ -1,6 +1,6 @@
 import { Schema, type } from '@colyseus/schema';
-import CardData, { ICardData } from '../models/CardData';
-import { getActionLogger } from '../services/ActionLoggerService';
+import CardData, { ICardData } from '../../models/CardData';
+import { getActionLogger } from '../../services/ActionLoggerService';
 
 // === INTERFACES ET TYPES ===
 
@@ -188,7 +188,7 @@ export class BaseUnit extends Schema {
   private logger = getActionLogger();
   
   // Cache des vitesses pour optimisation
-  private static readonly SPEED_VALUES = {
+  private static readonly SPEED_VALUES: Record<string, number> = {
     'slow': 0.5,        // 0.5 tile/sec
     'medium': 1.0,      // 1.0 tile/sec  
     'fast': 1.5,        // 1.5 tile/sec
@@ -278,7 +278,7 @@ export class BaseUnit extends Schema {
       crownTowerDamage: levelStats.crownTowerDamage || this.cardData.stats.crownTowerDamage,
       
       speed: this.cardData.stats.speed || 'medium',
-      walkingSpeed: BaseUnit.SPEED_VALUES[this.cardData.stats.speed || 'medium'],
+      walkingSpeed: BaseUnit.SPEED_VALUES[this.cardData.stats.speed as string] || BaseUnit.SPEED_VALUES['medium'],
       range: this.cardData.stats.range || 1,
       attackSpeed: this.cardData.stats.attackSpeed || 1.5,
       
@@ -780,7 +780,7 @@ export class BaseUnit extends Schema {
         crownTowerDamage: levelStats.crownTowerDamage,
         
         speed: cardData.stats.speed || 'medium',
-        walkingSpeed: BaseUnit.SPEED_VALUES[cardData.stats.speed || 'medium'],
+        walkingSpeed: BaseUnit.SPEED_VALUES[cardData.stats.speed as string] || BaseUnit.SPEED_VALUES['medium'],
         range: cardData.stats.range || 1,
         attackSpeed: cardData.stats.attackSpeed || 1.5,
         
