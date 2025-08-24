@@ -24,9 +24,13 @@ class BattleTabStyles {
       left: 0;
       width: 100%;
       height: calc(100% - 120px);
-      display: flex;
+      display: none; /* ✅ Caché par défaut */
       flex-direction: column;
       align-items: center;
+    }
+
+    .battle-tab.active { /* ✅ Visible quand actif */
+      display: flex;
     }
 
 .player-name-wrapper {
