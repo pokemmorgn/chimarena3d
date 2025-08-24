@@ -550,11 +550,11 @@ if (slot.cardInfo) {
      this.handleCardDragEnd(e);
    });
    // Clic alternatif pour mobile/touch
-   cardEl.addEventListener("click", () => {
-     if (!this.isDragging) {
-       this.handleCardClick(card);
-     }
-   });
+cardEl.addEventListener("click", () => {
+  if (!this.isDragging) {
+    this.cardModal.open(card); // Ouvre la popup
+  }
+});
    myCardsContainer.appendChild(cardEl);
  });
  console.log("✅ Rendu de mes cartes terminé avec drag & drop");
