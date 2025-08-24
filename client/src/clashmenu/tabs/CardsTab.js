@@ -20,9 +20,6 @@ class CardsTab {
     // Variables pour le drag & drop
     this.isDragging = false;
     this.draggedCard = null;
-    
-    // Injecter le CSS pour le drag & drop
-    this.injectDragDropCSS();
   }
 
   async initialize(container) {
