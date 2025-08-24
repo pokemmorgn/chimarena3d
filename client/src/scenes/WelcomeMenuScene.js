@@ -142,19 +142,17 @@ createHTMLInterface() {
   // Create main overlay container
   this.htmlOverlay = document.createElement('div');
   this.htmlOverlay.id = 'welcome-overlay';
-  this.htmlOverlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: auto;
-    z-index: 10000;
-    font-family: 'Arial', sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  `;
+const containerRect = this.gameEngine.getRenderer().domElement.getBoundingClientRect();
+
+this.htmlOverlay.style.cssText = `
+  position: fixed;
+  top: ${containerRect.top}px;
+  left: ${containerRect.left}px;
+  width: ${containerRect.width}px;
+  height: ${containerRect.height}px;
+  ...
+`;
+
   
   // Create welcome container avec pointer-events auto
   const welcomeContainer = document.createElement('div');
