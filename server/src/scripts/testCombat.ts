@@ -985,10 +985,9 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
    * Précharger les cartes communes dans le cache
    */
   static async preloadCommonCards(): Promise<void> {
-    // Utiliser seulement les cartes qui existent dans MongoDB
     const commonCards = [
       'knight', 'archers', 'goblins', 'arrows', 'fireball', 'cannon',
-      'cyclops', 'skeleton' // Cartes présentes dans votre base
+      'wizard', 'minions', 'barbarians', 'skeleton_army'
     ];
     
     const cache = CardDataCache.getInstance();
