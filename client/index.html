@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   
   <!-- Primary Meta Tags -->
   <title>Clash Royale Game - Strategic Card Battle Arena</title>
@@ -44,13 +44,42 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Clash Royale">
   
-  <!-- Fonts (Optional - can be loaded later) -->
+  <!-- Mobile optimizations -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-tap-highlight" content="no">
+  <meta name="apple-touch-fullscreen" content="yes">
+  
+  <!-- Fonts -->
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap"></noscript>
   
-  <!-- Critical CSS for initial load -->
+  <!-- Critical CSS for mobile layout and background -->
   <style>
-    /* Critical styles for loading and layout */
+    /* CSS Variables pour le système mobile */
+    :root {
+      --mobile-width: 375px;
+      --mobile-height: 812px;
+      --mobile-max-width: 425px;
+      --mobile-max-height: 920px;
+      
+      /* Colors */
+      --bg-primary: #0a0e1a;
+      --bg-secondary: #1a1a2e;
+      --bg-tertiary: #16213e;
+      --bg-quaternary: #0f3460;
+      --accent-blue: #4a90e2;
+      --accent-green: #2ecc71;
+      --text-white: #ffffff;
+      --text-gray: #e0e0e0;
+      
+      /* Animation durations */
+      --anim-fast: 0.3s;
+      --anim-medium: 0.6s;
+      --anim-slow: 1s;
+    }
+    
+    /* Reset global */
     * {
       margin: 0;
       padding: 0;
@@ -59,110 +88,278 @@
     
     html, body {
       width: 100%;
-      height: 100%;
+      height: 100vh;
       overflow: hidden;
       font-family: 'Rajdhani', 'Arial', sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      color: #ffffff;
+      background: var(--bg-primary);
+      color: var(--text-white);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
     
-    body {
+    /* Container principal avec background animé */
+    .app-container {
       position: relative;
-      user-select: none;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, 
+        var(--bg-secondary) 0%, 
+        var(--bg-tertiary) 35%, 
+        var(--bg-quaternary) 70%, 
+        var(--bg-secondary) 100%);
+      background-size: 400% 400%;
+      animation: backgroundFlow 20s ease-in-out infinite;
+      overflow: hidden;
     }
     
-    /* Loading state before app initialization */
+    /* Background particles animées */
+    .background-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 1;
+    }
+    
+    .particle {
+      position: absolute;
+      background: rgba(74, 144, 226, 0.15);
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(1px);
+    }
+    
+    /* Viewport mobile fixe au centre */
+    .mobile-viewport {
+      position: relative;
+      width: var(--mobile-width);
+      height: var(--mobile-height);
+      max-width: 100vw;
+      max-height: 100vh;
+      background: linear-gradient(180deg, 
+        var(--bg-secondary) 0%, 
+        var(--bg-tertiary) 50%, 
+        var(--bg-quaternary) 100%);
+      border-radius: 25px;
+      box-shadow: 
+        0 0 60px rgba(74, 144, 226, 0.3),
+        0 0 120px rgba(74, 144, 226, 0.15),
+        inset 0 0 40px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      border: 2px solid rgba(74, 144, 226, 0.4);
+      z-index: 10;
+    }
+    
+    /* Glow border effect */
+    .mobile-viewport::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      background: linear-gradient(45deg, 
+        transparent 0%, 
+        rgba(74, 144, 226, 0.2) 25%, 
+        transparent 50%, 
+        rgba(46, 204, 113, 0.2) 75%, 
+        transparent 100%);
+      border-radius: 28px;
+      z-index: -1;
+      animation: borderPulse 3s ease-in-out infinite alternate;
+    }
+    
+    /* Canvas de jeu Three.js */
+    #game-canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      border-radius: 23px;
+      background: var(--bg-secondary);
+    }
+    
+    /* Status bar mobile simulation */
+    .mobile-status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 44px;
+      background: rgba(26, 26, 46, 0.8);
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 1000;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-white);
+    }
+    
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .signal-bars {
+      display: flex;
+      gap: 2px;
+    }
+    
+    .bar {
+      width: 3px;
+      background: var(--text-white);
+      border-radius: 1px;
+    }
+    
+    .bar:nth-child(1) { height: 4px; }
+    .bar:nth-child(2) { height: 6px; }
+    .bar:nth-child(3) { height: 8px; }
+    .bar:nth-child(4) { height: 10px; }
+    
+    .battery {
+      width: 24px;
+      height: 12px;
+      border: 1px solid var(--text-white);
+      border-radius: 2px;
+      position: relative;
+    }
+    
+    .battery::after {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 3px;
+      width: 2px;
+      height: 6px;
+      background: var(--text-white);
+      border-radius: 0 1px 1px 0;
+    }
+    
+    .battery-level {
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      bottom: 1px;
+      width: 70%;
+      background: var(--accent-green);
+      border-radius: 1px;
+    }
+    
+    /* Responsive pour vrais mobiles */
+    @media (max-width: 425px) {
+      .app-container {
+        background: var(--bg-secondary);
+      }
+      
+      .mobile-viewport {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+      
+      .mobile-viewport::before {
+        display: none;
+      }
+      
+      #game-canvas {
+        border-radius: 0;
+      }
+    }
+    
+    /* Responsive pour desktop large */
+    @media (min-width: 1200px) {
+      :root {
+        --mobile-width: var(--mobile-max-width);
+        --mobile-height: var(--mobile-max-height);
+      }
+    }
+    
+    /* Animations */
+    @keyframes backgroundFlow {
+      0%, 100% { 
+        background-position: 0% 50%; 
+        filter: hue-rotate(0deg);
+      }
+      25% { 
+        background-position: 100% 50%; 
+        filter: hue-rotate(15deg);
+      }
+      50% { 
+        background-position: 100% 100%; 
+        filter: hue-rotate(30deg);
+      }
+      75% { 
+        background-position: 0% 100%; 
+        filter: hue-rotate(15deg);
+      }
+    }
+    
+    @keyframes borderPulse {
+      0% { 
+        opacity: 0.4; 
+        transform: scale(1); 
+      }
+      100% { 
+        opacity: 0.8; 
+        transform: scale(1.02); 
+      }
+    }
+    
+    @keyframes particleFloat {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0.1;
+      }
+      50% {
+        transform: translateY(-30px) rotate(180deg);
+        opacity: 0.3;
+      }
+    }
+    
+    @keyframes particleDrift {
+      0% {
+        transform: translateX(-20px);
+      }
+      100% {
+        transform: translateX(20px);
+      }
+    }
+    
+    /* Loading states avant app ready */
     body:not(.app-ready) {
       cursor: wait;
     }
     
-    /* Canvas container */
-    #game-canvas {
-      display: block;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      background: #1a1a2e;
+    body:not(.app-ready) .mobile-viewport {
+      animation: viewportPulse 2s ease-in-out infinite alternate;
     }
     
-    /* Fallback loading screen (shown if JavaScript fails) */
-    #fallback-loading {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #1a1a2e, #16213e);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      font-family: Arial, sans-serif;
-      color: white;
-      text-align: center;
-    }
-    
-    .app-ready #fallback-loading {
-      display: none;
-    }
-    
-    /* Loading spinner */
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid rgba(74, 144, 226, 0.3);
-      border-top: 4px solid #4a90e2;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    /* Error styles */
-    .error-message {
-      background: rgba(231, 76, 60, 0.1);
-      border: 1px solid #e74c3c;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 20px;
-      max-width: 500px;
-    }
-    
-    .error-title {
-      color: #e74c3c;
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    
-    .retry-button {
-      background: #e74c3c;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-      margin-top: 15px;
-      transition: background 0.3s ease;
-    }
-    
-    .retry-button:hover {
-      background: #c0392b;
+    @keyframes viewportPulse {
+      0% { transform: scale(0.98); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
     }
     
     /* Accessibility */
@@ -172,43 +369,85 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
       }
+      
+      .app-container {
+        animation: none;
+        background: var(--bg-secondary);
+      }
     }
     
-    /* High contrast mode support */
+    /* High contrast mode */
     @media (prefers-contrast: high) {
-      body {
+      .app-container {
         background: #000000;
-        color: #ffffff;
+      }
+      
+      .mobile-viewport {
+        background: #1a1a1a;
+        border-color: #ffffff;
       }
     }
     
-    /* Mobile optimizations */
-    @media (max-width: 768px) {
-      body {
-        font-size: 14px;
-      }
-      
-      #fallback-loading h1 {
-        font-size: 28px;
-      }
-      
-      .error-message {
-        margin: 10px;
-        padding: 15px;
+    /* Hide fallback after app ready */
+    .app-ready #fallback-loading {
+      display: none !important;
+    }
+    
+    /* Print styles */
+    @media print {
+      .app-container,
+      .mobile-viewport {
+        box-shadow: none;
+        border: 1px solid #000;
+        background: #fff !important;
       }
     }
   </style>
 </head>
 
 <body>
-  <!-- Game Canvas (inserted by main.js) -->
-  
-  <!-- Fallback loading screen for non-JS users or initialization failures -->
+  <!-- Container principal avec background animé -->
+  <div class="app-container">
+    <!-- Background particles (générées par JS) -->
+    <div class="background-particles" id="background-particles"></div>
+    
+    <!-- Viewport mobile fixe au centre -->
+    <div class="mobile-viewport" id="mobile-viewport">
+      <!-- Status bar mobile (simulation) -->
+      <div class="mobile-status-bar">
+        <div class="status-left">
+          <span id="current-time">9:41</span>
+        </div>
+        <div class="status-right">
+          <div class="signal-bars">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+          <span>WiFi</span>
+          <div class="battery">
+            <div class="battery-level"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Canvas Three.js sera injecté ici par GameEngine -->
+    </div>
+  </div>
+
+  <!-- Fallback loading screen -->
   <div id="fallback-loading">
-    <h1 style="font-size: 36px; margin-bottom: 20px; color: #4a90e2;">CLASH ROYALE</h1>
-    <div class="spinner"></div>
-    <p style="font-size: 18px; margin-top: 20px;">Loading Game Engine...</p>
-    <p style="font-size: 14px; color: #888; margin-top: 10px;">Please enable JavaScript to play</p>
+    <div style="text-align: center;">
+      <h1 style="font-size: 36px; margin-bottom: 20px; color: #4a90e2;">CLASH ROYALE</h1>
+      <div class="spinner"></div>
+      <p style="font-size: 16px; margin-top: 20px;">Loading Mobile Battle Arena...</p>
+      <div style="margin-top: 30px; font-size: 12px; color: #666;">
+        <p>📱 Optimized for mobile portrait experience</p>
+        <p>🎮 Loading Three.js 3D graphics engine</p>
+        <p>🔌 Connecting to multiplayer servers</p>
+      </div>
+    </div>
   </div>
   
   <!-- NoScript fallback -->
@@ -217,180 +456,198 @@
                 background: linear-gradient(135deg, #1a1a2e, #16213e);
                 display: flex; align-items: center; justify-content: center;
                 z-index: 10000; font-family: Arial, sans-serif; color: white;">
-      <div class="error-message">
-        <div class="error-title">⚠️ JavaScript Required</div>
-        <p>This game requires JavaScript to run. Please enable JavaScript in your browser settings and refresh the page.</p>
+      <div style="text-align: center; max-width: 350px; padding: 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
+        <h2 style="color: #e74c3c; margin-bottom: 15px;">JavaScript Required</h2>
+        <p>This mobile game requires JavaScript to run. Please enable JavaScript in your browser settings and refresh the page.</p>
         <p style="margin-top: 15px; font-size: 14px; color: #ccc;">
-          Clash Royale uses advanced web technologies including WebGL and real-time networking.
+          Clash Royale uses advanced WebGL and real-time networking technologies.
         </p>
       </div>
     </div>
   </noscript>
   
-  <!-- Browser compatibility check -->
+  <!-- Browser compatibility and mobile optimizations -->
   <script>
     (function() {
       'use strict';
       
-      // Check for critical browser features
-      const requiredFeatures = [
-        'WebGL',
-        'WebSocket',
-        'localStorage',
-        'Promise',
-        'fetch'
-      ];
-      
-      const missingFeatures = [];
-      
-      // WebGL check
-      try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-        if (!gl) {
-          missingFeatures.push('WebGL');
+      // Update status bar time
+      function updateStatusBar() {
+        const now = new Date();
+        const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                          now.getMinutes().toString().padStart(2, '0');
+        const timeElement = document.getElementById('current-time');
+        if (timeElement) {
+          timeElement.textContent = timeString;
         }
-      } catch (e) {
-        missingFeatures.push('WebGL');
       }
       
-      // WebSocket check
-      if (!window.WebSocket) {
-        missingFeatures.push('WebSocket');
-      }
-      
-      // localStorage check
-      try {
-        if (!window.localStorage) {
-          missingFeatures.push('localStorage');
+      // Create background particles
+      function createBackgroundParticles() {
+        const container = document.getElementById('background-particles');
+        if (!container) return;
+        
+        const particleCount = window.innerWidth < 768 ? 15 : 25;
+        
+        for (let i = 0; i < particleCount; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          
+          // Random size
+          const size = Math.random() * 6 + 2;
+          particle.style.width = size + 'px';
+          particle.style.height = size + 'px';
+          
+          // Random position
+          particle.style.left = Math.random() * 100 + '%';
+          particle.style.top = Math.random() * 100 + '%';
+          
+          // Random animation duration and delay
+          const floatDuration = (Math.random() * 4 + 3) + 's';
+          const driftDuration = (Math.random() * 6 + 4) + 's';
+          const delay = Math.random() * 3 + 's';
+          
+          particle.style.animation = `
+            particleFloat ${floatDuration} ease-in-out infinite alternate ${delay},
+            particleDrift ${driftDuration} ease-in-out infinite alternate
+          `;
+          
+          container.appendChild(particle);
         }
-      } catch (e) {
-        missingFeatures.push('localStorage');
       }
       
-      // Promise check
-      if (!window.Promise) {
-        missingFeatures.push('Promise');
+      // Mobile viewport scaling
+      function updateMobileViewportScale() {
+        const viewport = document.getElementById('mobile-viewport');
+        if (!viewport) return;
+        
+        const isMobile = window.innerWidth <= 425;
+        
+        if (isMobile) {
+          // Native mobile mode
+          viewport.style.transform = 'none';
+          viewport.style.width = '100vw';
+          viewport.style.height = '100vh';
+        } else {
+          // Desktop mode with scaled mobile viewport
+          const mobileWidth = window.innerWidth >= 1200 ? 425 : 375;
+          const mobileHeight = window.innerWidth >= 1200 ? 920 : 812;
+          
+          const scaleX = Math.min(window.innerWidth / mobileWidth * 0.9, 1.2);
+          const scaleY = Math.min(window.innerHeight / mobileHeight * 0.9, 1.2);
+          const scale = Math.min(scaleX, scaleY, 1.0);
+          
+          viewport.style.transform = `scale(${scale})`;
+          viewport.style.width = mobileWidth + 'px';
+          viewport.style.height = mobileHeight + 'px';
+        }
       }
       
-      // Fetch check
-      if (!window.fetch) {
-        missingFeatures.push('fetch');
+      // Feature detection
+      function checkRequiredFeatures() {
+        const requiredFeatures = [];
+        
+        // WebGL check
+        try {
+          const canvas = document.createElement('canvas');
+          const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+          if (!gl) requiredFeatures.push('WebGL');
+        } catch (e) {
+          requiredFeatures.push('WebGL');
+        }
+        
+        // Other checks
+        if (!window.WebSocket) requiredFeatures.push('WebSocket');
+        if (!window.localStorage) requiredFeatures.push('localStorage');
+        if (!window.Promise) requiredFeatures.push('Promise');
+        if (!window.fetch) requiredFeatures.push('fetch');
+        
+        if (requiredFeatures.length > 0) {
+          showCompatibilityError(requiredFeatures);
+          return false;
+        }
+        
+        return true;
       }
       
-      // Show compatibility error if needed
-      if (missingFeatures.length > 0) {
-        document.getElementById('fallback-loading').innerHTML = `
-          <div class="error-message">
-            <div class="error-title">🚫 Browser Not Supported</div>
-            <p>Your browser is missing required features:</p>
-            <ul style="text-align: left; margin: 15px 0;">
-              ${missingFeatures.map(feature => `<li>${feature}</li>`).join('')}
-            </ul>
-            <p>Please update your browser or try:</p>
-            <ul style="text-align: left; margin: 15px 0; font-size: 14px;">
-              <li>Chrome 60+ or Firefox 55+</li>
-              <li>Safari 14+ or Edge 79+</li>
-              <li>Enable hardware acceleration</li>
-            </ul>
-            <button class="retry-button" onclick="window.location.reload()">
-              Retry
-            </button>
-          </div>
-        `;
-        return;
+      function showCompatibilityError(missingFeatures) {
+        const fallback = document.getElementById('fallback-loading');
+        if (fallback) {
+          fallback.innerHTML = `
+            <div style="text-align: center; max-width: 350px;">
+              <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+              <h2 style="color: #e74c3c; margin-bottom: 15px;">Device Not Supported</h2>
+              <p>Your device is missing required features:</p>
+              <ul style="text-align: left; margin: 15px 0; font-size: 14px;">
+                ${missingFeatures.map(feature => `<li>${feature}</li>`).join('')}
+              </ul>
+              <p style="font-size: 14px; color: #999;">
+                Please try with a modern mobile browser or desktop Chrome/Firefox.
+              </p>
+              <button onclick="window.location.reload()" 
+                      style="margin-top: 20px; padding: 10px 20px; background: #e74c3c; 
+                             color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Retry
+              </button>
+            </div>
+          `;
+        }
       }
       
-      // Performance check for low-end devices
-      const isLowEndDevice = (
-        navigator.hardwareConcurrency < 4 ||
-        (navigator.deviceMemory && navigator.deviceMemory < 4) ||
-        /Android.*Chrome\/[1-6][0-9]/.test(navigator.userAgent)
-      );
+      // Initialize on load
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('📱 Initializing mobile portrait layout...');
+        
+        if (!checkRequiredFeatures()) {
+          return;
+        }
+        
+        createBackgroundParticles();
+        updateMobileViewportScale();
+        updateStatusBar();
+        
+        // Update time every minute
+        setInterval(updateStatusBar, 60000);
+        
+        // Update viewport on resize
+        window.addEventListener('resize', updateMobileViewportScale);
+        
+        // Performance monitoring for mobile
+        if (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) {
+          console.warn('📱 Low-end device detected - optimizing performance');
+          document.documentElement.style.setProperty('--anim-fast', '0.1s');
+          document.documentElement.style.setProperty('--anim-medium', '0.2s');
+          document.documentElement.style.setProperty('--anim-slow', '0.3s');
+        }
+        
+        console.log('✅ Mobile layout initialized');
+      });
       
-      if (isLowEndDevice) {
-        console.warn('⚠️ Low-end device detected - performance may be limited');
-        // Could set default graphics quality to 'low'
-        localStorage.setItem('clash_royale_settings', JSON.stringify({
-          graphics: { quality: 'medium', shadows: false, particles: false }
-        }));
-      }
+      // Global error handling
+      window.addEventListener('error', function(e) {
+        console.error('💥 Global error:', e.error);
+      });
+      
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('💥 Unhandled promise rejection:', e.reason);
+      });
       
     })();
   </script>
   
-  <!-- Service Worker Registration (for PWA support) -->
+  <!-- Service Worker for PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('✅ SW registered:', registration);
-          })
-          .catch(registrationError => {
-            console.log('❌ SW registration failed:', registrationError);
-          });
+          .then(registration => console.log('✅ SW registered'))
+          .catch(error => console.log('❌ SW registration failed:', error));
       });
     }
   </script>
   
-  <!-- Global error handler -->
-  <script>
-    window.addEventListener('error', function(e) {
-      console.error('Global error:', e.error);
-      
-      // Show user-friendly error message
-      const fallbackEl = document.getElementById('fallback-loading');
-      if (fallbackEl && !document.body.classList.contains('app-ready')) {
-        fallbackEl.innerHTML = `
-          <div class="error-message">
-            <div class="error-title">❌ Initialization Error</div>
-            <p>The game failed to start properly.</p>
-            <p style="font-size: 14px; color: #888; margin: 15px 0;">
-              Error: ${e.error ? e.error.message : 'Unknown error'}
-            </p>
-            <button class="retry-button" onclick="window.location.reload()">
-              Retry
-            </button>
-          </div>
-        `;
-      }
-    });
-    
-    // Handle unhandled promise rejections
-    window.addEventListener('unhandledrejection', function(e) {
-      console.error('Unhandled promise rejection:', e.reason);
-    });
-  </script>
-  
-  <!-- Analytics placeholder (optional) -->
-  <script>
-    // Google Analytics, Mixpanel, or other analytics could go here
-    // window.gtag = window.gtag || function(){dataLayer.push(arguments);};
-  </script>
-  
-  <!-- Main application script (loaded by Vite) -->
+  <!-- Main application script -->
   <script type="module" src="/src/main.js"></script>
-  
-  <!-- Development helpers -->
-  <script>
-    if (import.meta.env && import.meta.env.DEV) {
-      // Development mode helpers
-      console.log('🚀 Development mode active');
-      
-      // Add debug utilities to window
-      window.DEBUG = true;
-      
-      // Performance monitoring
-      const observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          if (entry.entryType === 'navigation') {
-            console.log(`📊 Page load time: ${Math.round(entry.loadEventEnd - entry.loadEventStart)}ms`);
-          }
-        }
-      });
-      observer.observe({entryTypes: ['navigation']});
-    }
-  </script>
 </body>
 </html>
