@@ -29,6 +29,34 @@ class BattleTabStyles {
       align-items: center;
     }
 
+.player-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-profile-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-profile-btn img {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) invert(1); /* icône en blanc */
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.edit-profile-btn:hover img {
+  transform: scale(1.1);
+  filter: brightness(1) invert(0); /* devient sombre au hover */
+}
+
     /* --- Top bar with banner --- */
     .battle-topbar {
       position: relative;
