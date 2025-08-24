@@ -53,6 +53,25 @@ class CardsTabStyles {
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
 
+#btn-show-all-cards,
+#btn-back-deck {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+  display: inline-block;
+}
+
+#btn-show-all-cards:hover,
+#btn-back-deck:hover {
+  background: #0056b3;
+}
+
+
       .deck-slot.empty-slot {
         background: rgba(255,255,255,0.05);
         border: 2px dashed #555;
