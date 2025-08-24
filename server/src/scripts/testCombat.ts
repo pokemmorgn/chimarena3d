@@ -1,24 +1,21 @@
-// server/src/scripts/testCombat.ts
-// Test de Combat Complet - Knight vs 3 Goblins
-// Validation des systèmes : BaseUnit + CombatSystem + TargetingSystem
-
+// server/src/scripts/testCombatFixed.ts
+// Test de Combat avec connexion MongoDB
+import mongoose from 'mongoose';
 import BaseUnit from '../gameplay/units/BaseUnit';
 import { getCombatSystem } from '../gameplay/systems/CombatSystem';
 import { ITargetableEntity } from '../gameplay/systems/TargetingSystem';
 
 /**
- * Script de test de combat pour valider l'intégration complète
+ * Script de test de combat avec connexion MongoDB
  */
-class CombatTest {
+class CombatTestFixed {
   private combatSystem = getCombatSystem();
-  // targetingSystem utilisé implicitement via BaseUnit
   private knight!: BaseUnit;
   private goblins: BaseUnit[] = [];
   private currentTick = 0;
   private readonly TICK_RATE_MS = 50; // 20 TPS
   private gameLoop: NodeJS.Timeout | null = null;
   
-  // Statistiques de test
   private testStats = {
     totalTicks: 0,
     attacksPerformed: 0,
@@ -29,9 +26,60 @@ class CombatTest {
   };
 
   constructor() {
-    console.log('🎮 Initialisation du test de combat...');
-    console.log('⚔️ Scénario: Knight Level 3 vs 3 Goblins Level 3');
-    console.log('🎯 Objectif: Valider BaseUnit + CombatSystem + TargetingSystem\n');
+    console.log('🎮 Test de combat avec connexion MongoDB...');
+    console.log('⚔️ Scénario: Knight Level 3 vs 3 Goblins Level 3\n');
+  }
+
+  /**
+   * Connecter à MongoDB
+   */
+  async connectDatabase(): Promise<void> {
+    console.log('🔗 Connexion à MongoDB...');
+    
+    try {
+      const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/chimarena3d';
+      
+      await mongoose.connect(MONGODB_URI, {
+        maxPoolSize: 5,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      
+      console.log('✅ MongoDB connecté avec succès');
+      console.log(`📍 URI: ${MONGODB_URI.replace(/\/\/.*@/, '//***@')}\n`);
+      
+    } catch (error) {
+      console.error('❌ Erreur de connexion MongoDB:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifier que les cartes existent
+   */
+  async verifyCards(): Promise<void> {
+    console.log('🃏 Vérification des cartes dans MongoDB...');
+    
+    try {
+      // Import dynamique pour éviter les problèmes de circular dependency
+      const CardData = (await import('../models/CardData')).default;
+      
+      const knight = await CardData.findOne({ id: 'knight', isEnabled: true });
+      const goblins = await CardData.findOne({ id: 'goblins', isEnabled: true });
+      
+      if (!knight) throw new Error('Carte "knight" non trouvée dans MongoDB');
+      if (!goblins) throw new Error('Carte "goblins" non trouvée dans MongoDB');
+      
+      console.log(`✅ Knight trouvé: ${knight.nameKey} (${knight.type})`);
+      console.log(`   Stats: ${knight.stats.hitpoints} HP, ${knight.stats.damage} DMG`);
+      
+      console.log(`✅ Goblins trouvé: ${goblins.nameKey} (${goblins.type})`);
+      console.log(`   Stats: ${goblins.stats.hitpoints} HP, ${goblins.stats.damage} DMG\n`);
+      
+    } catch (error) {
+      console.error('❌ Erreur lors de la vérification des cartes:', error);
+      throw error;
+    }
   }
 
   /**
@@ -41,12 +89,15 @@ class CombatTest {
     console.log('🏭 Création des unités...');
     
     try {
+      // Précharger le cache des cartes communes pour performance
+      await BaseUnit.preloadCommonCards();
+      
       // Créer le Knight (niveau 3)
       this.knight = await BaseUnit.create(
-        'knight',      // cardId
-        3,             // level
-        'player1',     // ownerId
-        { x: 9, y: 20 }, // position (bas de l'arène)
+        'knight',
+        3,
+        'player1',
+        { x: 9, y: 20 },
         this.currentTick
       );
       
@@ -55,13 +106,12 @@ class CombatTest {
       console.log(`   HP: ${this.knight.currentHitpoints}/${this.knight.maxHitpoints}`);
       console.log(`   Damage: ${this.knight.currentDamage}`);
       console.log(`   Range: ${this.knight.attackRange}`);
-      console.log(`   Type: ${this.knight.isTank ? 'Tank' : 'Normal'}\n`);
 
-      // Créer 3 Goblins (niveau 3)
+      // Créer 3 Goblins
       const goblinPositions = [
-        { x: 8, y: 12 },  // Goblin 1 - gauche
-        { x: 9, y: 10 },  // Goblin 2 - centre  
-        { x: 10, y: 12 }  // Goblin 3 - droite
+        { x: 8, y: 12 },
+        { x: 9, y: 10 },
+        { x: 10, y: 12 }
       ];
 
       for (let i = 0; i < 3; i++) {
@@ -74,19 +124,14 @@ class CombatTest {
         );
         
         this.goblins.push(goblin);
-        
-        console.log(`✅ Goblin ${i + 1} créé: ${goblin.id}`);
-        console.log(`   Position: (${goblin.x}, ${goblin.y})`);
-        console.log(`   HP: ${goblin.currentHitpoints}/${goblin.maxHitpoints}`);
-        console.log(`   Damage: ${goblin.currentDamage}`);
+        console.log(`✅ Goblin ${i + 1} créé: ${goblin.id} (${goblin.x}, ${goblin.y}) - ${goblin.currentHitpoints} HP`);
       }
 
-      console.log('\n📊 Configuration du terrain:');
-      console.log('   Knight:   (9, 20) - 🔵');
-      console.log('   Goblin 1: (8, 12) - 🔴');
-      console.log('   Goblin 2: (9, 10) - 🔴');
-      console.log('   Goblin 3: (10,12) - 🔴');
-      console.log('   Distance initiale: ~8-10 tiles\n');
+      console.log('\n📊 Terrain de combat:');
+      console.log('   🔵 Knight:   (9, 20)');
+      console.log('   🔴 Goblin 1: (8, 12)');
+      console.log('   🔴 Goblin 2: (9, 10)');
+      console.log('   🔴 Goblin 3: (10,12)');
 
     } catch (error) {
       console.error('❌ Erreur lors de la création des unités:', error);
@@ -98,19 +143,17 @@ class CombatTest {
    * Démarrer le test de combat
    */
   async startCombatTest(): Promise<void> {
-    console.log('🚀 DÉBUT DU TEST DE COMBAT\n');
+    console.log('\n🚀 DÉBUT DU COMBAT !');
     console.log('═'.repeat(50));
     
     this.testStats.testStartTime = Date.now();
-    this.currentTick = 0;
 
-    // Démarrer la boucle de jeu à 20 TPS
+    // Démarrer la boucle de jeu
     this.gameLoop = setInterval(() => {
       this.processTick();
     }, this.TICK_RATE_MS);
 
-    console.log('⏰ Boucle de jeu démarrée à 20 TPS');
-    console.log('🎯 Le combat va commencer...\n');
+    console.log('⏰ Combat en cours à 20 TPS...\n');
   }
 
   /**
@@ -127,10 +170,10 @@ class CombatTest {
     // Mettre à jour toutes les unités
     this.updateAllUnits();
 
-    // Fournir les cibles disponibles à chaque unité
+    // Mettre à jour le targeting
     this.updateTargeting();
 
-    // Vérifier les conditions de fin
+    // Vérifier fin de combat
     this.checkEndConditions();
 
     // Log périodique (toutes les 2 secondes)
@@ -139,28 +182,18 @@ class CombatTest {
     }
   }
 
-  /**
-   * Mettre à jour toutes les unités
-   */
   private updateAllUnits(): void {
-    const deltaTime = this.TICK_RATE_MS;
-
-    // Mettre à jour le Knight
     if (this.knight.isAlive) {
-      this.knight.update(this.currentTick, deltaTime);
+      this.knight.update(this.currentTick, this.TICK_RATE_MS);
     }
 
-    // Mettre à jour les Goblins
     this.goblins.forEach(goblin => {
       if (goblin.isAlive) {
-        goblin.update(this.currentTick, deltaTime);
+        goblin.update(this.currentTick, this.TICK_RATE_MS);
       }
     });
   }
 
-  /**
-   * Mettre à jour le targeting pour toutes les unités
-   */
   private updateTargeting(): void {
     const allTargetableEntities = this.getAllTargetableEntities();
 
@@ -183,9 +216,6 @@ class CombatTest {
     });
   }
 
-  /**
-   * Obtenir tous les combattants
-   */
   private getAllCombatants(): Map<string, any> {
     const combatants = new Map();
 
@@ -202,9 +232,6 @@ class CombatTest {
     return combatants;
   }
 
-  /**
-   * Obtenir toutes les entités ciblables
-   */
   private getAllTargetableEntities(): ITargetableEntity[] {
     const entities: ITargetableEntity[] = [];
 
@@ -221,57 +248,47 @@ class CombatTest {
     return entities;
   }
 
-  /**
-   * Vérifier les conditions de fin de test
-   */
   private checkEndConditions(): void {
     const aliveGoblins = this.goblins.filter(g => g.isAlive);
     
-    // Victoire du Knight
     if (aliveGoblins.length === 0) {
-      this.endTest('KNIGHT WINS!', '🏆 Le Knight a éliminé tous les Goblins');
+      this.endTest('🏆 KNIGHT WINS!', 'Tous les Goblins éliminés');
       return;
     }
 
-    // Victoire des Goblins
     if (!this.knight.isAlive) {
-      this.endTest('GOBLINS WIN!', '🔴 Les Goblins ont éliminé le Knight');
+      this.endTest('🔴 GOBLINS WIN!', 'Le Knight a été éliminé');
       return;
     }
 
-    // Timeout (30 secondes = 600 ticks)
+    // Timeout 30 secondes
     if (this.currentTick >= 600) {
-      this.endTest('TIMEOUT', '⏰ Test terminé par timeout');
+      this.endTest('⏰ TIMEOUT', 'Combat trop long');
       return;
     }
   }
 
-  /**
-   * Logger l'état du jeu
-   */
   private logGameState(): void {
-    const secondsElapsed = Math.round(this.currentTick / 20);
+    const seconds = Math.round(this.currentTick / 20);
     const aliveGoblins = this.goblins.filter(g => g.isAlive);
     
-    console.log(`\n⏰ T+${secondsElapsed}s (Tick ${this.currentTick}):`);
-    console.log(`🔵 Knight: ${this.knight.isAlive ? `${this.knight.currentHitpoints}/${this.knight.maxHitpoints} HP` : '💀 MORT'} (${this.knight.x.toFixed(1)}, ${this.knight.y.toFixed(1)}) [${this.knight.state}]`);
+    console.log(`\n⏰ T+${seconds}s (Tick ${this.currentTick}):`);
+    
+    const knightStatus = this.knight.isAlive 
+      ? `${this.knight.currentHitpoints}/${this.knight.maxHitpoints} HP [${this.knight.state}]`
+      : '💀 MORT';
+    console.log(`🔵 Knight: ${knightStatus} (${this.knight.x.toFixed(1)}, ${this.knight.y.toFixed(1)})`);
     
     this.goblins.forEach((goblin, i) => {
-      console.log(`🔴 Goblin ${i + 1}: ${goblin.isAlive ? `${goblin.currentHitpoints}/${goblin.maxHitpoints} HP` : '💀 MORT'} (${goblin.x.toFixed(1)}, ${goblin.y.toFixed(1)}) [${goblin.state}]`);
+      const goblinStatus = goblin.isAlive
+        ? `${goblin.currentHitpoints}/${goblin.maxHitpoints} HP [${goblin.state}]`
+        : '💀 MORT';
+      console.log(`🔴 Goblin ${i + 1}: ${goblinStatus} (${goblin.x.toFixed(1)}, ${goblin.y.toFixed(1)})`);
     });
 
-    // Informations de combat actuel
-    const knightInfo = this.knight.getCombatInfo();
-    if (knightInfo.currentTarget) {
-      console.log(`   🎯 Knight cible: ${knightInfo.currentTarget.id}`);
-    }
-
-    console.log(`📊 Goblins vivants: ${aliveGoblins.length}/3`);
+    console.log(`📊 Goblins restants: ${aliveGoblins.length}/3`);
   }
 
-  /**
-   * Terminer le test
-   */
   private endTest(result: string, description: string): void {
     if (this.gameLoop) {
       clearInterval(this.gameLoop);
@@ -282,16 +299,15 @@ class CombatTest {
     const duration = this.testStats.testEndTime - this.testStats.testStartTime;
 
     console.log('\n' + '═'.repeat(50));
-    console.log(`🏁 ${result}`);
+    console.log(result);
     console.log('═'.repeat(50));
     console.log(description);
     
-    console.log('\n📊 STATISTIQUES DU TEST:');
-    console.log(`   Durée totale: ${(duration / 1000).toFixed(1)}s`);
-    console.log(`   Ticks traités: ${this.testStats.totalTicks}`);
+    console.log('\n📊 STATISTIQUES:');
+    console.log(`   Durée: ${(duration / 1000).toFixed(1)}s`);
+    console.log(`   Ticks: ${this.testStats.totalTicks}`);
     console.log(`   TPS moyen: ${Math.round(this.testStats.totalTicks / (duration / 1000))}`);
     
-    // État final des unités
     console.log('\n💀 ÉTAT FINAL:');
     console.log(`   Knight: ${this.knight.isAlive ? 'VIVANT' : 'MORT'} (${this.knight.currentHitpoints}/${this.knight.maxHitpoints} HP)`);
     
@@ -299,123 +315,74 @@ class CombatTest {
       console.log(`   Goblin ${i + 1}: ${goblin.isAlive ? 'VIVANT' : 'MORT'} (${goblin.currentHitpoints}/${goblin.maxHitpoints} HP)`);
     });
 
-    // Statistiques de performance du CombatSystem
     const combatStats = this.combatSystem.getPerformanceStats();
-    console.log('\n⚔️ COMBAT SYSTEM STATS:');
-    console.log(`   Attaques traitées: ${combatStats.attacksProcessed}`);
-    console.log(`   Projectiles actifs: ${combatStats.activeProjectiles}`);
-    console.log(`   Calculs splash: ${combatStats.splashCalculations}`);
+    console.log('\n⚔️ COMBAT STATS:');
+    console.log(`   Attaques: ${combatStats.attacksProcessed}`);
+    console.log(`   Projectiles: ${combatStats.activeProjectiles}`);
     console.log(`   Temps moyen: ${combatStats.averageProcessingTime.toFixed(2)}ms`);
 
-    // Nettoyer les unités
     this.cleanup();
-    
-    console.log('\n✅ Test de combat terminé avec succès !');
-    console.log('🎮 Tous les systèmes ont été validés.\n');
+    console.log('\n✅ Test terminé avec succès !');
   }
 
-  /**
-   * Nettoyer les ressources
-   */
   private cleanup(): void {
-    console.log('🧹 Nettoyage des ressources...');
-    
-    // Nettoyer les unités
+    console.log('🧹 Nettoyage...');
     this.knight.cleanup();
     this.goblins.forEach(goblin => goblin.cleanup());
-    
-    // Nettoyer le CombatSystem
     this.combatSystem.cleanup();
-    
-    console.log('✅ Nettoyage terminé');
   }
 
   /**
-   * Forcer une attaque pour test (debug)
+   * Fermer la connexion MongoDB
    */
-  forceKnightAttack(): void {
-    const aliveGoblins = this.goblins.filter(g => g.isAlive);
-    if (aliveGoblins.length > 0 && this.knight.isAlive) {
-      const target = aliveGoblins[0];
-      console.log(`🔨 ATTAQUE FORCÉE: ${this.knight.id} → ${target.id}`);
-      
-      const result = this.knight.forceAttack(target.id);
-      if (result) {
-        console.log(`   Résultat: ${result.damageDealt} dégâts infligés`);
-        console.log(`   Cibles touchées: ${result.targetsHit.length}`);
-      }
-    }
+  async disconnect(): Promise<void> {
+    console.log('🔌 Fermeture de la connexion MongoDB...');
+    await mongoose.disconnect();
+    console.log('✅ Connexion fermée');
   }
 }
 
 /**
- * Fonction principale pour lancer le test
+ * Fonction principale
  */
-async function runCombatTest(): Promise<void> {
-  console.log('🎬 DÉMARRAGE DU TEST DE COMBAT CLASH ROYALE');
+async function runFixedCombatTest(): Promise<void> {
+  console.log('🎬 TEST DE COMBAT CLASH ROYALE - VERSION FIXE');
   console.log('=' .repeat(60));
   console.log('📅 ' + new Date().toLocaleString());
-  console.log('🔧 Version: BaseUnit + CombatSystem + TargetingSystem');
   console.log('=' .repeat(60) + '\n');
 
-  const test = new CombatTest();
+  const test = new CombatTestFixed();
 
   try {
-    // Phase 1: Initialisation
+    // 1. Connecter MongoDB
+    await test.connectDatabase();
+    
+    // 2. Vérifier les cartes
+    await test.verifyCards();
+    
+    // 3. Initialiser le test
     await test.initializeTest();
     
-    // Phase 2: Combat
+    // 4. Démarrer le combat
     await test.startCombatTest();
     
+    // Attendre la fin (ou Ctrl+C)
+    
   } catch (error) {
-    console.error('❌ ERREUR DURANT LE TEST:', error);
-    console.log('\n🔧 Vérifiez que CardData contient les cartes "knight" et "goblins"');
-    console.log('💡 Conseil: Exécutez d\'abord les scripts de seed de données');
+    console.error('❌ ERREUR:', error);
   }
-}
-
-/**
- * Test rapide pour debug (sans boucle de jeu)
- */
-async function quickTest(): Promise<void> {
-  console.log('⚡ TEST RAPIDE - Création d\'unités seulement\n');
   
-  try {
-    const knight = await BaseUnit.create('knight', 3, 'player1', { x: 9, y: 20 }, 0);
-    console.log(`✅ Knight créé: ${knight.id} - HP: ${knight.currentHitpoints}`);
-    
-    const goblin = await BaseUnit.create('goblins', 3, 'player2', { x: 9, y: 10 }, 0);
-    console.log(`✅ Goblin créé: ${goblin.id} - HP: ${goblin.currentHitpoints}`);
-    
-    // Test d'une attaque forcée
-    const result = knight.forceAttack(goblin.id);
-    if (result) {
-      console.log(`⚔️ Attaque: ${result.damageDealt} dégâts infligés`);
-      console.log(`💀 Goblin HP après: ${goblin.currentHitpoints}/${goblin.maxHitpoints}`);
-    }
-    
-    // Nettoyage
-    knight.cleanup();
-    goblin.cleanup();
-    
-    console.log('\n✅ Test rapide terminé avec succès !');
-    
-  } catch (error) {
-    console.error('❌ Erreur durant le test rapide:', error);
-  }
+  // Nettoyage en cas d'interruption
+  process.on('SIGINT', async () => {
+    console.log('\n🛑 Interruption détectée...');
+    await test.disconnect();
+    process.exit(0);
+  });
 }
 
-// Export pour utilisation
-export { CombatTest, runCombatTest, quickTest };
-
-// Exécution directe si appelé via node
+// Lancer le test si appelé directement
 if (require.main === module) {
-  // Choisir le type de test
-  const testType = process.argv[2] || 'full';
-  
-  if (testType === 'quick') {
-    quickTest();
-  } else {
-    runCombatTest();
-  }
+  runFixedCombatTest();
 }
+
+export { CombatTestFixed, runFixedCombatTest };
