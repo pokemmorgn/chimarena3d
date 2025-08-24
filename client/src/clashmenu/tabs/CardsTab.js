@@ -287,35 +287,116 @@ class CardsTab {
     
     deckContainer.innerHTML = "";
 
-    const deck = this.currentDeck?.cards || Array(8).fill(null);
-    console.log("🎯 Rendu du deck:", deck);
+    // Debug du deck
+    console.log("🎯 Debug deck complet:", {
+      currentDeck: this.currentDeck,
+      decks: this.decks,
+      decksLength: this.decks.length
+    });
 
-    deck.forEach((slot, index) => {
+    // Récupérer le deck actuel depuis les données chargées
+    let deck = null;
+    
+    if (this.currentDeck && this.currentDeck.cards) {
+      // Format: { deckIndex: 0, cards: [...], isActive: true }
+      deck = this.currentDeck.cards;
+    } else if (this.decks && this.decks.length > 0) {
+      // Prendre le premier deck actif ou le premier deck disponible
+      const activeDeck = this.decks.find(d => d.isActive) || this.decks[0];
+      if (activeDeck && activeDeck.cards) {
+        deck = activeDeck.cards;
+        this.currentDeck = activeDeck;
+      }
+    }
+
+    // Si pas de deck, créer 8 slots vides
+    if (!deck || !Array.isArray(deck)) {
+      deck = Array(8).fill(null);
+      console.log("⚠️ Aucun deck trouvé, création de 8 slots vides");
+    }
+
+    console.log("🎯 Deck à afficher:", deck);
+
+    // Assurer qu'on a exactement 8 slots
+    const deckSlots = Array(8).fill(null);
+    if (deck && Array.isArray(deck)) {
+      deck.forEach((card, index) => {
+        if (index < 8) {
+          deckSlots[index] = card;
+        }
+      });
+    }
+
+    deckSlots.forEach((slot, index) => {
       const slotEl = document.createElement("div");
       slotEl.className = "deck-slot";
+      slotEl.dataset.slotIndex = index;
 
-      if (slot && slot.cardInfo) {
-        slotEl.innerHTML = `
-          <img src="/cards/${slot.cardInfo.sprite}" alt="${slot.cardInfo.nameKey}" class="deck-card"/>
-          <div class="deck-level">Lvl ${slot.level || 1}</div>
-        `;
+      console.log(`🃏 Slot ${index}:`, slot);
+
+      if (slot && (slot.cardInfo || slot.cardId)) {
+        // Cas 1: slot avec cardInfo déjà enrichi
+        if (slot.cardInfo) {
+          slotEl.innerHTML = `
+            <img src="/cards/${slot.cardInfo.sprite}" 
+                 alt="${slot.cardInfo.nameKey || slot.cardId}" 
+                 class="deck-card"
+                 onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+            <div class="deck-level">Lvl ${slot.level || 1}</div>
+          `;
+        } 
+        // Cas 2: slot avec seulement cardId (chercher dans allCards)
+        else if (slot.cardId && this.allCards.length > 0) {
+          const cardInfo = this.allCards.find(c => c.id === slot.cardId);
+          if (cardInfo) {
+            slotEl.innerHTML = `
+              <img src="/cards/${cardInfo.sprite}" 
+                   alt="${cardInfo.nameKey || slot.cardId}" 
+                   class="deck-card"
+                   onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+              <div class="deck-level">Lvl ${slot.level || 1}</div>
+            `;
+          } else {
+            // Fallback avec nom de la carte
+            slotEl.innerHTML = `
+              <div class="deck-card-fallback">
+                <span>${slot.cardId}</span>
+              </div>
+              <div class="deck-level">Lvl ${slot.level || 1}</div>
+            `;
+          }
+        }
+        // Cas 3: slot avec données mais pas de cardInfo
+        else {
+          slotEl.innerHTML = `
+            <div class="deck-card-fallback">
+              <span>${slot.cardId || 'Carte'}</span>
+            </div>
+            <div class="deck-level">Lvl ${slot.level || 1}</div>
+          `;
+        }
       } else {
+        // Slot vide
         slotEl.innerHTML = `<div class="deck-empty">+</div>`;
         slotEl.classList.add("empty-slot");
       }
 
       slotEl.addEventListener("click", () => {
+        console.log(`🖱️ Clic sur slot ${index}:`, slot);
         this.emit("deck:select-slot", { index, slot });
       });
 
       deckContainer.appendChild(slotEl);
     });
 
-    const avgElixir = this.calculateAvgElixir(deck);
+    // Calculer et afficher la moyenne d'élixir
+    const avgElixir = this.calculateAvgElixir(deckSlots);
     const elixirEl = this.tabElement.querySelector("#deck-elixir");
     if (elixirEl) {
       elixirEl.textContent = avgElixir.toFixed(1);
     }
+
+    console.log("✅ Rendu du deck terminé, 8 slots créés");
   }
 
   renderCollection() {
@@ -393,11 +474,42 @@ class CardsTab {
   }
 
   calculateAvgElixir(deck) {
+    if (!deck || !Array.isArray(deck)) return 0;
+    
     const costs = deck
-      .filter(c => c && c.cardInfo)
-      .map(c => c.cardInfo.elixirCost || 0);
+      .filter(slot => {
+        // Vérifier différents formats possibles
+        if (!slot) return false;
+        
+        // Format avec cardInfo
+        if (slot.cardInfo?.elixirCost) return true;
+        
+        // Format avec cardId - chercher dans allCards
+        if (slot.cardId && this.allCards.length > 0) {
+          const cardInfo = this.allCards.find(c => c.id === slot.cardId);
+          return cardInfo?.elixirCost;
+        }
+        
+        return false;
+      })
+      .map(slot => {
+        // Récupérer le coût d'élixir
+        if (slot.cardInfo?.elixirCost) {
+          return slot.cardInfo.elixirCost;
+        }
+        
+        if (slot.cardId && this.allCards.length > 0) {
+          const cardInfo = this.allCards.find(c => c.id === slot.cardId);
+          return cardInfo?.elixirCost || 0;
+        }
+        
+        return 0;
+      });
+    
     if (costs.length === 0) return 0;
-    return costs.reduce((a, b) => a + b, 0) / costs.length;
+    const total = costs.reduce((a, b) => a + b, 0);
+    console.log("⚡ Calcul élixir:", { costs, total, average: total / costs.length });
+    return total / costs.length;
   }
 
   showCollection() {
