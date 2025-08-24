@@ -117,7 +117,7 @@ class BattleTab {
     });
 
     const editBtn = this.tabElement.querySelector('#btn-edit-profile');
-editBtn.addEventListener('click', () => this.emit('profile:open'));
+editBtn.addEventListener('click', () => this.emit('player:open-profile'));
     
     // Close dropdown if clicking outside
     document.addEventListener('click', (e) => {
