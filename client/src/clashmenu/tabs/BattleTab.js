@@ -4,10 +4,14 @@ class BattleTab {
     this.isSearching = false;
     this.currentUser = null;
 
+    this.currentMode = 'Ladder';
+    this.modes = ['Ladder', 'Training', 'Challenge'];
+
     this.container = null;
     this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
+    this.modeLabel = null;
     this.dropdownMenu = null;
 
     this.eventListeners = new Map();
@@ -65,7 +69,10 @@ class BattleTab {
       <div class="battle-bottom">
         <div class="battle-action">
           <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
-          <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
+            <div class="mode-label" id="mode-label">Ladder</div>
+          </div>
         </div>
         <div class="battle-chests">
           <div class="chest-slot" data-slot="1"></div>
@@ -78,12 +85,20 @@ class BattleTab {
 
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
     this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
+    this.modeLabel = this.tabElement.querySelector('#mode-label');
     this.dropdownMenu = this.tabElement.querySelector('#dropdown-menu');
   }
 
   setupEventListeners() {
     this.battleBtn.addEventListener('click', () => this.handleMainBattle());
-    this.modeBtn.addEventListener('click', () => this.emit('battle:mode'));
+
+    // Mode: cycle + emit
+    this.modeBtn.addEventListener('click', () => {
+      const idx = this.modes.indexOf(this.currentMode);
+      const next = this.modes[(idx + 1) % this.modes.length];
+      this.setMode(next);
+      this.emit('battle:mode', { mode: next });
+    });
 
     const avatar = this.tabElement.querySelector('#player-avatar');
     avatar.addEventListener('click', () => this.emit('player:change-avatar'));
@@ -113,6 +128,11 @@ class BattleTab {
     });
   }
 
+  setMode(mode) {
+    this.currentMode = mode;
+    if (this.modeLabel) this.modeLabel.textContent = mode;
+  }
+
   updatePlayerData(user) {
     if (!user) return;
     this.currentUser = user;
@@ -121,12 +141,8 @@ class BattleTab {
     this.tabElement.querySelector('#topbar-player-trophies').textContent =
       `🏆 ${user.trophies || 0}`;
 
-    if (user.avatarUrl) {
-      this.tabElement.querySelector('#player-avatar').src = user.avatarUrl;
-    }
-    if (user.bannerUrl) {
-      this.tabElement.querySelector('#topbar-banner').src = user.bannerUrl;
-    }
+    if (user.avatarUrl) this.tabElement.querySelector('#player-avatar').src = user.avatarUrl;
+    if (user.bannerUrl) this.tabElement.querySelector('#topbar-banner').src = user.bannerUrl;
   }
 
   handleMainBattle() {
@@ -137,7 +153,7 @@ class BattleTab {
   startBattleSearch() {
     this.isSearching = true;
     this.battleBtn.textContent = '❌ Cancel';
-    this.emit('battle:search');
+    this.emit('battle:search', { mode: this.currentMode });
   }
 
   cancelBattleSearch() {
@@ -146,20 +162,11 @@ class BattleTab {
     this.emit('battle:cancel');
   }
 
-  show() {
-    this.tabElement.classList.add('active');
-    this.isActive = true;
-  }
-
-  hide() {
-    this.tabElement.classList.remove('active');
-    this.isActive = false;
-  }
+  show() { this.tabElement.classList.add('active'); this.isActive = true; }
+  hide() { this.tabElement.classList.remove('active'); this.isActive = false; }
 
   on(event, callback) {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, new Set());
-    }
+    if (!this.eventListeners.has(event)) this.eventListeners.set(event, new Set());
     this.eventListeners.get(event).add(callback);
   }
 
