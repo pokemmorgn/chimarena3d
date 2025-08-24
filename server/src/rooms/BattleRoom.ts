@@ -183,11 +183,10 @@ export class BattleRoom extends Room<BattleRoomState> {
   };
   
   // État interne
-  private playersLoaded = new Set<string>();
   private disconnectedPlayers = new Map<string, number>();
   private lastElixirUpdate = new Map<string, number>();
   
-  async onAuth(client: Client, options: any, request?: http.IncomingMessage) {
+  async onAuth(_client: Client, options: any, _request?: http.IncomingMessage) {
     try {
       // Vérifier le token JWT
       const authToken = options?.authToken;
@@ -242,7 +241,7 @@ export class BattleRoom extends Room<BattleRoomState> {
     });
   }
 
-  async onJoin(client: Client, options: any, auth: any) {
+  async onJoin(client: Client, _options: any, auth: any) {
     console.log(`⚔️ Player ${client.sessionId} joining BattleRoom`);
     
     try {
@@ -940,7 +939,6 @@ export class BattleRoom extends Room<BattleRoomState> {
 
   private async handleSurrender(userId: string, reason: string) {
     const playerState = userId === this.state.player1.userId ? this.state.player1 : this.state.player2;
-    const opponentState = userId === this.state.player1.userId ? this.state.player2 : this.state.player1;
     
     playerState.hasSurrendered = true;
     
@@ -1016,7 +1014,10 @@ export class BattleRoom extends Room<BattleRoomState> {
     
     // Calculer la prochaine carte dans le cycle
     playerState.cardCycle = (playerState.cardCycle + 1) % playerState.deck.length;
-    playerState.nextCard = playerState.deck[playerState.cardCycle];
+    const nextCardId = playerState.deck[playerState.cardCycle];
+    if (nextCardId) {
+      playerState.nextCard = nextCardId;
+    }
   }
 
   private getCardElixirCost(cardId: string): number {
@@ -1050,7 +1051,7 @@ export class BattleRoom extends Room<BattleRoomState> {
     };
   }
 
-  private async applySpellEffect(spellId: string, position: { x: number; y: number }, targetId: string | undefined, caster: BattlePlayerState) {
+  private async applySpellEffect(spellId: string, position: { x: number; y: number }, _targetId: string | undefined, caster: BattlePlayerState) {
     // TODO: Implémenter les effets des sorts
     console.log(`✨ Applying spell ${spellId} at (${position.x}, ${position.y})`);
     
