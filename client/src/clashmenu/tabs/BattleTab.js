@@ -8,7 +8,6 @@ class BattleTab {
     this.tabElement = null;
     this.battleBtn = null;
     this.modeBtn = null;
-    this.dropdownMenu = null;
 
     this.eventListeners = new Map();
   }
@@ -34,21 +33,23 @@ class BattleTab {
           <button class="topbar-btn" id="btn-friends">👥</button>
           <button class="topbar-btn" id="btn-messages">💬</button>
         </div>
-        <div class="topbar-center">
-          <span class="player-name" id="topbar-player-name">Player</span>
-          <span class="player-trophies" id="topbar-player-trophies">🏆 0</span>
-        </div>
+        <div class="topbar-center"></div>
         <div class="topbar-right">
           <button class="topbar-btn" id="btn-menu">☰</button>
         </div>
       </div>
 
-      <!-- Dropdown menu -->
-      <div class="dropdown-menu" id="dropdown-menu">
-        <div class="dropdown-item" data-action="leaderboard">🏆 Leaderboard</div>
-        <div class="dropdown-item" data-action="history">📜 Battle History</div>
-        <div class="dropdown-item" data-action="options">⚙️ Settings</div>
-        <div class="dropdown-item" data-action="logout">🚪 Logout</div>
+      <!-- Player banner -->
+      <div class="player-banner">
+        <img src="assets/banner_placeholder.jpg" alt="Banner" class="banner-bg" />
+        <div class="banner-content">
+          <img src="assets/avatar_placeholder.png" alt="Avatar" class="player-avatar" id="player-avatar" />
+          <div class="banner-info">
+            <div class="banner-name" id="banner-name">Player</div>
+            <div class="banner-trophies" id="banner-trophies">🏆 0</div>
+          </div>
+          <button class="banner-edit-btn" id="btn-edit-banner">✏️</button>
+        </div>
       </div>
 
       <!-- Arena -->
@@ -61,54 +62,37 @@ class BattleTab {
         <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
         <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
       </div>
-
-      <!-- Chests -->
-      <div class="battle-chests">
-        <div class="chest-slot" data-slot="1"></div>
-        <div class="chest-slot" data-slot="2"></div>
-        <div class="chest-slot" data-slot="3"></div>
-        <div class="chest-slot" data-slot="4"></div>
-      </div>
     `;
 
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
     this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
-    this.dropdownMenu = this.tabElement.querySelector('#dropdown-menu');
   }
 
   setupEventListeners() {
     this.battleBtn.addEventListener('click', () => this.handleMainBattle());
     this.modeBtn.addEventListener('click', () => this.emit('battle:mode'));
 
-    const menuBtn = this.tabElement.querySelector('#btn-menu');
-    menuBtn.addEventListener('click', (e) => {
-      e.stopPropagation(); // prevent immediate close
-      this.dropdownMenu.classList.toggle('active');
-    });
+    const avatar = this.tabElement.querySelector('#player-avatar');
+    avatar.addEventListener('click', () => this.emit('player:change-avatar'));
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (this.dropdownMenu.classList.contains('active')) {
-        if (!this.dropdownMenu.contains(e.target) && e.target.id !== 'btn-menu') {
-          this.dropdownMenu.classList.remove('active');
-        }
-      }
-    });
-
-    // Menu item clicks
-    this.dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => {
-      item.addEventListener('click', () => {
-        this.dropdownMenu.classList.remove('active');
-        this.emit(`menu:${item.dataset.action}`);
-      });
-    });
+    const editBanner = this.tabElement.querySelector('#btn-edit-banner');
+    editBanner.addEventListener('click', () => this.emit('player:change-banner'));
   }
 
   updatePlayerData(user) {
     if (!user) return;
     this.currentUser = user;
-    this.tabElement.querySelector('#topbar-player-name').textContent = user.displayName || user.username || 'Player';
-    this.tabElement.querySelector('#topbar-player-trophies').textContent = `🏆 ${user.trophies || 0}`;
+    this.tabElement.querySelector('#banner-name').textContent =
+      user.displayName || user.username || 'Player';
+    this.tabElement.querySelector('#banner-trophies').textContent =
+      `🏆 ${user.trophies || 0}`;
+
+    if (user.avatarUrl) {
+      this.tabElement.querySelector('#player-avatar').src = user.avatarUrl;
+    }
+    if (user.bannerUrl) {
+      this.tabElement.querySelector('.banner-bg').src = user.bannerUrl;
+    }
   }
 
   handleMainBattle() {
