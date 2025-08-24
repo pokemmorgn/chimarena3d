@@ -59,16 +59,24 @@ static getContainerStyles() {
   return `
 .clash-menu-container {
   position: absolute;
-  inset: 44px 0 0 0; /* si tu veux laisser apparaître la status bar */
+  inset: 44px 0 0 0; /* laisse apparaître la status bar */
   width: 100%;
   height: calc(100% - 44px);
-  background: linear-gradient(135deg, #0f1419, #1a237e);
+  background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
   font-family: 'Arial', sans-serif;
-  overflow: hidden;
-  z-index: 20; /* au-dessus du canvas (z=5), mais sous la status bar (z=1000) */
+  overflow-y: auto; /* scroll actif */
+  scrollbar-width: none;      /* Firefox */
+  -ms-overflow-style: none;   /* IE/Edge */
+  z-index: 20; /* au-dessus du canvas (z=5), sous la status bar (z=1000) */
+}
+
+/* Chrome, Safari, Edge */
+.clash-menu-container::-webkit-scrollbar {
+  display: none;
 }
   `;
 }
+
 
   /**
    * Styles de la navigation par onglets
