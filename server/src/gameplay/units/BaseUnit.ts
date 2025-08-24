@@ -220,10 +220,10 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   set lastAttackTick(value: number) { if (this.behavior) this.behavior.lastAttackTick = value; }
   
   // Propriétés ITargetableEntity
-  get isFlying(): boolean | undefined { return this.baseStats?.targets === 'air'; }
-  get isTank(): boolean | undefined { return this.baseStats?.mass > 2 || this.maxHitpoints > 1000; }
-  get isBuilding(): boolean | undefined { return this.unitType === 'building'; }
-  get mass(): number | undefined { return this.baseStats?.mass; }
+  get isFlying(): boolean { return this.baseStats?.targets === 'air' || false; }
+  get isTank(): boolean { return (this.baseStats?.mass || 0) > 2 || this.maxHitpoints > 1000; }
+  get isBuilding(): boolean { return this.unitType === 'building'; }
+  get mass(): number { return this.baseStats?.mass || 1; }
   
   // État de combat (ICombatant optionals)
   isStunned?: boolean = false;
@@ -289,7 +289,7 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       this.initializeBehavior();
       
       // Enregistrer dans le CombatSystem
-      this.combatSystem.registerCombatant(this);
+      this.combatSystem.registerCombatant(this.toCombatant());
       
       // Logger la création (sync pour éviter les problèmes)
       this.logger.logBattle('unit_deployed', ownerId, {
@@ -447,7 +447,7 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   private updateIdle(currentTick: number): void {
     // Chercher des cibles si cooldown écoulé
     if (currentTick >= this.behavior.lastRetarget + this.behavior.retargetCooldown) {
-      const targetingResult = this.findTargetWithSystem(currentTick);
+      const targetingResult = this.findTargetWithSystemInternal(currentTick);
       if (targetingResult.target) {
         this.setTarget(targetingResult.target);
         this.setState('moving');
@@ -527,16 +527,16 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       
       // Configuration splash si applicable
       hasSplash: this.baseStats.splashDamage,
-      splashRadius: this.baseStats.splashRadius,
+      splashRadius: this.baseStats.splashRadius || undefined,
       splashDamagePercent: 100,
       
       // Configuration projectile si ranged
       isProjectile: this.isRangedUnit(),
-      projectileSpeed: this.getProjectileSpeed(),
+      projectileSpeed: this.getProjectileSpeed() || undefined,
       
       // Effets spéciaux selon les abilities
-      stun: this.getStunDuration(),
-      knockback: this.getKnockbackForce()
+      stun: this.getStunDuration() || undefined,
+      knockback: this.getKnockbackForce() || undefined
     };
     
     // Déléguer au CombatSystem
@@ -573,15 +573,15 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   /**
    * Trouver une cible avec le TargetingSystem
    */
-  private findTargetWithSystem(currentTick: number): ITargetingResult {
+  private findTargetWithSystemInternal(currentTick: number): ITargetingResult {
     // TODO: Obtenir la liste des entités disponibles depuis BattleRoom
     const availableTargets: ITargetableEntity[] = []; // Sera fourni par BattleRoom
     
     return this.targetingSystem.findBestTarget(
-      this,                               // Cette unité comme attacker
-      availableTargets,                   // Toutes les cibles possibles
-      this.behavior.currentTarget,        // Cible actuelle (si existe)
-      currentTick                        // Tick actuel
+      this.toTargetableEntity(),           // Cette unité convertie en ITargetableEntity
+      availableTargets,                    // Toutes les cibles possibles
+      this.behavior.currentTarget,         // Cible actuelle (si existe)
+      currentTick                         // Tick actuel
     );
   }
   
@@ -923,10 +923,10 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
    */
   private findTargetWithSystem(currentTick: number): ITargetingResult {
     return this.targetingSystem.findBestTarget(
-      this,                               // Cette unité comme attacker
-      this.availableTargets,              // Toutes les cibles possibles
-      this.behavior.currentTarget,        // Cible actuelle (si existe)
-      currentTick                        // Tick actuel
+      this.toTargetableEntity(),           // Cette unité convertie
+      this.availableTargets,               // Toutes les cibles possibles
+      this.behavior.currentTarget,         // Cible actuelle (si existe)
+      currentTick                         // Tick actuel
     );
   }
   
@@ -961,10 +961,10 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       damage: this.getCurrentDamage(),
       damageType: this.getDamageType(),
       hasSplash: this.baseStats.splashDamage,
-      splashRadius: this.baseStats.splashRadius,
+      splashRadius: this.baseStats.splashRadius || undefined,
       splashDamagePercent: 100,
       isProjectile: this.isRangedUnit(),
-      projectileSpeed: this.getProjectileSpeed()
+      projectileSpeed: this.getProjectileSpeed() || undefined
     };
     
     return this.combatSystem.performAttack(attackConfig);
@@ -1076,7 +1076,41 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
    * Convertir en ICombatant pour CombatSystem (déjà implémenté via interface)
    */
   toCombatant(): ICombatant {
-    return this; // BaseUnit implémente déjà ICombatant
+    // Créer un objet qui respecte strictement ICombatant
+    return {
+      id: this.id,
+      position: this.position,
+      ownerId: this.ownerId,
+      type: this.type,
+      isAlive: this.isAlive,
+      hitpoints: this.hitpoints,
+      maxHitpoints: this.maxHitpoints,
+      isFlying: this.isFlying,
+      isTank: this.isTank,
+      isBuilding: this.isBuilding,
+      mass: this.mass,
+      
+      // Combat properties
+      armor: this.armor,
+      spellResistance: this.spellResistance,
+      shield: this.shield,
+      canAttack: this.canAttack,
+      attackRange: this.attackRange,
+      attackDamage: this.attackDamage,
+      attackSpeed: this.attackSpeed,
+      lastAttackTick: this.lastAttackTick,
+      
+      // État de combat
+      isStunned: this.isStunned,
+      stunEndTick: this.stunEndTick,
+      isInvulnerable: this.isInvulnerable,
+      invulnerabilityEndTick: this.invulnerabilityEndTick,
+      
+      // Callbacks
+      onTakeDamage: this.onTakeDamage,
+      onDeath: this.onDeath,
+      onAttack: this.onAttack
+    };
   }
   
   // === FACTORY METHODS POUR CARTES SPÉCIFIQUES ===
