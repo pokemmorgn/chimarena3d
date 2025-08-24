@@ -23,6 +23,35 @@ class CardModalStyles {
   box-shadow: 0 6px 20px rgba(0,0,0,0.5);
   animation: popIn 0.2s ease;
 }
+
+.cm-upgrade-progress {
+  position: relative;
+  background: #2c3e50;
+  border-radius: 4px;
+  height: 18px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  font-size: 12px;
+  color: #fff;
+  text-align: center;
+  line-height: 18px;
+}
+
+.cm-upgrade-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #27ae60;
+  transition: width 0.3s ease;
+}
+
+.cm-upgrade-progress span {
+  position: relative;
+  z-index: 2;
+  font-weight: bold;
+}
+
 .card-modal-close {
   position: absolute;
   top: 10px;
