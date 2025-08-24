@@ -87,7 +87,7 @@ class CardsTabStyles {
   left: 4px;
   width: 28px;
   height: 28px;
-  background: url('/ui/GradeIcon_Star_s_Yellow.png') no-repeat center/contain;
+  background: url('/icons/GradeIcon_Star_s_Yellow.png') no-repeat center/contain;
   color: #fff;
   font-size: 13px;
   font-weight: bold;
