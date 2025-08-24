@@ -6,7 +6,7 @@ class CardsTabStyles {
   top: 60px; /* garde la hauteur de la topbar */
   left: 0;
   width: 100%;
-  height: calc(100% - 120px);
+  height: calc(100% - 140px);
   display: none;
   flex-direction: column;
   background: linear-gradient(180deg, #1a1f2b, #0f1419);
