@@ -56,12 +56,9 @@ class CardsTab {
    */
   renderLayout() {
     this.tabElement.innerHTML = `
-      <!-- Contenu principal des cartes -->
+      <!-- Contenu principal vide -->
       <div class="cards-main-content">
-        <div class="cards-placeholder">
-          <h2>🃏 Cards Collection</h2>
-          <p>Coming soon...</p>
-        </div>
+        <!-- Onglet vide, prêt pour le contenu futur -->
       </div>
     `;
 
