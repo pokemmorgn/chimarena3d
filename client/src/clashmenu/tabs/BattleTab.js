@@ -68,8 +68,7 @@ class BattleTab {
 
       <!-- Arena -->
       <div class="arena-section">
-        <img src="assets/arena_placeholder.png" alt="Arena" class="arena-image" />
-      </div>
+<img src="/arena/Arena1.png" alt="Arena" class="arena-image" />      </div>
 
       <!-- Bottom: Battle + mode + chests -->
       <div class="battle-bottom">
