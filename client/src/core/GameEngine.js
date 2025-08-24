@@ -80,20 +80,19 @@ class GameEngine {
    * Setup WebGL renderer with optimizations
    */
   setupRenderer() {
-    const parent = this.canvas.parentElement;
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: this.canvas,
-      antialias: true,
-      alpha: false,
-      powerPreference: 'high-performance',
-      stencil: false,
-      depth: true
-    });
-
-    // Renderer settings
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const parent = this.canvas.parentElement;
+this.renderer = new THREE.WebGLRenderer({
+  canvas: this.canvas,
+  antialias: true,
+  alpha: false,
+  powerPreference: 'high-performance',
+  stencil: false,
+  depth: true
+});
+
+this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 this.renderer.setSize(parent.clientWidth, parent.clientHeight);
+
     this.renderer.setClearColor(0x1a1a2e, 1.0); // Dark blue background
     
     // Enable shadows for better visuals
@@ -130,6 +129,7 @@ this.renderer.setSize(parent.clientWidth, parent.clientHeight);
   setupCamera() {
 const parent = this.canvas.parentElement;
 const aspect = parent.clientWidth / parent.clientHeight;
+
     
     this.camera = new THREE.PerspectiveCamera(
       60, // FOV - good for game view
@@ -194,8 +194,7 @@ const aspect = parent.clientWidth / parent.clientHeight;
       this.resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect;
-const parent = this.canvas.parentElement;
-this.handleResize(parent.clientWidth, parent.clientHeight);        }
+this.handleResize(this.canvas.parentElement.clientWidth, this.canvas.parentElement.clientHeight);
       });
       
       this.resizeObserver.observe(this.canvas.parentElement || this.canvas);
