@@ -27,28 +27,22 @@ class BattleTab {
 
   renderLayout() {
     this.tabElement.innerHTML = `
-      <!-- Top bar -->
+      <!-- Top bar with banner -->
       <div class="battle-topbar">
-        <div class="topbar-left">
-          <button class="topbar-btn" id="btn-friends">👥</button>
-          <button class="topbar-btn" id="btn-messages">💬</button>
-        </div>
-        <div class="topbar-center"></div>
-        <div class="topbar-right">
-          <button class="topbar-btn" id="btn-menu">☰</button>
-        </div>
-      </div>
-
-      <!-- Player banner -->
-      <div class="player-banner">
-        <img src="assets/banner_placeholder.jpg" alt="Banner" class="banner-bg" />
-        <div class="banner-content">
-          <img src="assets/avatar_placeholder.png" alt="Avatar" class="player-avatar" id="player-avatar" />
-          <div class="banner-info">
-            <div class="banner-name" id="banner-name">Player</div>
-            <div class="banner-trophies" id="banner-trophies">🏆 0</div>
+        <img src="assets/banner_placeholder.jpg" alt="Banner" class="topbar-banner" id="topbar-banner" />
+        <div class="topbar-content">
+          <div class="topbar-left">
+            <img src="assets/avatar_placeholder.png" alt="Avatar" class="player-avatar" id="player-avatar" />
+            <div class="player-info">
+              <div class="player-name" id="topbar-player-name">Player</div>
+              <div class="player-trophies" id="topbar-player-trophies">🏆 0</div>
+            </div>
           </div>
-          <button class="banner-edit-btn" id="btn-edit-banner">✏️</button>
+          <div class="topbar-right">
+            <button class="topbar-btn" id="btn-friends">👥</button>
+            <button class="topbar-btn" id="btn-messages">💬</button>
+            <button class="topbar-btn" id="btn-menu">☰</button>
+          </div>
         </div>
       </div>
 
@@ -75,23 +69,23 @@ class BattleTab {
     const avatar = this.tabElement.querySelector('#player-avatar');
     avatar.addEventListener('click', () => this.emit('player:change-avatar'));
 
-    const editBanner = this.tabElement.querySelector('#btn-edit-banner');
-    editBanner.addEventListener('click', () => this.emit('player:change-banner'));
+    const banner = this.tabElement.querySelector('#topbar-banner');
+    banner.addEventListener('click', () => this.emit('player:change-banner'));
   }
 
   updatePlayerData(user) {
     if (!user) return;
     this.currentUser = user;
-    this.tabElement.querySelector('#banner-name').textContent =
+    this.tabElement.querySelector('#topbar-player-name').textContent =
       user.displayName || user.username || 'Player';
-    this.tabElement.querySelector('#banner-trophies').textContent =
+    this.tabElement.querySelector('#topbar-player-trophies').textContent =
       `🏆 ${user.trophies || 0}`;
 
     if (user.avatarUrl) {
       this.tabElement.querySelector('#player-avatar').src = user.avatarUrl;
     }
     if (user.bannerUrl) {
-      this.tabElement.querySelector('.banner-bg').src = user.bannerUrl;
+      this.tabElement.querySelector('#topbar-banner').src = user.bannerUrl;
     }
   }
 
