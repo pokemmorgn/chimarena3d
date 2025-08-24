@@ -233,6 +233,34 @@ class CardsTabStyles {
   color: #aaa;
 }
 
+/* Cartes upgradables */
+.my-card.can-upgrade {
+  border: 2px solid #f1c40f !important;
+  box-shadow: 0 0 15px rgba(241, 196, 15, 0.5);
+}
+
+.upgrade-indicator, .max-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: #f1c40f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  z-index: 10;
+  border: 2px solid #fff;
+}
+
+.max-indicator { background: #9b59b6; }
+
+.card-progress.ready-upgrade .card-progress-fill {
+  background: linear-gradient(90deg, #2ecc71, #f1c40f);
+}
+
 /* === Notifications === */
 .deck-notification {
   position: fixed;
