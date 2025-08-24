@@ -4,7 +4,7 @@ import BattleTab from './tabs/BattleTab';
 import styles from './styles';
 import Header from './components/Header.js';
 import ProfileOverlay from './components/ProfileOverlay.js';
-import ProfileOverlayStyles from './styles/ProfileOverlayStyles.js';
+import ProfileOverlayStyles from './components/ProfileOverlayStyles.js';
 
 /**
  * Clash Menu Manager - Gestionnaire principal du menu
