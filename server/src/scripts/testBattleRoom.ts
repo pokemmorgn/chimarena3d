@@ -405,7 +405,7 @@ class BattleRoomTester {
         console.log(`   ✅ Spectator ${user.username} connected to room ${room.id}`);
         
         // Setup des event listeners
-        room.onMessage('spectator_joined', (message: any) => {
+        room.onMessage('spectator_joined', (_message: any) => {
           console.log(`   👁️ ${user.username} joined as spectator`);
         });
         
@@ -512,20 +512,9 @@ class BattleRoomTester {
     }
   }
 
-  private parseColyseusMessage(data: Buffer): any {
-    try {
-      const text = data.toString();
-      
-      if (text.startsWith('{')) {
-        return JSON.parse(text);
-      }
-      
-      // Message binaire Colyseus - on retourne un objet générique
-      return { type: 'binary_message', raw: text, data: text };
-      
-    } catch (error) {
-      return { type: 'parse_error', raw: data.toString() };
-    }
+  private parseColyseusMessage(data: any): any {
+    // Plus besoin de parser les messages binaires avec le vrai client Colyseus
+    return data;
   }
 
   private async cleanup(): Promise<void> {
