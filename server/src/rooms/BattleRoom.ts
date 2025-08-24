@@ -328,7 +328,6 @@ export class BattleRoom extends Room<BattleRoomState> {
     setTimeout(() => {
       this.state.phase = 'battle';
       this.gameStartTime = Date.now();
-      this.lastTickTime = this.gameStartTime;
       this.tickCount = 0;
       
       // Initialiser l'élixir system
@@ -1062,8 +1061,7 @@ export class BattleRoom extends Room<BattleRoomState> {
       if (unit.hitpoints <= 0 && unit.state !== 'dying') {
         unit.state = 'dying';
         
-        // Programmer la suppression (en ticks, pas en temps réel)
-        const deathTick = this.tickCount + 10; // 0.5 seconde = 10 ticks
+        // Programmer la suppression après animation (0.5 seconde)
         setTimeout(() => {
           if (this.state.units.has(unitId)) {
             this.state.units.delete(unitId);
