@@ -56,7 +56,7 @@ export interface ITargetingResult {
 /**
  * Système de targeting principal
  */
-export class TargetingSystem {
+class TargetingSystem {
   private config: ITargetingConfig;
   private recentTargets: Map<string, number> = new Map(); // targetId -> tick
   private targetHistory: Map<string, string[]> = new Map(); // attackerId -> [targetIds]
@@ -218,7 +218,7 @@ export class TargetingSystem {
   /**
    * Évaluer des facteurs spéciaux selon le type d'unité
    */
-  private evaluateSpecialFactors(attacker: ITargetableEntity, target: ITargetableEntity): number {
+  private evaluateSpecialFactors(attacker: ITargetableEntity, _target: ITargetableEntity): number {
     let bonus = 0;
     
     // Les unités rapides préfèrent les cibles isolées
@@ -319,18 +319,18 @@ export class TargetingSystem {
     };
   }
 
-  private canTargetAir(attacker: ITargetableEntity): boolean {
+  private canTargetAir(_attacker: ITargetableEntity): boolean {
     // TODO: Intégrer avec BaseUnit pour vérifier targets: 'air' | 'both'
     // Pour l'instant, supposer que seules certaines unités peuvent cibler l'air
     return false; // Par défaut, les unités ne ciblent que le sol
   }
 
-  private hasSplashDamage(attacker: ITargetableEntity): boolean {
+  private hasSplashDamage(_attacker: ITargetableEntity): boolean {
     // TODO: Intégrer avec BaseUnit splashDamage property
     return false; // Par défaut
   }
 
-  private isSupportUnit(attacker: ITargetableEntity): boolean {
+  private isSupportUnit(_attacker: ITargetableEntity): boolean {
     // TODO: Définir les unités de support (Healer, etc.)
     return false; // Par défaut
   }
