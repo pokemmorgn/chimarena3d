@@ -612,8 +612,21 @@ class CardsTab {
   handleCardDragEnd(e) {
     console.log("🎯 Fin du drag");
     
-    // Nettoyer immédiatement
-    this.cleanupAllVisualEffects();
+    // Nettoyage direct
+    if (this.tabElement) {
+      this.tabElement.querySelectorAll(".deck-slot").forEach(el => {
+        el.classList.remove("drag-over");
+        el.style.transform = "scale(1)";
+      });
+      
+      this.tabElement.querySelectorAll(".my-card, .collection-card").forEach(el => {
+        el.classList.remove("dragging");
+        el.style.transform = "";
+      });
+    }
+    
+    this.isDragging = false;
+    this.draggedCard = null;
   }
 
   async handleCardDrop(e, slotIndex) {
@@ -740,8 +753,22 @@ class CardsTab {
         this.renderMyCards(); // Mettre à jour aussi mes cartes
         this.showMessage(`✅ ${card.cardInfo?.nameKey || card.cardId} ajouté au deck !`, "success");
         
-        // Nettoyage immédiat
-        this.cleanupAllVisualEffects();
+        // Nettoyage direct sans fonction séparée
+        if (this.tabElement) {
+          this.tabElement.querySelectorAll(".deck-slot").forEach(el => {
+            el.classList.remove("drag-over");
+            el.style.transform = "scale(1)";
+            el.style.transition = "";
+          });
+          
+          this.tabElement.querySelectorAll(".my-card, .collection-card").forEach(el => {
+            el.classList.remove("dragging");
+            el.style.transform = "";
+          });
+        }
+        
+        this.isDragging = false;
+        this.draggedCard = null;
         
         console.log("✅ Deck mis à jour avec succès");
       } else {
