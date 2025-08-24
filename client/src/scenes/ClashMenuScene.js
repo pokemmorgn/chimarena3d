@@ -178,6 +178,10 @@ class ClashMenuScene {
       this.isConnectingToWorld = true;
       console.log('🌍 Connecting to WorldRoom...');
       
+      // Show connection status in menu
+      if (this.menuManager) {
+        this.menuManager.showConnectionStatus('Connecting to game world...', 'connecting');
+      }
       
       // Join WorldRoom via NetworkManager
       this.worldRoom = await this.networkManager.joinWorldRoom();
@@ -187,6 +191,7 @@ class ClashMenuScene {
       
       // Update menu with connection success
       if (this.menuManager) {
+        this.menuManager.showConnectionStatus('Connected to game world!', 'connected');
         this.menuManager.enableBattleFeatures(true);
       }
       
@@ -197,6 +202,7 @@ class ClashMenuScene {
       
       // Show error in menu
       if (this.menuManager) {
+        this.menuManager.showConnectionStatus('Failed to connect. Retrying...', 'error');
         this.menuManager.enableBattleFeatures(false);
       }
       
@@ -281,6 +287,7 @@ class ClashMenuScene {
       console.error('❌ Failed to activate ClashMenuScene:', error);
       // Show error but don't crash
       if (this.menuManager) {
+        this.menuManager.showConnectionStatus('Failed to load menu. Please refresh.', 'error');
       }
     }
   }
