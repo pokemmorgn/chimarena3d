@@ -117,17 +117,24 @@ class CardsTabStyles {
         text-align: center;
       }
 
-      .my-cards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-        gap: 10px;
-        max-height: 265px;
-        overflow-y: auto;
-        padding: 10px;
-        background: rgba(46,204,113,0.1);
-        border-radius: 8px;
-        border: 1px solid rgba(46,204,113,0.3);
-      }
+.my-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 10px;
+  max-height: 265px;
+  overflow-y: auto;
+  padding: 10px;
+  background: rgba(46,204,113,0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(46,204,113,0.3);
+
+  /* Masquer la scrollbar */
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge */
+}
+.my-cards-grid::-webkit-scrollbar {
+  display: none;               /* Chrome, Safari, Edge */
+}
 
       .my-card {
         width: 100%;
