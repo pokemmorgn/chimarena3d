@@ -195,26 +195,44 @@ class CardsTab {
       
       console.log("📦 Réponse collection complète:", data);
       
-      if (data.success) {
-        this.collection = data.data.cards || [];
-        console.log("✅ Collection chargée:", this.collection.length, "cartes");
-        console.log("🃏 Première carte exemple:", this.collection[0]);
-        
-        // Mise à jour de l'affichage
-        this.renderMyCards(); // Mettre à jour mes cartes
-        this.updateAuthDebug(`✅ ${this.collection.length} cartes chargées`);
-      } else {
-        console.error("❌ Erreur lors du chargement de la collection:", data.message);
-        this.updateAuthDebug(`❌ Erreur: ${data.message}`);
-        
-        // Si erreur d'auth, afficher des infos utiles
-        if (data.code === 'TOKEN_MISSING' || data.code === 'TOKEN_EXPIRED') {
-          this.showAuthError(data.message);
-        }
-      }
-    } catch (err) {
-      console.error("❌ Failed to load collection", err);
-      this.updateAuthDebug(`❌ Réseau: ${err.message}`);
+     if (data.success) {
+  this.collection = data.data.cards || [];
+  
+  // ✨ ENRICHIR avec données d'upgrade
+  this.collection = this.collection.map(card => {
+    const cardData = this.allCards.find(c => c.id === card.cardId);
+    if (cardData) {
+      const nextLevelUpgrade = cardData.cardsToUpgrade?.find(u => u.level === (card.level + 1));
+      return {
+        ...card,
+        cardInfo: cardData,
+        nextLevelCount: nextLevelUpgrade?.cards || null,
+        nextLevelGold: nextLevelUpgrade?.gold || null,
+        maxLevel: cardData.maxLevel,
+        canUpgrade: nextLevelUpgrade ? card.count >= nextLevelUpgrade.cards : false
+      };
+    }
+    return card;
+  });
+  
+  console.log("✅ Collection enrichie:", this.collection.length, "cartes");
+  console.log("🃏 Première carte enrichie:", this.collection[0]);
+  
+  // Mise à jour de l'affichage
+  this.renderMyCards();
+  this.updateAuthDebug(`✅ ${this.collection.length} cartes chargées et enrichies`);
+} else {
+  console.error("❌ Erreur lors du chargement de la collection:", data.message);
+  this.updateAuthDebug(`❌ Erreur: ${data.message}`);
+  
+  // Si erreur d'auth, afficher des infos utiles
+  if (data.code === 'TOKEN_MISSING' || data.code === 'TOKEN_EXPIRED') {
+    this.showAuthError(data.message);
+  }
+}
+} catch (err) {
+console.error("❌ Failed to load collection", err);
+this.updateAuthDebug(`❌ Réseau: ${err.message}`);
     }
   }
 
@@ -432,84 +450,100 @@ if (slot.cardInfo) {
    * Afficher mes cartes (collection du joueur) sous le deck
    */
   renderMyCards() {
-    const myCardsContainer = this.tabElement.querySelector(".my-cards-grid");
-    if (!myCardsContainer) return;
-    
-    myCardsContainer.innerHTML = "";
+ const myCardsContainer = this.tabElement.querySelector(".my-cards-grid");
+ if (!myCardsContainer) return;
+ 
+ myCardsContainer.innerHTML = "";
+ console.log("🎨 Rendu de mes cartes:", this.collection.length, "cartes");
+ if (this.collection.length === 0) {
+   myCardsContainer.innerHTML = `
+     <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
+       <p>Aucune carte dans votre collection</p>
+       <p style="font-size: 12px;">Commencez à jouer pour débloquer des cartes !</p>
+     </div>
+   `;
+   return;
+ }
+ 
+ this.collection.forEach((card, index) => {
+   const sprite = card.cardInfo?.sprite 
+     ? `/cards/${card.cardInfo.sprite}` 
+     : null;
+   const cardEl = document.createElement("div");
+   cardEl.className = "my-card";
+   if (card.cardInfo?.rarity) {
+     cardEl.classList.add(`card-${card.cardInfo.rarity}`);
+   }
+   
+   // Rendre la carte draggable
+   cardEl.draggable = true;
+   cardEl.dataset.cardId = card.cardId;
+   cardEl.dataset.cardLevel = card.level;
+   
+   // Ajouter classe si upgradable
+   if (card.canUpgrade) {
+     cardEl.classList.add("can-upgrade");
+   }
 
-    console.log("🎨 Rendu de mes cartes:", this.collection.length, "cartes");
+   // Calculer progression
+   let progressText = "";
+   let progressWidth = 0;
 
-    if (this.collection.length === 0) {
-      myCardsContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
-          <p>Aucune carte dans votre collection</p>
-          <p style="font-size: 12px;">Commencez à jouer pour débloquer des cartes !</p>
-        </div>
-      `;
-      return;
-    }
+   if (card.level >= card.maxLevel) {
+     progressText = "MAX";
+     progressWidth = 100;
+   } else if (card.nextLevelCount) {
+     progressText = `${card.count}/${card.nextLevelCount}`;
+     progressWidth = Math.min(100, (card.count / card.nextLevelCount) * 100);
+   } else {
+     progressText = `${card.count}/??`;
+     progressWidth = 0;
+   }
 
-    this.collection.forEach((card, index) => {
-      const sprite = card.cardInfo?.sprite 
-        ? `/cards/${card.cardInfo.sprite}` 
-        : null;
+   if (sprite) {
+     cardEl.innerHTML = `
+       <img src="${sprite}" alt="${card.cardId}" 
+            onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+       <div class="card-level">${card.level}</div>
+       <div class="card-progress ${card.canUpgrade ? 'ready-upgrade' : ''}">
+         <div class="card-progress-fill" style="width:${progressWidth}%;"></div>
+         <span>${progressText}</span>
+       </div>
+       ${card.canUpgrade ? '<div class="upgrade-indicator">⬆️</div>' : ''}
+       ${card.level >= card.maxLevel ? '<div class="max-indicator">👑</div>' : ''}
+     `;
+   } else {
+     cardEl.innerHTML = `
+       <div class="my-card-fallback">
+         <span>${card.cardId}</span>
+       </div>
+       <div class="card-level">${card.level}</div>
+       <div class="card-progress ${card.canUpgrade ? 'ready-upgrade' : ''}">
+         <div class="card-progress-fill" style="width:${progressWidth}%;"></div>
+         <span>${progressText}</span>
+       </div>
+       ${card.canUpgrade ? '<div class="upgrade-indicator">⬆️</div>' : ''}
+       ${card.level >= card.maxLevel ? '<div class="max-indicator">👑</div>' : ''}
+     `;
+   }
 
-      const cardEl = document.createElement("div");
-      cardEl.className = "my-card";
-      if (card.cardInfo?.rarity) {
-      cardEl.classList.add(`card-${card.cardInfo.rarity}`);
-      }
-      
-      // Rendre la carte draggable
-      cardEl.draggable = true;
-      cardEl.dataset.cardId = card.cardId;
-      cardEl.dataset.cardLevel = card.level;
-
-      if (sprite) {
-  cardEl.innerHTML = `
-    <img src="${sprite}" alt="${card.cardId}" 
-         onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-    <div class="card-level">${card.level}</div>
-    <div class="card-progress">
-      <div class="card-progress-fill" style="width:${Math.min(100, (card.count / (card.nextLevelCount || 1)) * 100)}%;"></div>
-      <span>${card.count}/${card.nextLevelCount || "??"}</span>
-    </div>
-  `;
-} else {
-  cardEl.innerHTML = `
-    <div class="my-card-fallback">
-      <span>${card.cardId}</span>
-    </div>
-    <div class="card-level">${card.level}</div>
-    <div class="card-progress">
-      <div class="card-progress-fill" style="width:${Math.min(100, (card.count / (card.nextLevelCount || 1)) * 100)}%;"></div>
-      <span>${card.count}/${card.nextLevelCount || "??"}</span>
-    </div>
-  `;
+   // Event listeners pour le drag & drop
+   cardEl.addEventListener("dragstart", (e) => {
+     this.handleCardDragStart(e, card);
+   });
+   cardEl.addEventListener("dragend", (e) => {
+     this.handleCardDragEnd(e);
+   });
+   // Clic alternatif pour mobile/touch
+   cardEl.addEventListener("click", () => {
+     if (!this.isDragging) {
+       this.handleCardClick(card);
+     }
+   });
+   myCardsContainer.appendChild(cardEl);
+ });
+ console.log("✅ Rendu de mes cartes terminé avec drag & drop");
 }
-
-
-      // Event listeners pour le drag & drop
-      cardEl.addEventListener("dragstart", (e) => {
-        this.handleCardDragStart(e, card);
-      });
-
-      cardEl.addEventListener("dragend", (e) => {
-        this.handleCardDragEnd(e);
-      });
-
-      // Clic alternatif pour mobile/touch
-      cardEl.addEventListener("click", () => {
-        if (!this.isDragging) {
-          this.handleCardClick(card);
-        }
-      });
-
-      myCardsContainer.appendChild(cardEl);
-    });
-
-    console.log("✅ Rendu de mes cartes terminé avec drag & drop");
-  }
 
   /**
    * Afficher toutes les cartes du jeu (pas seulement celles possédées)
