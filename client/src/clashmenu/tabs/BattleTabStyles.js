@@ -3,7 +3,6 @@ class BattleTabStyles {
     return {
       white: '#ffffff',
       gold: '#ffd700',
-      green: '#4caf50',
       darkBlue: '#0f1419',
       royalBlue: '#1a237e',
       neonBlue: '#00bcd4',
@@ -16,36 +15,90 @@ class BattleTabStyles {
   }
 
   static getBattleTabStyles() {
-    const { white, gold, darkBlue, royalBlue, neonBlue, gray } = this.colors;
+    const { white, gold, darkBlue, royalBlue, gray } = this.colors;
 
     return `
     .battle-tab {
       position: absolute;
-      top: 60px; /* below global header */
+      top: 60px;
       left: 0;
       width: 100%;
       height: calc(100% - 100px);
-      padding: 10px 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       overflow-y: auto;
     }
 
-    /* --- Top bar --- */
+    /* --- Top bar with banner --- */
     .battle-topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      position: relative;
       width: 100%;
-      padding: 8px 16px;
-      margin-bottom: 10px;
-      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      height: 100px;
       border-radius: 0;
+      margin-bottom: 15px;
+      overflow: hidden;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
     }
 
-    .topbar-left, .topbar-right {
+    .topbar-banner {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+      filter: brightness(0.7);
+    }
+
+    .topbar-content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Left side (avatar + name + trophies) */
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .player-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 3px solid ${gold};
+      background: ${gray};
+      object-fit: cover;
+      cursor: pointer;
+    }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-name {
+      font-size: 16px;
+      font-weight: bold;
+      color: ${white};
+    }
+
+    .player-trophies {
+      font-size: 14px;
+      color: ${gold};
+    }
+
+    /* Right side (icons) */
+    .topbar-right {
       display: flex;
       gap: 10px;
     }
@@ -55,7 +108,7 @@ class BattleTabStyles {
       height: 42px;
       border-radius: 50%;
       border: none;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.15);
       color: ${white};
       font-size: 20px;
       cursor: pointer;
@@ -64,80 +117,7 @@ class BattleTabStyles {
 
     .topbar-btn:hover {
       transform: scale(1.1);
-      background: rgba(255,255,255,0.2);
-    }
-
-    /* --- Player Banner --- */
-    .player-banner {
-      position: relative;
-      width: 95%;
-      max-width: 500px;
-      height: 120px;
-      border-radius: 15px;
-      margin: 10px 0 20px 0;
-      overflow: hidden;
-      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
-      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-    }
-
-    .banner-bg {
-      position: absolute;
-      inset: 0;
-      object-fit: cover;
-      width: 100%;
-      height: 100%;
-      filter: brightness(0.7);
-    }
-
-    .banner-content {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      align-items: center;
-      height: 100%;
-      padding: 0 15px;
-      color: ${white};
-    }
-
-    .player-avatar {
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      border: 3px solid ${gold};
-      background: ${gray};
-      margin-right: 15px;
-      object-fit: cover;
-      cursor: pointer;
-    }
-
-    .banner-info {
-      flex: 1;
-    }
-
-    .banner-name {
-      font-size: 18px;
-      font-weight: bold;
-      color: ${white};
-      margin-bottom: 5px;
-    }
-
-    .banner-trophies {
-      font-size: 14px;
-      color: ${gold};
-    }
-
-    .banner-edit-btn {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      border-radius: 8px;
-      color: ${white};
-      padding: 6px 10px;
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-
-    .banner-edit-btn:hover {
-      background: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.25);
     }
 
     /* --- Arena --- */
@@ -146,7 +126,6 @@ class BattleTabStyles {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 10px 0;
     }
 
     .arena-image {
