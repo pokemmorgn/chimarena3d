@@ -364,7 +364,7 @@ class CardsTab {
         <div class="deck-card-fallback">
           <span>${slot.cardId}</span>
         </div>
-        <div class="card-level">Lvl ${slot.level || 1}</div>
+        <div class="card-level">${slot.level || 1}</div>
         <div class="card-progress">
           <div class="card-progress-fill" style="width:${Math.min(100, (slot.count / (slot.nextLevelCount || 1)) * 100)}%;"></div>
           <span>${slot.count || 0}/${slot.nextLevelCount || "??"}</span>
@@ -464,7 +464,7 @@ class CardsTab {
   cardEl.innerHTML = `
     <img src="${sprite}" alt="${card.cardId}" 
          onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-    <div class="card-level">Lvl ${card.level}</div>
+    <div class="card-level">${card.level}</div>
     <div class="card-progress">
       <div class="card-progress-fill" style="width:${Math.min(100, (card.count / (card.nextLevelCount || 1)) * 100)}%;"></div>
       <span>${card.count}/${card.nextLevelCount || "??"}</span>
@@ -475,7 +475,7 @@ class CardsTab {
     <div class="my-card-fallback">
       <span>${card.cardId}</span>
     </div>
-    <div class="card-level">Lvl ${card.level}</div>
+    <div class="card-level">${card.level}</div>
     <div class="card-progress">
       <div class="card-progress-fill" style="width:${Math.min(100, (card.count / (card.nextLevelCount || 1)) * 100)}%;"></div>
       <span>${card.count}/${card.nextLevelCount || "??"}</span>
