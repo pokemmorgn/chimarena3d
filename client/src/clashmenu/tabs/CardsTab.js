@@ -863,95 +863,83 @@ class CardsTab {
   }
 
   renderCollection() {
-    const colContainer = this.tabElement.querySelector(".collection-grid");
-    if (!colContainer) return;
-    
-    colContainer.innerHTML = "";
+  const colContainer = this.tabElement.querySelector(".collection-grid");
+  if (!colContainer) return;
 
-    console.log("🎨 Rendu de la collection:", this.collection.length, "cartes");
+  colContainer.innerHTML = "";
 
-    if (this.collection.length === 0) {
-      colContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
-          <p>Aucune carte dans votre collection</p>
-          <p style="font-size: 12px;">Vérifiez la console pour plus de détails</p>
-          <button onclick="this.parentElement.parentElement.parentElement.querySelector('#btn-back-deck').click()" style="
-            background: #007bff; 
-            color: white; 
-            border: none; 
-            padding: 8px 16px; 
-            border-radius: 4px; 
-            cursor: pointer;
-            margin-top: 10px;
-          ">
-            Retour au deck
-          </button>
+  console.log("🎨 Rendu collection avec tri par rareté, toutes les cartes visibles");
+
+  // Ordre de rareté
+  const rarityOrder = { legendary: 1, epic: 2, rare: 3, common: 4 };
+
+  // On part de toutes les cartes du jeu
+  const sorted = [...this.allCards].sort((a, b) => {
+    return (rarityOrder[a.rarity] || 99) - (rarityOrder[b.rarity] || 99);
+  });
+
+  sorted.forEach(card => {
+    // Vérifie si le joueur la possède
+    const owned = this.collection.find(c => c.cardId === card.id);
+
+    const cardEl = document.createElement("div");
+    cardEl.className = "collection-card";
+    if (!owned) cardEl.classList.add("locked"); // grisée si non possédée
+
+    cardEl.draggable = !!owned;
+    cardEl.dataset.cardId = card.id;
+    cardEl.dataset.cardLevel = owned?.level || 1;
+
+    const sprite = card.sprite ? `/cards/${card.sprite}` : null;
+
+    if (sprite) {
+      cardEl.innerHTML = `
+        <img src="${sprite}" alt="${card.nameKey || card.id}"
+             onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+        <div class="collection-info">
+          <span>${card.nameKey || card.id}</span>
+          ${owned 
+            ? `<span>Niveau ${owned.level} - x${owned.count}</span>` 
+            : `<span>🔒 Non possédée</span>`}
         </div>
+        ${owned ? `<div class="drag-hint">📱 Glisser vers le deck</div>` : ""}
       `;
-      return;
+    } else {
+      cardEl.innerHTML = `
+        <div class="collection-card-fallback">
+          <span>${card.nameKey || card.id}</span>
+        </div>
+        <div class="collection-info">
+          <span>${card.nameKey || card.id}</span>
+          ${owned 
+            ? `<span>Niveau ${owned.level} - x${owned.count}</span>` 
+            : `<span>🔒 Non possédée</span>`}
+        </div>
+        ${owned ? `<div class="drag-hint">📱 Glisser vers le deck</div>` : ""}
+      `;
     }
 
-    this.collection.forEach((card, index) => {
-      console.log(`🃏 Rendu carte ${index}:`, card);
-      
-      const sprite = card.cardInfo?.sprite 
-        ? `/cards/${card.cardInfo.sprite}` 
-        : null;
-
-      const cardEl = document.createElement("div");
-      cardEl.className = "collection-card";
-      
-      // Rendre la carte draggable
-      cardEl.draggable = true;
-      cardEl.dataset.cardId = card.cardId;
-      cardEl.dataset.cardLevel = card.level;
-
-      if (sprite) {
-        cardEl.innerHTML = `
-          <img src="${sprite}" alt="${card.cardId}" 
-               onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-          <div class="collection-info">
-            <span>${card.cardInfo?.nameKey || card.cardId}</span>
-            <span>Niveau ${card.level}</span>
-            <span>x${card.count}</span>
-          </div>
-          <div class="drag-hint">📱 Glisser vers le deck</div>
-        `;
-      } else {
-        cardEl.innerHTML = `
-          <div class="collection-card-fallback">
-            <span>${card.cardId}</span>
-          </div>
-          <div class="collection-info">
-            <span>${card.cardInfo?.nameKey || card.cardId}</span>
-            <span>Niveau ${card.level}</span>
-            <span>x${card.count}</span>
-          </div>
-          <div class="drag-hint">📱 Glisser vers le deck</div>
-        `;
-      }
-
-      // Event listeners pour le drag & drop
+    if (owned) {
+      // Drag & drop seulement pour les cartes possédées
       cardEl.addEventListener("dragstart", (e) => {
-        this.handleCardDragStart(e, card);
+        this.handleCardDragStart(e, owned);
       });
-
       cardEl.addEventListener("dragend", (e) => {
         this.handleCardDragEnd(e);
       });
-
-      // Clic alternatif pour mobile/touch
       cardEl.addEventListener("click", () => {
         if (!this.isDragging) {
-          this.handleCardClick(card);
+          this.handleCardClick(owned);
         }
       });
+    }
 
-      colContainer.appendChild(cardEl);
-    });
+    colContainer.appendChild(cardEl);
+  });
 
-    console.log("✅ Rendu de la collection terminé avec drag & drop");
-  }
+  console.log("✅ Collection rendue:", sorted.length, "cartes affichées (possédées + non possédées)");
+}
+
 
   calculateAvgElixir(deck) {
     if (!deck || !Array.isArray(deck)) return 0;
