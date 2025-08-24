@@ -60,19 +60,13 @@ class ClashMenuManager {
    * Create main container
    */
 createMainContainer() {
-  const mobileViewport = document.getElementById('mobile-viewport');
-  if (!mobileViewport) {
-    console.warn('❌ mobile-viewport not found');
-    return;
-  }
-
   this.mainContainer = document.createElement('div');
   this.mainContainer.id = 'clash-menu-container';
   this.mainContainer.className = 'clash-menu-container';
 
-  mobileViewport.appendChild(this.mainContainer);
+  // Append to body to avoid clipping by mobile-viewport
+  document.body.appendChild(this.mainContainer);
 }
-
 
 
   /**
