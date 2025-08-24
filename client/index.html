@@ -107,7 +107,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, 
+//      background: linear-gradient(135deg, 
         var(--bg-secondary) 0%, 
         var(--bg-tertiary) 35%, 
         var(--bg-quaternary) 70%, 
@@ -178,17 +178,17 @@
     }
     
     /* Canvas de jeu Three.js */
-    #game-canvas {
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 5;
-      border-radius: 23px;
-      background: var(--bg-secondary);
-    }
+#game-canvas {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
     
     /* Status bar mobile simulation */
     .mobile-status-bar {
@@ -407,6 +407,7 @@
 
 <body>
   <!-- Container principal avec background animé -->
+    <canvas id="game-canvas"></canvas>
   <div class="app-container">
     <!-- Background particles (générées par JS) -->
     <div class="background-particles" id="background-particles"></div>
