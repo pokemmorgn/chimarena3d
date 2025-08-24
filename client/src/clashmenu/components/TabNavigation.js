@@ -28,8 +28,8 @@ class TabNavigation {
         id: 'cards',
         label: 'Cards',
         icon: '🃏',
-        enabled: false,
-        comingSoon: true
+        enabled: true,  // ✅ Changer de false à true
+        comingSoon: false // ✅ Changer de true à false
       },
       {
         id: 'clan',
