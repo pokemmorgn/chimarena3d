@@ -527,16 +527,16 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       
       // Configuration splash si applicable
       hasSplash: this.baseStats.splashDamage,
-      splashRadius: this.baseStats.splashRadius || undefined,
+      ...(this.baseStats.splashRadius !== undefined && { splashRadius: this.baseStats.splashRadius }),
       splashDamagePercent: 100,
       
       // Configuration projectile si ranged
       isProjectile: this.isRangedUnit(),
-      projectileSpeed: this.getProjectileSpeed() || undefined,
+      ...(this.getProjectileSpeed() !== undefined && { projectileSpeed: this.getProjectileSpeed()! }),
       
       // Effets spéciaux selon les abilities
-      stun: this.getStunDuration() || undefined,
-      knockback: this.getKnockbackForce() || undefined
+      ...(this.getStunDuration() !== undefined && { stun: this.getStunDuration()! }),
+      ...(this.getKnockbackForce() !== undefined && { knockback: this.getKnockbackForce()! })
     };
     
     // Déléguer au CombatSystem
@@ -580,7 +580,7 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     return this.targetingSystem.findBestTarget(
       this.toTargetableEntity(),           // Cette unité convertie en ITargetableEntity
       availableTargets,                    // Toutes les cibles possibles
-      this.behavior.currentTarget,         // Cible actuelle (si existe)
+      this.behavior.currentTarget || null, // Cible actuelle (convertir undefined en null)
       currentTick                         // Tick actuel
     );
   }
@@ -914,6 +914,15 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     // Stocker les cibles disponibles pour le targeting
     // Cette méthode sera appelée par BattleRoom à chaque tick
     this.availableTargets = availableTargets;
+    
+    // Utiliser le targeting si nécessaire
+    if (this.state === 'idle' && this.lastUpdateTick % 20 === 0) { // Check toutes les secondes
+      const targetingResult = this.findTargetWithSystem(this.lastUpdateTick);
+      if (targetingResult.target) {
+        this.setTarget(targetingResult.target);
+        this.setState('moving');
+      }
+    }
   }
   
   private availableTargets: ITargetableEntity[] = [];
@@ -925,7 +934,7 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     return this.targetingSystem.findBestTarget(
       this.toTargetableEntity(),           // Cette unité convertie
       this.availableTargets,               // Toutes les cibles possibles
-      this.behavior.currentTarget,         // Cible actuelle (si existe)
+      this.behavior.currentTarget || null, // Cible actuelle (convertir undefined en null)
       currentTick                         // Tick actuel
     );
   }
@@ -961,10 +970,10 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       damage: this.getCurrentDamage(),
       damageType: this.getDamageType(),
       hasSplash: this.baseStats.splashDamage,
-      splashRadius: this.baseStats.splashRadius || undefined,
+      ...(this.baseStats.splashRadius !== undefined && { splashRadius: this.baseStats.splashRadius }),
       splashDamagePercent: 100,
       isProjectile: this.isRangedUnit(),
-      projectileSpeed: this.getProjectileSpeed() || undefined
+      ...(this.getProjectileSpeed() !== undefined && { projectileSpeed: this.getProjectileSpeed()! })
     };
     
     return this.combatSystem.performAttack(attackConfig);
@@ -1090,21 +1099,21 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       isBuilding: this.isBuilding,
       mass: this.mass,
       
-      // Combat properties
-      armor: this.armor,
-      spellResistance: this.spellResistance,
-      shield: this.shield,
+      // Combat properties avec valeurs par défaut
+      armor: this.armor || 0,
+      spellResistance: this.spellResistance || 0,
+      shield: this.shield || 0,
       canAttack: this.canAttack,
       attackRange: this.attackRange,
       attackDamage: this.attackDamage,
       attackSpeed: this.attackSpeed,
       lastAttackTick: this.lastAttackTick,
       
-      // État de combat
-      isStunned: this.isStunned,
-      stunEndTick: this.stunEndTick,
-      isInvulnerable: this.isInvulnerable,
-      invulnerabilityEndTick: this.invulnerabilityEndTick,
+      // État de combat avec valeurs par défaut
+      isStunned: this.isStunned || false,
+      stunEndTick: this.stunEndTick || undefined,
+      isInvulnerable: this.isInvulnerable || false,
+      invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
       
       // Callbacks
       onTakeDamage: this.onTakeDamage,
