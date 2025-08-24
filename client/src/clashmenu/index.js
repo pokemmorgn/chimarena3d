@@ -59,14 +59,23 @@ class ClashMenuManager {
   /**
    * Create main container
    */
-  createMainContainer() {
-    this.mainContainer = document.createElement('div');
-    this.mainContainer.id = 'clash-menu-container';
-    this.mainContainer.className = 'clash-menu-container';
-    
-    document.body.appendChild(this.mainContainer);
-    console.log('📦 Main container created');
-  }
+createMainContainer() {
+  // Phone wrapper (simulate mobile screen)
+  const phoneWrapper = document.createElement('div');
+  phoneWrapper.id = 'clash-phone-wrapper';
+  phoneWrapper.className = 'clash-phone-wrapper';
+
+  // Main container inside phone wrapper
+  this.mainContainer = document.createElement('div');
+  this.mainContainer.id = 'clash-menu-container';
+  this.mainContainer.className = 'clash-menu-container';
+
+  phoneWrapper.appendChild(this.mainContainer);
+  document.body.appendChild(phoneWrapper);
+
+  console.log('📦 Main container created with phone wrapper');
+}
+
 
   /**
    * Inject CSS styles
