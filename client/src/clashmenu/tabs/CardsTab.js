@@ -550,20 +550,20 @@ if (slot.cardInfo) {
    cardEl.addEventListener("dragend", (e) => {
      this.handleCardDragEnd(e);
    });
-   // Clic alternatif pour mobile/touch
-cardEl.addEventListener("click", () => {
-  if (!this.isDragging) {
-    this.cardModal.open(card); // Ouvre la popup
-  }
-});
-   myCardsContainer.appendChild(cardEl);
- });
- console.log("✅ Rendu de mes cartes terminé avec drag & drop");
-}
+   
+   // Clic pour ouvrir la modale (version corrigée)
+   cardEl.addEventListener("click", (e) => {
+     // Empêcher le clic pendant un drag actif
+     if (this.isDragging) {
+       return;
+     }
+     
+     console.log("🖱️ Clic détecté sur carte:", card.cardId);
+     e.preventDefault();
+     e.stopPropagation();
+     this.cardModal.open(card);
+   });
 
-  /**
-   * Afficher toutes les cartes du jeu (pas seulement celles possédées)
-   */
 /**
  * Afficher toutes les cartes du jeu (possédées + non possédées)
  */
@@ -677,25 +677,28 @@ renderAllCards() {
     e.target.classList.add("dragging");
   }
 
-  handleCardDragEnd(e) {
-    console.log("🎯 Fin du drag");
+ handleCardDragEnd(e) {
+  console.log("🎯 Fin du drag");
+  
+  // Nettoyage direct
+  if (this.tabElement) {
+    this.tabElement.querySelectorAll(".deck-slot").forEach(el => {
+      el.classList.remove("drag-over");
+      el.style.transform = "scale(1)";
+    });
     
-    // Nettoyage direct
-    if (this.tabElement) {
-      this.tabElement.querySelectorAll(".deck-slot").forEach(el => {
-        el.classList.remove("drag-over");
-        el.style.transform = "scale(1)";
-      });
-      
-      this.tabElement.querySelectorAll(".my-card, .collection-card").forEach(el => {
-        el.classList.remove("dragging");
-        el.style.transform = "";
-      });
-    }
-    
+    this.tabElement.querySelectorAll(".my-card, .collection-card").forEach(el => {
+      el.classList.remove("dragging");
+      el.style.transform = "";
+    });
+  }
+  
+  // Délai court pour éviter les clics accidentels après drag
+  setTimeout(() => {
     this.isDragging = false;
     this.draggedCard = null;
-  }
+  }, 100);
+}
 
   async handleCardDrop(e, slotIndex) {
     e.preventDefault();
