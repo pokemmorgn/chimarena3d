@@ -51,22 +51,20 @@ class CardsTabStyles {
         margin-bottom: 15px;
       }
 
-      .deck-slot {
-        width: 100%;
-        aspect-ratio: 3/4;
-        border: 2px solid #444;
-        border-radius: 8px;
-        background: #222;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
-        position: relative;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        transform: scale(1);
-        max-width: 120px;
-        max-height: 160px;
-      }
+   .deck-slot {
+  width: 120px;
+  height: 160px;
+  border: 2px solid #444;
+  border-radius: 8px;
+  background: #222;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
 
       .deck-slot:hover {
         border-color: #666;
@@ -117,13 +115,13 @@ class CardsTabStyles {
         text-shadow: 0 1px 2px rgba(0,0,0,0.7);
         pointer-events: none;
       }
-
-      .deck-card {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 6px;
-      }
+      
+.deck-card {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* au lieu de cover pour éviter la déformation */
+  border-radius: 6px;
+}
 
       .deck-level {
         position: absolute;
