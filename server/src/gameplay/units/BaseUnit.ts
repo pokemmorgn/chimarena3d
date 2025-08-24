@@ -291,7 +291,7 @@ export class BaseUnit extends Schema {
       deployTime: this.cardData.stats.deployTime || 1,
       
       abilities: this.cardData.stats.abilities || [],
-      spawns: this.cardData.stats.spawns,
+      spawns: this.cardData.stats.spawns || undefined,
       spawnCount: this.cardData.stats.spawnCount || 0
     };
     
@@ -506,12 +506,13 @@ export class BaseUnit extends Schema {
     this.currentHitpoints = Math.max(0, this.currentHitpoints - actualDamage);
     
     // Logger les dégâts
-    this.logger.logBattle('unit_damaged', this.ownerId, {
+    await this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
       attackerId,
       damage: actualDamage,
       remainingHP: this.currentHitpoints,
-      damageType
+      damageType,
+      actionType: 'unit_damaged'
     });
     
     // Vérifier si mort
@@ -566,11 +567,12 @@ export class BaseUnit extends Schema {
     const damage = this.getCurrentDamage();
     
     // Logger l'attaque
-    this.logger.logBattle('unit_attack', this.ownerId, {
+    await this.logger.logBattle('card_played', this.ownerId, {
       attackerId: this.id,
       targetId: this.behavior.currentTarget.id,
       damage,
-      attackType: this.baseStats.splashDamage ? 'splash' : 'single'
+      attackType: this.baseStats.splashDamage ? 'splash' : 'single',
+      actionType: 'unit_attack'
     });
     
     // TODO: Intégrer avec CombatSystem pour appliquer les dégâts
@@ -731,11 +733,12 @@ export class BaseUnit extends Schema {
     this.behavior.debuffs.clear();
     
     // Logger la destruction
-    this.logger.logBattle('unit_destroyed', this.ownerId, {
+    await this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
       cardId: this.cardId,
       finalState: this.state,
-      lifespan: this.lastUpdateTick - this.spawnTick
+      lifespan: this.lastUpdateTick - this.spawnTick,
+      actionType: 'unit_destroyed'
     });
   }
   
@@ -793,7 +796,7 @@ export class BaseUnit extends Schema {
         deployTime: cardData.stats.deployTime || 1,
         
         abilities: cardData.stats.abilities || [],
-        spawns: cardData.stats.spawns,
+        spawns: cardData.stats.spawns || undefined,
         spawnCount: cardData.stats.spawnCount || 0
       };
     } catch (error) {
