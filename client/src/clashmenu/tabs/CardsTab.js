@@ -198,22 +198,31 @@ class CardsTab {
      if (data.success) {
   this.collection = data.data.cards || [];
   
-  // ✨ ENRICHIR avec données d'upgrade
-  this.collection = this.collection.map(card => {
-    const cardData = this.allCards.find(c => c.id === card.cardId);
-    if (cardData) {
-      const nextLevelUpgrade = cardData.cardsToUpgrade?.find(u => u.level === (card.level + 1));
-      return {
-        ...card,
-        cardInfo: cardData,
-        nextLevelCount: nextLevelUpgrade?.cards || null,
-        nextLevelGold: nextLevelUpgrade?.gold || null,
-        maxLevel: cardData.maxLevel,
-        canUpgrade: nextLevelUpgrade ? card.count >= nextLevelUpgrade.cards : false
-      };
-    }
-    return card;
+// Dans loadCollection(), après l'enrichissement, ajoute :
+this.collection = this.collection.map(card => {
+  const cardData = this.allCards.find(c => c.id === card.cardId);
+  console.log(`🔍 Debug carte ${card.cardId}:`, {
+    cardData: cardData ? 'trouvé' : 'PAS TROUVÉ',
+    cardsToUpgrade: cardData?.cardsToUpgrade,
+    currentLevel: card.level,
+    nextLevel: card.level + 1
   });
+  
+  if (cardData) {
+    const nextLevelUpgrade = cardData.cardsToUpgrade?.find(u => u.level === (card.level + 1));
+    console.log(`🎯 Upgrade pour niveau ${card.level + 1}:`, nextLevelUpgrade);
+    
+    return {
+      ...card,
+      cardInfo: cardData,
+      nextLevelCount: nextLevelUpgrade?.cards || null,
+      nextLevelGold: nextLevelUpgrade?.gold || null,
+      maxLevel: cardData.maxLevel,
+      canUpgrade: nextLevelUpgrade ? card.count >= nextLevelUpgrade.cards : false
+    };
+  }
+  return card;
+});
   
   console.log("✅ Collection enrichie:", this.collection.length, "cartes");
   console.log("🃏 Première carte enrichie:", this.collection[0]);
