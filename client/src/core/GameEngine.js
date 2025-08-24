@@ -80,6 +80,7 @@ class GameEngine {
    * Setup WebGL renderer with optimizations
    */
   setupRenderer() {
+    const parent = this.canvas.parentElement;
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
@@ -91,7 +92,8 @@ class GameEngine {
 
     // Renderer settings
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+const parent = this.canvas.parentElement;
+this.renderer.setSize(parent.clientWidth, parent.clientHeight);
     this.renderer.setClearColor(0x1a1a2e, 1.0); // Dark blue background
     
     // Enable shadows for better visuals
@@ -126,7 +128,8 @@ class GameEngine {
    * Setup camera with optimal settings for game view
    */
   setupCamera() {
-    const aspect = window.innerWidth / window.innerHeight;
+const parent = this.canvas.parentElement;
+const aspect = parent.clientWidth / parent.clientHeight;
     
     this.camera = new THREE.PerspectiveCamera(
       60, // FOV - good for game view
@@ -191,8 +194,8 @@ class GameEngine {
       this.resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect;
-          this.handleResize(width, height);
-        }
+const parent = this.canvas.parentElement;
+this.handleResize(parent.clientWidth, parent.clientHeight);        }
       });
       
       this.resizeObserver.observe(this.canvas.parentElement || this.canvas);
