@@ -57,29 +57,37 @@ static getContainerStyles() {
   const { darkBlue, royalBlue } = this.colors;
 
   return `
+    /* Isolation totale */
+    html, body {
+      all: initial;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: start;
+      min-height: 100vh;
+    }
+
     #clash-phone-wrapper {
-      width: 390px; /* Format mobile */
+      width: 390px;
       height: 844px;
-      margin: 20px auto;
-      border: 1px solid #333;
+      background-color: #000;
       border-radius: 20px;
       overflow: hidden;
-      background-color: #000;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
       position: relative;
+      display: flex;
+      flex-direction: column;
     }
 
     .clash-menu-container {
-      position: absolute;
-      top: 0;
-      left: 0;
+      flex: 1;
       width: 100%;
       height: 100%;
       background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-      z-index: 1000;
       font-family: 'Arial', sans-serif;
       overflow: hidden;
       display: none;
+      position: relative;
     }
 
     .clash-menu-container.active {
@@ -87,6 +95,7 @@ static getContainerStyles() {
     }
   `;
 }
+
 
 
   /**
