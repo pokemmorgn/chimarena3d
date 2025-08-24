@@ -57,17 +57,16 @@ static getContainerStyles() {
   const { darkBlue, royalBlue } = this.colors;
 
   return `
-    .clash-menu-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-      font-family: 'Arial', sans-serif;
-      overflow: hidden;
-      z-index: 9999;
-    }
+.clash-menu-container {
+  position: absolute;
+  inset: 44px 0 0 0; /* si tu veux laisser apparaître la status bar */
+  width: 100%;
+  height: calc(100% - 44px);
+  background: linear-gradient(135deg, #0f1419, #1a237e);
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+  z-index: 20; /* au-dessus du canvas (z=5), mais sous la status bar (z=1000) */
+}
   `;
 }
 
