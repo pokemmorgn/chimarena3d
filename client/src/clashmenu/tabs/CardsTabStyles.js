@@ -1,209 +1,179 @@
 class CardsTabStyles {
-  static get colors() {
-    return {
-      white: '#ffffff',
-      gold: '#ffd700',
-      darkBlue: '#0f1419',
-      royalBlue: '#1a237e',
-      neonBlue: '#00bcd4',
-      gray: '#9e9e9e',
-      darkGray: '#333'
-    };
-  }
-
   static getCSS() {
-    return this.getCardsTabStyles();
-  }
-
-  static getCardsTabStyles() {
-    const { white, gold, darkBlue, royalBlue, neonBlue, gray, darkGray } = this.colors;
-
     return `
-      /* Cards Tab Base */
+      /* === Cards Tab === */
       .cards-tab {
         position: absolute;
-        top: 60px; /* sous le Header.js */
+        top: 60px; /* sous le Header */
         left: 0;
         width: 100%;
-        height: calc(100% - 140px); /* Header + Tab navigation */
+        height: calc(100% - 120px); /* header + onglets bas */
         display: none;
         flex-direction: column;
-        color: ${white};
-        background: ${darkBlue};
+        background: linear-gradient(180deg, #1a1f2b, #0f1419);
+        color: #fff;
+        font-family: sans-serif;
         overflow-y: auto;
       }
 
-      .cards-tab.active { display: flex; }
-
-      /* Header */
-      .cards-header {
-        text-align: center;
-        font-size: 18px;
-        font-weight: bold;
-        color: ${gold};
-        padding: 10px;
-        border-bottom: 2px solid ${royalBlue};
+      .cards-tab.active {
+        display: flex;
       }
 
-      /* Deck actif */
-      .active-deck {
-        background: rgba(0,0,0,0.3);
-        padding: 12px;
-        border-radius: 8px;
-        margin: 10px;
+      .cards-tab-content {
+        flex: 1;
+        padding: 15px;
+      }
+
+      /* === Deck Section === */
+      .deck-section h2 {
+        margin: 0 0 10px 0;
+        font-size: 20px;
+        color: #ffd700;
         text-align: center;
       }
 
       .deck-cards {
-        display: flex;
-        justify-content: center;
-        gap: 6px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 15px;
       }
 
       .deck-slot {
-        width: 60px;
-        height: 80px;
-        border: 2px solid ${royalBlue};
-        border-radius: 6px;
-        background: ${darkGray};
-        overflow: hidden;
+        width: 100%;
+        aspect-ratio: 3/4;
+        border: 2px solid #444;
+        border-radius: 8px;
+        background: #222;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+        transition: transform 0.15s ease-in-out;
+      }
+
+      .deck-slot:hover {
+        transform: scale(1.05);
+      }
+
+      .deck-slot.empty-slot {
+        background: rgba(255,255,255,0.05);
+        border: 2px dashed #555;
+        font-size: 32px;
+        color: #888;
       }
 
       .deck-card {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        cursor: pointer;
+        border-radius: 6px;
       }
 
-      .deck-elixir {
-        margin-top: 6px;
-        font-size: 14px;
-        color: ${neonBlue};
+      .deck-level {
+        position: absolute;
+        bottom: 2px;
+        right: 4px;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        font-size: 12px;
+        padding: 2px 4px;
+        border-radius: 4px;
       }
 
-      /* Deck selector */
-      .deck-selector {
-        margin: 10px;
+      .deck-footer {
         display: flex;
-        justify-content: center;
-        gap: 5px;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
       }
 
-      .deck-btn {
-        padding: 6px 10px;
-        border-radius: 6px;
-        border: none;
-        background: ${royalBlue};
-        color: ${white};
-        cursor: pointer;
+      .deck-footer span {
+        font-size: 14px;
+        color: #ddd;
       }
-      .deck-btn.active {
-        background: ${neonBlue};
+
+      .deck-footer button {
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
         font-weight: bold;
+        transition: background 0.2s;
       }
 
-      /* Collection */
-      .collection-btn-wrapper {
-        margin: 10px;
+      .deck-footer button:hover {
+        background: #0056b3;
+      }
+
+      /* === Collection Section === */
+      .collection-section h2 {
+        margin: 0 0 10px 0;
+        font-size: 20px;
+        color: #00bcd4;
         text-align: center;
-      }
-
-      #btn-show-collection {
-        padding: 8px 12px;
-        background: ${neonBlue};
-        color: ${white};
-        border-radius: 6px;
-        border: none;
-        cursor: pointer;
       }
 
       .collection-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        margin: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 10px;
       }
 
       .collection-card {
-        background: ${darkGray};
-        border-radius: 6px;
+        background: #222;
+        border: 2px solid #444;
+        border-radius: 8px;
         text-align: center;
-        padding: 4px;
+        padding: 5px;
         cursor: pointer;
-        position: relative;
+        transition: transform 0.15s;
       }
 
-      .collection-card.locked { opacity: 0.4; }
+      .collection-card:hover {
+        transform: scale(1.05);
+        border-color: #00bcd4;
+      }
 
       .collection-card img {
         width: 100%;
         border-radius: 4px;
+        margin-bottom: 5px;
       }
 
-      .card-level {
+      .collection-info {
         font-size: 12px;
+        color: #ccc;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .collection-section button {
+        margin-top: 15px;
+        width: 100%;
+        background: #28a745;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
         font-weight: bold;
-        color: ${gold};
       }
 
-      .card-count {
-        font-size: 10px;
-        color: ${gray};
-      }
-
-      /* Popup */
-      .card-popup {
-        position: fixed;
-        top:0;
-        left:0;
-        width:100%;
-        height:100%;
-        background: rgba(0,0,0,0.8);
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        z-index: 100;
-      }
-
-      .popup-content {
-        background:${darkGray};
-        padding:20px;
-        border-radius:10px;
-        width:250px;
-        text-align:center;
-      }
-
-      .popup-img {
-        width:120px;
-        margin:10px auto;
-        display:block;
-      }
-
-      #btn-upgrade-card {
-        margin-top: 10px;
-        padding: 6px 12px;
-        background: ${gold};
-        color: ${darkBlue};
-        border:none;
-        border-radius: 6px;
-        cursor: pointer;
-      }
-
-      #btn-close-popup {
-        margin-top: 10px;
-        padding: 6px 12px;
-        background: ${royalBlue};
-        color: ${white};
-        border:none;
-        border-radius: 6px;
-        cursor: pointer;
+      .collection-section button:hover {
+        background: #1e7e34;
       }
 
       /* Responsive */
-      @media (max-width: 425px) {
-        .deck-slot { width: 50px; height: 70px; }
-        .collection-grid { grid-template-columns: repeat(3, 1fr); }
+      @media (max-width: 600px) {
+        .deck-cards {
+          grid-template-columns: repeat(2, 1fr);
+        }
       }
     `;
   }
