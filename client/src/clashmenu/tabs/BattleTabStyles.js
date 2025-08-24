@@ -23,11 +23,10 @@ class BattleTabStyles {
       top: 60px;
       left: 0;
       width: 100%;
-      height: calc(100% - 120px); /* réserve de la place pour TabNavigation */
+      height: calc(100% - 120px);
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
     }
 
     /* --- Top bar with banner --- */
@@ -162,24 +161,32 @@ class BattleTabStyles {
 
     .arena-image {
       max-width: 100%;
-      max-height: 250px;
+      max-height: 240px;
       object-fit: contain;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
 
-    /* --- Bottom zone (battle button + chests) --- */
+    /* --- Bottom zone (battle button + mode + chests) --- */
     .battle-bottom {
       width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding-bottom: 10px;
-      gap: 10px;
+      padding-bottom: 8px;
+      gap: 8px;
+      margin-top: -15px; /* remonte le bloc */
+    }
+
+    .battle-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
     }
 
     .battle-main-btn {
-      padding: 18px 50px;
+      padding: 16px 50px;
       font-size: 22px;
       font-weight: bold;
       text-transform: uppercase;
@@ -196,8 +203,20 @@ class BattleTabStyles {
       transform: translateY(-3px);
     }
 
-    .battle-main-btn:active {
-      transform: translateY(-1px);
+    .battle-mode-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      color: ${white};
+      border: 2px solid ${gold};
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .battle-mode-btn:hover {
+      transform: scale(1.1);
     }
 
     .battle-chests {
