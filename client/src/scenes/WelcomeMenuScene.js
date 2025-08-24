@@ -62,7 +62,7 @@ class WelcomeMenuScene {
    * Create animated background
    */
  createBackground() {
-  const geometry = new THREE.PlaneBufferGeometry(2, 2); // Fullscreen quad in NDC
+const geometry = new THREE.PlaneGeometry(2, 2);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       time: { value: 0 },
