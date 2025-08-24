@@ -3,16 +3,17 @@ class CardsTabStyles {
     return `
 .cards-tab {
   position: absolute;
-  top: 60px; /* garde la hauteur de la topbar */
+  top: 60px;     /* sous le header */
   left: 0;
-  width: 100%;
-  height: calc(100% - 60px); /* juste la barre du bas */
+  right: 0;
+  bottom: 80px;  /* juste au-dessus de la tab-navigation */
   display: none;
   flex-direction: column;
   background: linear-gradient(180deg, #1a1f2b, #0f1419);
   color: #fff;
   font-family: sans-serif;
   overflow-y: auto;
+  z-index: 1;    /* la tab-navigation passera au-dessus */
 }
 
       .cards-tab.active {
