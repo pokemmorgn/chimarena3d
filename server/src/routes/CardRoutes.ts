@@ -57,6 +57,8 @@ router.get('/', authenticateOptional, async (req: Request, res: Response): Promi
     // Exécuter la requête
     const [cards, totalCount] = await Promise.all([
       CardData.find(filter)
+      .select('id nameKey sprite type rarity arena elixirCost maxLevel cardsToUpgrade')
+
         .sort(sortOptions)
         .skip(skip)
         .limit(limit)
