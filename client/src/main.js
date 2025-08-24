@@ -114,7 +114,7 @@ class ClashRoyaleApp {
     }
     
     // Add canvas to DOM
-    document.body.appendChild(this.canvas);
+document.getElementById('mobile-viewport')?.appendChild(this.canvas);
     
     console.log('✅ Canvas initialized with WebGL support');
     this.logInitStep('Canvas', 'WebGL context created');
