@@ -131,35 +131,51 @@ open(card) {
 
       statsEl.appendChild(grid);
 
-      // handle upgrade
-      const upgrade = data.data.upgradeCost;
-      if (upgrade) {
-        upgradeBox.style.display = "block";
-        upgradeReq.textContent = `Requires ${upgrade.cards} cards and ${upgrade.gold} gold`;
-        upgradeBtn.disabled = false;
-        upgradeBtn.onclick = async () => {
-          console.log("🔧 Upgrade requested for", card.cardId);
-          try {
-            const result = await this.cardsTab.authenticatedFetch(`/api/collection/upgrade-card`, {
-              method: "POST",
-              body: JSON.stringify({ cardId: card.cardId })
-            });
+   // handle upgrade
+const upgrade = data.data.upgradeCost;
+if (upgrade) {
+  upgradeBox.style.display = "block";
 
-            if (result.success) {
-              this.cardsTab.showMessage(
-                `${info.name || card.cardId} upgraded to level ${lvl + 1}!`,
-                "success"
-              );
-              await this.cardsTab.loadCollection();
-              this.close();
-            } else {
-              this.cardsTab.showMessage("Upgrade failed: " + result.message, "error");
-            }
-          } catch (err) {
-            this.cardsTab.showMessage("Upgrade error: " + err.message, "error");
-          }
-        };
+  // Progression en cartes
+  const playerCount = card.count || 0;
+  const needed = upgrade.cards || 0;
+  const progress = Math.min(100, (playerCount / needed) * 100);
+
+  upgradeReq.innerHTML = `
+    <div class="cm-upgrade-progress">
+      <div class="cm-upgrade-fill" style="width:${progress}%"></div>
+      <span>${playerCount}/${needed} cards</span>
+    </div>
+  `;
+
+  // Bouton avec coût en gold
+  upgradeBtn.textContent = `Upgrade - ${upgrade.gold} 💰`;
+  upgradeBtn.disabled = !(playerCount >= needed && this.cardsTab.currentDeck?.gold >= upgrade.gold);
+
+  upgradeBtn.onclick = async () => {
+    console.log("🔧 Upgrade requested for", card.cardId);
+    try {
+      const result = await this.cardsTab.authenticatedFetch(`/api/collection/upgrade-card`, {
+        method: "POST",
+        body: JSON.stringify({ cardId: card.cardId })
+      });
+
+      if (result.success) {
+        this.cardsTab.showMessage(
+          `${info.name || card.cardId} upgraded to level ${lvl + 1}!`,
+          "success"
+        );
+        await this.cardsTab.loadCollection();
+        this.close();
+      } else {
+        this.cardsTab.showMessage("Upgrade failed: " + result.message, "error");
       }
+    } catch (err) {
+      this.cardsTab.showMessage("Upgrade error: " + err.message, "error");
+    }
+  };
+}
+
     })
     .catch(err => {
       console.error("❌ Failed to load card stats:", err);
