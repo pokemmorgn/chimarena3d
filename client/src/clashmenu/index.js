@@ -60,12 +60,24 @@ class ClashMenuManager {
    * Create main container
    */
 createMainContainer() {
+  const host = document.getElementById('mobile-viewport');
+  if (!host) {
+    throw new Error('#mobile-viewport introuvable');
+  }
+
   this.mainContainer = document.createElement('div');
   this.mainContainer.id = 'clash-menu-container';
   this.mainContainer.className = 'clash-menu-container';
 
-  // Append to body to avoid clipping by mobile-viewport
-  document.body.appendChild(this.mainContainer);
+  // Couche UI par-dessus le canvas (z-index: 5 sur le canvas), mais sous la status bar (z-index: 1000)
+  Object.assign(this.mainContainer.style, {
+    position: 'absolute',
+    inset: '44px 0 0 0', // 44px = hauteur de la status bar simulée
+    zIndex: '20',
+    pointerEvents: 'auto',
+  });
+
+  host.appendChild(this.mainContainer);
 }
 
 
