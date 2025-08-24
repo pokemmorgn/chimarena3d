@@ -197,21 +197,52 @@ class BattleRoomTester {
         messages: []
       };
 
+  private async connectPlayer(user: any, isSpectator: boolean): Promise<BattleClient> {
+    return new Promise((resolve, reject) => {
+      let token: string;
+      
+      try {
+        // Vérifier JWT_SECRET avant génération
+        if (!process.env.JWT_SECRET) {
+          throw new Error('JWT_SECRET not defined in environment');
+        }
+        
+        token = TokenService.generateAccessToken(user);
+        console.log(`   🔑 Token generated for ${user.username}`);
+      } catch (error) {
+        reject(new Error(`Token generation failed: ${error}`));
+        return;
+      }
+      
+      // Connexion WebSocket directe (pas via Colyseus client)
+      const ws = new WebSocket(`${SERVER_URL}`);
+      
+      const client: BattleClient = {
+        ws,
+        userId: user._id.toString(),
+        username: user.username,
+        token,
+        isSpectator,
+        connected: false,
+        messages: []
+      };
+
       ws.on('open', () => {
         console.log(`   🔌 WebSocket opened for ${user.username}`);
         
-        // Envoyer message de join Colyseus
-        const joinMessage = {
-          method: 'joinOrCreate',
-          roomName: 'battle',
-          options: {
+        // Protocol Colyseus correct: [room_id, [room_name, options]]
+        const joinMessage = [
+          1,  // Message ID
+          'battle',  // Room name
+          {
+            authToken: token,
+            isSpectator: isSpectator,
             gameMode: 'casual',
             matchId: 'test_match_123'
-          },
-          authToken: token,
-          isSpectator
-        };
+          }
+        ];
         
+        console.log(`   📤 Sending join message for ${user.username}`);
         ws.send(JSON.stringify(joinMessage));
       });
 
@@ -415,13 +446,14 @@ class BattleRoomTester {
       };
 
       ws.on('open', () => {
-        const joinMessage = {
-          method: 'joinOrCreate',
-          roomName: 'battle',
-          options: {},
-          authToken: fakeToken,
-          isSpectator: true
-        };
+        const joinMessage = [
+          1,  // Message ID  
+          'battle',  // Room name
+          {
+            authToken: fakeToken,
+            isSpectator: true
+          }
+        ];
         
         ws.send(JSON.stringify(joinMessage));
       });
