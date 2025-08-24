@@ -128,45 +128,50 @@ class CardsTab {
     this.tabElement.querySelector("#deck-elixir").textContent = avgElixir.toFixed(1);
   }
 
-  renderCollection() {
-    const colContainer = this.tabElement.querySelector(".collection-grid");
-    colContainer.innerHTML = "";
+ renderCollection() {
+  const colContainer = this.tabElement.querySelector(".collection-grid");
+  colContainer.innerHTML = "";
 
-    // Fusionner toutes les cartes et celles possédées
-    const ownedMap = new Map(this.collection.map(c => [c.cardId, c]));
+  this.collection.forEach(card => {
+    const sprite = card.cardInfo?.sprite 
+      ? `/cards/${card.cardInfo.sprite}` 
+      : null;
 
-    this.allCards.forEach(cardData => {
-      const playerCard = ownedMap.get(cardData.id); // trouvé dans la collection ?
-      const cardEl = document.createElement("div");
+    const cardEl = document.createElement("div");
+    cardEl.className = "collection-card";
 
-      if (playerCard) {
-        cardEl.className = "collection-card";
-        cardEl.innerHTML = `
-          <img src="/cards/${cardData.sprite}" alt="${cardData.nameKey}" />
-          <div class="collection-info">
-            <span>${cardData.nameKey}</span>
-            <span>Niveau ${playerCard.level}</span>
-            <span>x${playerCard.count}</span>
-          </div>
-        `;
-        cardEl.addEventListener("click", () => {
-          this.emit("collection:select-card", playerCard);
-        });
-      } else {
-        // Carte pas encore débloquée
-        cardEl.className = "collection-card locked";
-        cardEl.innerHTML = `
-          <img src="/cards/${cardData.sprite}" alt="${cardData.nameKey}" />
-          <div class="collection-info">
-            <span>${cardData.nameKey}</span>
-            <span>Non débloquée</span>
-          </div>
-        `;
-      }
+    if (sprite) {
+      cardEl.innerHTML = `
+        <img src="${sprite}" alt="${card.cardId}" 
+             onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+        <div class="collection-info">
+          <span>${card.cardInfo?.nameKey || card.cardId}</span>
+          <span>Niveau ${card.level}</span>
+          <span>x${card.count}</span>
+        </div>
+      `;
+    } else {
+      // Génère un visuel CSS si pas d’image
+      cardEl.innerHTML = `
+        <div class="collection-card-fallback">
+          <span>${card.cardId}</span>
+        </div>
+        <div class="collection-info">
+          <span>${card.cardInfo?.nameKey || card.cardId}</span>
+          <span>Niveau ${card.level}</span>
+          <span>x${card.count}</span>
+        </div>
+      `;
+    }
 
-      colContainer.appendChild(cardEl);
+    cardEl.addEventListener("click", () => {
+      this.emit("collection:select-card", card);
     });
-  }
+
+    colContainer.appendChild(cardEl);
+  });
+}
+
 
   calculateAvgElixir(deck) {
     const costs = deck
