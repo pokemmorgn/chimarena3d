@@ -59,8 +59,6 @@ class BattleTab {
       console.log('⚔️ Initializing BattleTab...');
       
       this.createTabElement();
-      this.createHeader();
-      this.createConnectionStatus();
       this.createBattleButtons();
       this.createBattleModes();
       this.setupEventListeners();
@@ -85,49 +83,6 @@ class BattleTab {
     console.log('⚔️ Tab element created');
   }
 
-  /**
-   * Create header with player stats
-   */
-  createHeader() {
-    const header = document.createElement('div');
-    header.className = 'battle-header';
-    header.innerHTML = `
-      <div class="player-name" id="battle-player-name">Loading...</div>
-      
-      <div class="player-stats">
-        <div class="stat-item">
-          <span class="stat-value" id="battle-trophies">0</span>
-          <span class="stat-label">Trophies</span>
-        </div>
-        
-        <div class="stat-item">
-          <span class="stat-value" id="battle-level">1</span>
-          <span class="stat-label">Level</span>
-        </div>
-        
-        <div class="stat-item">
-          <span class="stat-value" id="battle-wins">0</span>
-          <span class="stat-label">Wins</span>
-        </div>
-      </div>
-    `;
-    
-    this.tabElement.appendChild(header);
-    console.log('⚔️ Header created');
-  }
-
-  /**
-   * Create connection status indicator
-   */
-  createConnectionStatus() {
-    this.connectionStatus = document.createElement('div');
-    this.connectionStatus.className = 'connection-status connecting';
-    this.connectionStatus.id = 'battle-connection-status';
-    this.connectionStatus.textContent = 'Connecting to game server...';
-    
-    this.tabElement.appendChild(this.connectionStatus);
-    console.log('⚔️ Connection status created');
-  }
 
   /**
    * Create main battle buttons
