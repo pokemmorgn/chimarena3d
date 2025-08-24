@@ -493,85 +493,78 @@ class CardsTab {
   /**
    * Afficher toutes les cartes du jeu (pas seulement celles possédées)
    */
-  renderAllCards() {
-    const allCardsContainer = this.tabElement.querySelector(".all-cards-grid");
-    if (!allCardsContainer) return;
-    
-    allCardsContainer.innerHTML = "";
+/**
+ * Afficher toutes les cartes du jeu (possédées + non possédées)
+ */
+renderAllCards() {
+  const allCardsContainer = this.tabElement.querySelector(".all-cards-grid");
+  if (!allCardsContainer) return;
+  
+  allCardsContainer.innerHTML = "";
 
-    console.log("🎨 Rendu de toutes les cartes du jeu:", this.allCards.length, "cartes");
+  console.log("🎨 Rendu de toutes les cartes (tri par rareté, bloc unique)");
 
-    if (this.allCards.length === 0) {
-      allCardsContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
-          <p>Chargement des cartes du jeu...</p>
+  if (this.allCards.length === 0) {
+    allCardsContainer.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 20px;">
+        <p>Chargement des cartes du jeu...</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Ordre de rareté
+  const rarityOrder = { legendary: 1, epic: 2, rare: 3, common: 4 };
+
+  // Tri global sans arène
+  const sorted = [...this.allCards].sort((a, b) => {
+    return (rarityOrder[a.rarity] || 99) - (rarityOrder[b.rarity] || 99);
+  });
+
+  sorted.forEach(card => {
+    const owned = this.collection.find(c => c.cardId === card.id);
+
+    const cardEl = document.createElement("div");
+    cardEl.className = "game-card";
+    if (!owned) cardEl.classList.add("not-owned");
+    else cardEl.classList.add("owned");
+
+    const sprite = card.sprite ? `/cards/${card.sprite}` : null;
+
+    if (sprite) {
+      cardEl.innerHTML = `
+        <img src="${sprite}" alt="${card.nameKey || card.id}" 
+             onerror="this.onerror=null;this.src='/cards/fallback.png';" />
+        <div class="game-card-info">
+          <span>${card.nameKey || card.id}</span>
+          <span>${card.elixirCost}⚡ - ${card.rarity}</span>
+          ${owned 
+            ? `<span class="owned-badge">✅ Possédée (x${owned.count})</span>` 
+            : '<span class="not-owned-badge">🔒 Non possédée</span>'}
         </div>
       `;
-      return;
+    } else {
+      cardEl.innerHTML = `
+        <div class="game-card-fallback">
+          <span>${card.nameKey || card.id}</span>
+        </div>
+        <div class="game-card-info">
+          <span>${card.nameKey || card.id}</span>
+          <span>${card.elixirCost}⚡ - ${card.rarity}</span>
+          ${owned 
+            ? `<span class="owned-badge">✅ Possédée (x${owned.count})</span>` 
+            : '<span class="not-owned-badge">🔒 Non possédée</span>'}
+        </div>
+      `;
     }
 
-    // Grouper par arène pour une meilleure organisation
-    const cardsByArena = {};
-    this.allCards.forEach(card => {
-      if (!cardsByArena[card.arena]) {
-        cardsByArena[card.arena] = [];
-      }
-      cardsByArena[card.arena].push(card);
-    });
+    allCardsContainer.appendChild(cardEl);
+  });
 
-    // Afficher par arène
-    Object.keys(cardsByArena).sort((a, b) => parseInt(a) - parseInt(b)).forEach(arena => {
-      // Titre de l'arène
-      const arenaTitle = document.createElement("div");
-      arenaTitle.className = "arena-title";
-      arenaTitle.innerHTML = `<h3>Arène ${arena}</h3>`;
-      allCardsContainer.appendChild(arenaTitle);
+  this.updateAllCardsDebug();
+  console.log("✅ Rendu terminé:", sorted.length, "cartes affichées (triées par rareté)");
+}
 
-      // Cartes de cette arène
-      cardsByArena[arena].forEach(card => {
-        const cardEl = document.createElement("div");
-        cardEl.className = "game-card";
-        
-        // Vérifier si le joueur possède cette carte
-        const ownedCard = this.collection.find(c => c.cardId === card.id);
-        if (ownedCard) {
-          cardEl.classList.add("owned");
-        } else {
-          cardEl.classList.add("not-owned");
-        }
-
-        const sprite = card.sprite ? `/cards/${card.sprite}` : null;
-
-        if (sprite) {
-          cardEl.innerHTML = `
-            <img src="${sprite}" alt="${card.id}" 
-                 onerror="this.onerror=null;this.src='/cards/fallback.png';" />
-            <div class="game-card-info">
-              <span>${card.nameKey || card.id}</span>
-              <span>${card.elixirCost}⚡ - ${card.rarity}</span>
-              ${ownedCard ? `<span class="owned-badge">✅ Possédée (x${ownedCard.count})</span>` : '<span class="not-owned-badge">🔒 Non possédée</span>'}
-            </div>
-          `;
-        } else {
-          cardEl.innerHTML = `
-            <div class="game-card-fallback">
-              <span>${card.id}</span>
-            </div>
-            <div class="game-card-info">
-              <span>${card.nameKey || card.id}</span>
-              <span>${card.elixirCost}⚡ - ${card.rarity}</span>
-              ${ownedCard ? `<span class="owned-badge">✅ Possédée (x${ownedCard.count})</span>` : '<span class="not-owned-badge">🔒 Non possédée</span>'}
-            </div>
-          `;
-        }
-
-        allCardsContainer.appendChild(cardEl);
-      });
-    });
-
-    this.updateAllCardsDebug();
-    console.log("✅ Rendu de toutes les cartes du jeu terminé");
-  }
 
   updateAllCardsDebug() {
     const debugCount = this.tabElement.querySelector("#debug-all-cards-count");
