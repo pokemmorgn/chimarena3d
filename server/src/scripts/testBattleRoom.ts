@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-import path from 'path';
 
 // Charger le .env depuis le dossier server/ (fonctionne depuis n'importe où)
 dotenv.config({ path: './server/.env' });
