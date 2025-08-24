@@ -348,8 +348,11 @@ BattleSessionSchema.methods.addAction = async function(playerId: string, action:
     gamePhase: this.battleState.gamePhase
   }, {
     currentScene: 'battle',
-    battleId: this.battleId,
-    gameMode: this.gameMode
+    gameMode: this.gameMode,
+    // Métadonnées spécifiques à la bataille
+    sessionId: `battle_${this.battleId}`,
+    ip: action.metadata?.ip,
+    country: action.metadata?.country
   });
   
   this.totalActions += 1;
