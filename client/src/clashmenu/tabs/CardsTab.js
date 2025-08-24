@@ -1,4 +1,5 @@
 // CardsTab.js - Version corrigée avec meilleure gestion des tokens
+import CardModal from "./CardModal.js";
 
 class CardsTab {
   constructor(apiBase = "/api/collection") {
@@ -11,6 +12,7 @@ class CardsTab {
     this.currentDeck = null;
     this.collection = [];   // cartes possédées
     this.allCards = [];     // toutes les cartes du jeu
+this.cardModal = new CardModal(this);
 
     this.eventListeners = new Map();
     
@@ -26,6 +28,7 @@ class CardsTab {
     this.container = container;
     this.createTabElement();
     this.renderLayout();
+this.cardModal.initialize(this.container);
 
     // Charger données depuis backend avec debug
     await this.loadDecks();
@@ -489,7 +492,9 @@ if (slot.cardInfo) {
    cardEl.draggable = true;
    cardEl.dataset.cardId = card.cardId;
    cardEl.dataset.cardLevel = card.level;
-   
+   cardEl.addEventListener("click", () => {
+  if (!this.isDragging) this.cardModal.open(card);
+});
    // Ajouter classe si upgradable
    if (card.canUpgrade) {
      cardEl.classList.add("can-upgrade");
