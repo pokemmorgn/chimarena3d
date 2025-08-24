@@ -647,8 +647,10 @@ class CardsTab {
       console.log(`📱 Ajout de ${card.cardId} au slot ${emptySlotIndex}`);
       this.updateDeckSlot(emptySlotIndex, card);
     } else {
-      // Montrer un message que le deck est plein
-      this.showMessage("Deck complet ! Glissez une carte vers un slot occupé pour la remplacer.", "warning");
+      // Si le deck est plein, remplacer le premier slot
+      console.log(`📱 Deck plein, remplacement du slot 0 avec ${card.cardId}`);
+      this.updateDeckSlot(0, card);
+      this.showMessage("Deck complet ! La première carte a été remplacée.", "warning");
     }
   }
 
@@ -666,7 +668,27 @@ class CardsTab {
     if (this.currentDeck && this.currentDeck.cards) {
       return this.currentDeck.cards;
     }
-    return Array(8).fill(null);
+    
+    // Si pas de deck, créer un deck par défaut avec les premières cartes disponibles
+    const defaultDeck = Array(8).fill(null);
+    
+    if (this.collection.length > 0) {
+      // Remplir avec les premières cartes disponibles
+      for (let i = 0; i < Math.min(8, this.collection.length); i++) {
+        const card = this.collection[i];
+        defaultDeck[i] = {
+          cardId: card.cardId,
+          position: i,
+          level: card.level,
+          isActive: true,
+          cardInfo: card.cardInfo
+        };
+      }
+      
+      console.log("🎯 Création d'un deck par défaut:", defaultDeck);
+    }
+    
+    return defaultDeck;
   }
 
   async updateDeckSlot(slotIndex, card) {
@@ -686,19 +708,30 @@ class CardsTab {
         cardInfo: card.cardInfo
       };
 
-      // Créer le tableau des cardIds pour l'API (en filtrant les nulls)
-      const cardIds = newDeck.map(slot => slot?.cardId).filter(Boolean);
+      // Créer le tableau des cardIds pour l'API (DOIT contenir exactement 8 éléments)
+      const cardIds = Array(8).fill(null);
       
-      // Si moins de 8 cartes, ajouter des cartes par défaut ou laisser vide selon l'API
-      while (cardIds.length < 8) {
-        cardIds.push(null); // ou une carte par défaut
-      }
+      // Remplir avec les cartes existantes
+      newDeck.forEach((slot, index) => {
+        if (slot && slot.cardId) {
+          cardIds[index] = slot.cardId;
+        }
+      });
 
-      console.log("📤 Envoi du nouveau deck:", cardIds);
+      // Pour l'API, remplacer les null par des cartes par défaut si nécessaire
+      const apiCardIds = cardIds.map(cardId => {
+        if (!cardId && this.collection.length > 0) {
+          // Prendre la première carte disponible comme placeholder
+          return this.collection[0].cardId;
+        }
+        return cardId || this.collection[0]?.cardId || 'knight'; // fallback
+      });
+
+      console.log("📤 Envoi du nouveau deck (8 cartes obligatoires):", apiCardIds);
 
       // Sauvegarder via l'API
       const deckIndex = this.currentDeck?.deckIndex || 0;
-      const saved = await this.saveDeck(deckIndex, cardIds.filter(Boolean));
+      const saved = await this.saveDeck(deckIndex, apiCardIds);
       
       if (saved) {
         // Mettre à jour l'affichage local
@@ -723,14 +756,22 @@ class CardsTab {
 
   async saveDeck(deckIndex, cardIds) {
     try {
-      const validCardIds = cardIds.filter(id => id !== null && id !== undefined);
-      
-      if (validCardIds.length === 0) {
-        console.warn("⚠️ Tentative de sauvegarde d'un deck vide");
+      // S'assurer qu'on a exactement 8 cartes
+      if (cardIds.length !== 8) {
+        console.error("❌ Deck doit contenir exactement 8 cartes, reçu:", cardIds.length);
         return false;
       }
 
-      console.log(`💾 Sauvegarde deck ${deckIndex}:`, validCardIds);
+      // Vérifier qu'aucune carte n'est null/undefined
+      const validCardIds = cardIds.map((cardId, index) => {
+        if (!cardId && this.collection.length > 0) {
+          console.warn(`⚠️ Carte manquante au slot ${index}, utilisation de la première carte disponible`);
+          return this.collection[0].cardId;
+        }
+        return cardId || 'knight'; // fallback absolu
+      });
+
+      console.log(`💾 Sauvegarde deck ${deckIndex} avec 8 cartes:`, validCardIds);
 
       const data = await this.authenticatedFetch(`${this.apiBase}/deck`, {
         method: 'PUT',
