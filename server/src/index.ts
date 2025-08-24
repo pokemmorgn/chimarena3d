@@ -208,6 +208,13 @@ function setupRoutes(): void {
             maxClients: 500,
             requiresAuth: true,
             purpose: 'Lobby, chat, matchmaking, and social features'
+          },
+          {
+            name: 'battle',
+            description: 'Real-time battle with 20 TPS gameplay',
+            maxClients: 12,
+            requiresAuth: true,
+            purpose: 'PvP battles, spectators, and replay recording'
           }
         ],
         flow: [
