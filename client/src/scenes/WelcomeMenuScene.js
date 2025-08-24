@@ -145,10 +145,10 @@ const containerRect = this.gameEngine.getRenderer().domElement.getBoundingClient
 
 this.htmlOverlay.style.cssText = `
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: ${containerRect.top}px;
+  left: ${containerRect.left}px;
+  width: ${containerRect.width}px;
+  height: ${containerRect.height}px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,8 +156,9 @@ this.htmlOverlay.style.cssText = `
   z-index: 10000;
 `;
 
-
-  
+  this.htmlOverlay.style.display = 'flex';
+this.htmlOverlay.style.alignItems = 'center';
+this.htmlOverlay.style.justifyContent = 'center';
   // Create welcome container avec pointer-events auto
   const welcomeContainer = document.createElement('div');
   welcomeContainer.style.cssText = `
