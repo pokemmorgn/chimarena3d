@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import UserData from '../models/UserData';
-import PlayerCollection from '../models/PlayerCollection';
 import { TokenService } from '../middleware/AuthData';
 
 /**
@@ -33,7 +32,6 @@ interface BattleClient {
 class BattleRoomTester {
   private clients: BattleClient[] = [];
   private battleId: string = '';
-  private roomConnected = false;
   
   // Test data
   private testUsers: any[] = [];
