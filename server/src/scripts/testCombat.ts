@@ -12,12 +12,12 @@ import { ITargetableEntity } from '../gameplay/systems/TargetingSystem';
  */
 class CombatTest {
   private combatSystem = getCombatSystem();
-  private targetingSystem = getTargetingSystem();
+  // targetingSystem utilisé implicitement via BaseUnit
   private knight!: BaseUnit;
   private goblins: BaseUnit[] = [];
   private currentTick = 0;
   private readonly TICK_RATE_MS = 50; // 20 TPS
-  private gameLoop?: NodeJS.Timeout;
+  private gameLoop: NodeJS.Timeout | null = null;
   
   // Statistiques de test
   private testStats = {
@@ -276,7 +276,7 @@ class CombatTest {
   private endTest(result: string, description: string): void {
     if (this.gameLoop) {
       clearInterval(this.gameLoop);
-      this.gameLoop = undefined;
+      this.gameLoop = null;
     }
 
     this.testStats.testEndTime = Date.now();
