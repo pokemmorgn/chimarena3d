@@ -144,7 +144,58 @@ class CardsTabStyles {
         padding: 4px;
       }
 
-      /* === All cards (grisé + cadenas) === */
+      /* === Collection === */
+      .collection-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 10px;
+      }
+
+      .collection-card {
+        width: 100%;
+        aspect-ratio: 3/4;
+        background: #222;
+        border: 2px solid #444;
+        border-radius: 8px;
+        text-align: center;
+        padding: 5px;
+        cursor: grab;
+        position: relative;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .collection-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+        margin-bottom: 5px;
+      }
+
+      .collection-info {
+        font-size: 12px;
+        color: #ccc;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .collection-card.locked {
+        filter: grayscale(100%) brightness(0.5);
+        cursor: default;
+      }
+
+      .collection-card.locked::after {
+        content: "🔒";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: #aaa;
+      }
+
+      /* === All cards === */
       .game-card {
         width: 100%;
         aspect-ratio: 3/4;
