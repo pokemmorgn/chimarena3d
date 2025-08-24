@@ -356,7 +356,7 @@ class BattleRoomTester {
   }
 
   private async connectSpectator(user: any): Promise<BattleClient> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let fakeToken: string;
       
       try {
@@ -377,10 +377,11 @@ class BattleRoomTester {
         return;
       }
 
-      const ws = new WebSocket(`${SERVER_URL}`);
+      // Utiliser le vrai client Colyseus
+      const colyseusClient = new Client(SERVER_URL);
       
       const client: BattleClient = {
-        ws,
+        room: null,
         userId: user._id,
         username: user.username,
         token: fakeToken,
@@ -389,43 +390,49 @@ class BattleRoomTester {
         messages: []
       };
 
-      ws.on('open', () => {
-        const joinMessage = JSON.stringify({
-          type: 'join_room',
-          room: 'battle',
-          options: {
-            authToken: fakeToken,
-            isSpectator: true
-          }
+      try {
+        console.log(`   🔌 Connecting spectator ${user.username} to BattleRoom...`);
+        
+        // Joindre la room battle en tant que spectateur
+        const room = await colyseusClient.joinOrCreate('battle', {
+          authToken: fakeToken,
+          isSpectator: true
         });
         
-        ws.send(joinMessage);
-      });
-
-      ws.on('message', (data: Buffer) => {
-        try {
-          const message = this.parseColyseusMessage(data);
-          client.messages.push(message);
-          
-          if (message.type === 'spectator_joined' || message.type === 'room_joined') {
-            client.connected = true;
-            resolve(client);
-          }
-          
-        } catch (error) {
-          // Ignore parsing errors for spectator
-        }
-      });
-
-      ws.on('error', reject);
-
-      this.clients.push(client);
-
-      setTimeout(() => {
-        if (!client.connected) {
-          reject(new Error('Spectator connection timeout'));
-        }
-      }, 5000);
+        client.room = room;
+        client.connected = true;
+        
+        console.log(`   ✅ Spectator ${user.username} connected to room ${room.id}`);
+        
+        // Setup des event listeners
+        room.onMessage('spectator_joined', (message: any) => {
+          console.log(`   👁️ ${user.username} joined as spectator`);
+        });
+        
+        room.onMessage('*', (type: string, message: any) => {
+          client.messages.push({ type, data: message });
+        });
+        
+        room.onError((code: number, message: string) => {
+          console.error(`   ❌ Spectator room error: ${code} ${message}`);
+        });
+        
+        room.onLeave((code: number) => {
+          console.log(`   🚪 Spectator ${user.username} left room: ${code}`);
+          client.connected = false;
+        });
+        
+        this.clients.push(client);
+        
+        // Attendre un peu pour que les messages arrivent
+        setTimeout(() => {
+          resolve(client);
+        }, 1000);
+        
+      } catch (error) {
+        console.error(`   ❌ Failed to join room for spectator ${user.username}:`, error);
+        reject(error);
+      }
     });
   }
 
@@ -525,9 +532,9 @@ class BattleRoomTester {
     console.log('\n🧹 Cleaning up connections...');
 
     for (const client of this.clients) {
-      if (client.ws && client.connected) {
+      if (client.room && client.connected) {
         try {
-          client.ws.close();
+          await client.room.leave();
         } catch (error) {
           // Ignore cleanup errors
         }
