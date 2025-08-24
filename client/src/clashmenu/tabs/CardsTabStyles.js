@@ -34,14 +34,15 @@ class CardsTabStyles {
 
       .deck-cards {
         display: grid;
-        grid-template-columns: repeat(4, minmax(80px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 10px;
         margin-bottom: 15px;
+        justify-content: center;
       }
 
       .deck-slot {
-        width: 100%;
-        aspect-ratio: 3/4;
+        width: 80px;
+        height: 106px; /* ratio 3:4 */
         border: 2px solid #444;
         border-radius: 8px;
         background: #222;
@@ -100,11 +101,12 @@ class CardsTabStyles {
         background: rgba(46,204,113,0.1);
         border-radius: 8px;
         border: 1px solid rgba(46,204,113,0.3);
+        justify-content: center;
       }
 
       .my-card {
-        width: 100%;
-        aspect-ratio: 3/4;
+        width: 80px;
+        height: 106px;
         background: #222;
         border: 2px solid #2ecc71;
         border-radius: 8px;
@@ -120,7 +122,6 @@ class CardsTabStyles {
         height: 100%;
         object-fit: contain;
         border-radius: 4px;
-        margin-bottom: 5px;
       }
 
       .my-card-info {
@@ -133,7 +134,7 @@ class CardsTabStyles {
 
       .my-card-fallback {
         width: 100%;
-        aspect-ratio: 3/4;
+        height: 100%;
         background: repeating-linear-gradient(45deg, #2ecc71, #2ecc71 10px, #27ae60 10px, #27ae60 20px);
         border-radius: 6px;
         color: #fff;
@@ -141,64 +142,21 @@ class CardsTabStyles {
         justify-content: center;
         align-items: center;
         font-size: 10px;
-        padding: 4px;
       }
 
-      /* === Collection === */
-      .collection-grid {
+      /* === Collection / Toutes les cartes === */
+      .collection-grid,
+      .all-cards-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        grid-template-columns: repeat(auto-fill, 80px);
         gap: 10px;
+        justify-content: center;
       }
 
-      .collection-card {
-        width: 100%;
-        aspect-ratio: 3/4;
-        background: #222;
-        border: 2px solid #444;
-        border-radius: 8px;
-        text-align: center;
-        padding: 5px;
-        cursor: grab;
-        position: relative;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .collection-card img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        border-radius: 4px;
-        margin-bottom: 5px;
-      }
-
-      .collection-info {
-        font-size: 12px;
-        color: #ccc;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .collection-card.locked {
-        filter: grayscale(100%) brightness(0.5);
-        cursor: default;
-      }
-
-      .collection-card.locked::after {
-        content: "🔒";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 24px;
-        color: #aaa;
-      }
-
-      /* === All cards === */
+      .collection-card,
       .game-card {
-        width: 100%;
-        aspect-ratio: 3/4;
+        width: 80px;
+        height: 106px;
         background: #222;
         border: 2px solid #444;
         border-radius: 8px;
@@ -206,29 +164,31 @@ class CardsTabStyles {
         padding: 5px;
         cursor: pointer;
         position: relative;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
+      .collection-card img,
+      .game-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+      }
+
+      .collection-card.locked,
       .game-card.not-owned {
         filter: grayscale(100%) brightness(0.5);
-        position: relative;
       }
 
+      .collection-card.locked::after,
       .game-card.not-owned::after {
         content: "🔒";
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 24px;
+        font-size: 20px;
         color: #aaa;
-      }
-
-      .game-card img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        border-radius: 4px;
-        margin-bottom: 5px;
       }
 
       /* Notifications */
