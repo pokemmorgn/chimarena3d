@@ -7,6 +7,7 @@ class BattleTab {
     this.container = null;
     this.tabElement = null;
     this.battleBtn = null;
+    this.modeBtn = null;
     this.dropdownMenu = null;
 
     this.eventListeners = new Map();
@@ -60,9 +61,12 @@ class BattleTab {
         <img src="assets/arena_placeholder.png" alt="Arena" class="arena-image" />
       </div>
 
-      <!-- Bottom: Battle + chests -->
+      <!-- Bottom: Battle + mode + chests -->
       <div class="battle-bottom">
-        <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
+        <div class="battle-action">
+          <button class="battle-main-btn" id="battle-main-btn">⚔️ Battle</button>
+          <button class="battle-mode-btn" id="battle-mode-btn">⚙️</button>
+        </div>
         <div class="battle-chests">
           <div class="chest-slot" data-slot="1"></div>
           <div class="chest-slot" data-slot="2"></div>
@@ -73,11 +77,13 @@ class BattleTab {
     `;
 
     this.battleBtn = this.tabElement.querySelector('#battle-main-btn');
+    this.modeBtn = this.tabElement.querySelector('#battle-mode-btn');
     this.dropdownMenu = this.tabElement.querySelector('#dropdown-menu');
   }
 
   setupEventListeners() {
     this.battleBtn.addEventListener('click', () => this.handleMainBattle());
+    this.modeBtn.addEventListener('click', () => this.emit('battle:mode'));
 
     const avatar = this.tabElement.querySelector('#player-avatar');
     avatar.addEventListener('click', () => this.emit('player:change-avatar'));
