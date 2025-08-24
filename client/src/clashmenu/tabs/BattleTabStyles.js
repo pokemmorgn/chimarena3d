@@ -30,37 +30,96 @@ class BattleTabStyles {
       left: 0;
       width: 100%;
       height: calc(100% - 80px);
-      padding: 20px;
+      padding: 10px 15px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
     }
 
-    /* Arena */
+    /* --- Top bar --- */
+    .battle-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, ${royalBlue}, ${darkBlue});
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+
+    .topbar-left, .topbar-right {
+      display: flex;
+      gap: 8px;
+    }
+
+    .topbar-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: ${white};
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .topbar-btn:hover {
+      transform: scale(1.1);
+      background: rgba(255,255,255,0.2);
+    }
+
+    .topbar-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: ${white};
+      font-weight: bold;
+    }
+
+    .player-name {
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+
+    .player-trophies {
+      font-size: 14px;
+      color: ${gold};
+    }
+
+    /* --- Arena --- */
     .arena-section {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 20px;
+      margin: 10px 0;
     }
 
     .arena-image {
       max-width: 100%;
-      max-height: 250px;
+      max-height: 240px;
       object-fit: contain;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
 
-    /* Battle action row */
+    /* --- Battle action --- */
     .battle-action {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 15px;
-      margin-bottom: 30px;
+      margin: 20px 0;
     }
 
     .battle-main-btn {
@@ -101,7 +160,7 @@ class BattleTabStyles {
       transform: scale(1.1);
     }
 
-    /* Chests */
+    /* --- Chests --- */
     .battle-chests {
       display: flex;
       justify-content: space-around;
