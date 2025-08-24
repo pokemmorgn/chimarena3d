@@ -188,25 +188,27 @@ const aspect = parent.clientWidth / parent.clientHeight;
   /**
    * Setup responsive resize handling
    */
-  setupResizeHandling() {
-    // Use ResizeObserver for better performance than window resize
-    if (window.ResizeObserver) {
-      this.resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const { width, height } = entry.contentRect;
-this.handleResize(this.canvas.parentElement.clientWidth, this.canvas.parentElement.clientHeight);
-      });
-      
-      this.resizeObserver.observe(this.canvas.parentElement || this.canvas);
-    } else {
-      // Fallback to window resize
-      window.addEventListener('resize', () => {
-        this.handleResize(window.innerWidth, window.innerHeight);
-      });
-    }
-    
-    console.log('✅ Resize handling configured');
+setupResizeHandling() {
+  // Use ResizeObserver for better performance than window resize
+  if (window.ResizeObserver) {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const parent = this.canvas.parentElement;
+        this.handleResize(parent.clientWidth, parent.clientHeight);
+      }
+    });
+
+    this.resizeObserver.observe(this.canvas.parentElement || this.canvas);
+  } else {
+    // Fallback to window resize
+    window.addEventListener('resize', () => {
+      this.handleResize(window.innerWidth, window.innerHeight);
+    });
   }
+
+  console.log('✅ Resize handling configured');
+}
+
 
   /**
    * Handle window/canvas resize
