@@ -4,8 +4,8 @@
  */
 
 import ClanCreateOverlay from './ClanCreateOverlay.js';
-import ClanAPI from '../../network/ClanAPI.js';
-import ClanRoomClient from '../network/ClanRoomClient.js';
+import ClanAPI from '../../services/ClanAPI.js';
+import ClanRoomClient from '../services/ClanRoomClient.js';
 
 class ClanTab {
   constructor() {
