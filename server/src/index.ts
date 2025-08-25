@@ -14,6 +14,8 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import { AuthRoom } from './rooms/AuthRoom';
 import { WorldRoom } from './rooms/WorldRoom';
 import { BattleRoom } from './rooms/BattleRoom';
+import { ClanRoom } from './rooms/ClanRoom';
+
 // Import routes
 import authRoutes from './routes/AuthRoutes';
 import cardRoutes from './routes/CardRoutes';
@@ -259,6 +261,10 @@ function setupGameServer(): void {
   gameServer.define('battle', BattleRoom, {
     maxClients: 12  // 2 joueurs + 10 spectateurs max
   });
+
+  gameServer.define('clan', ClanRoom, {
+  maxClients: 50
+  });
   // Future rooms can be added here:
   // gameServer.define('battle', BattleRoom);
   // gameServer.define('tournament', TournamentRoom);
@@ -267,6 +273,8 @@ function setupGameServer(): void {
   console.log('   📝 AuthRoom - Authentication and login');
   console.log('   🌍 WorldRoom - Main lobby and matchmaking');
   console.log('   🎯 Connection flow: auth → world → battle');
+  console.log('   🏰 ClanRoom - Clan chat, members, donations, wars');
+
 }
 
 /**
