@@ -102,3 +102,4 @@ class ClanTab {
 }
 
 export default ClanTab;
+
