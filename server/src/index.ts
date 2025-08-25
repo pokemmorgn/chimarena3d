@@ -18,6 +18,7 @@ import { BattleRoom } from './rooms/BattleRoom';
 import authRoutes from './routes/AuthRoutes';
 import cardRoutes from './routes/CardRoutes';
 import collectionRoutes from './routes/CollectionRoutes';
+import clanRoutes from './routes/ClanRoutes';
 
 // Import middleware
 import { authenticateOptional } from './middleware/AuthData';
@@ -156,7 +157,7 @@ function setupRoutes(): void {
   app.use('/api/auth', authRoutes);
   app.use('/api/cards', cardRoutes);
   app.use('/api/collection', collectionRoutes);
-
+  app.use('/api/clan', clanRoutes);
   // Game API routes (for future expansion)
   app.use('/api/game', authenticateOptional, (req, res) => {
     res.json({
@@ -307,7 +308,8 @@ function setupDevelopmentTools(): void {
           rooms: `http://${HOST}:${PORT}/api/rooms`,
           auth: `http://${HOST}:${PORT}/api/auth`,
           cards: `http://${HOST}:${PORT}/api/cards`,
-          collection: `http://${HOST}:${PORT}/api/collection`
+          collection: `http://${HOST}:${PORT}/api/collection`,
+          clan: `http://${HOST}:${PORT}/api/clan`
         }
       });
     });
