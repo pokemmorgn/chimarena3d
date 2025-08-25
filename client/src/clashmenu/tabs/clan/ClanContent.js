@@ -456,7 +456,7 @@ const result = await ClanRoomClient.connect(
 
   loadChatHistory() {
     // Load from localStorage or request from server
-    const history = localStorage.getItem(`clan_chat_${this.clan.id}`);
+    const history = localStorage.getItem(`clan_chat_${this.clan.clanId || this.clan._id || this.clan.id}`);
     if (history) {
       try {
         const messages = JSON.parse(history);
@@ -1009,10 +1009,10 @@ const result = await ClanRoomClient.connect(
     // Save chat history
     if (this.chatMessages.length > 0) {
       try {
-        localStorage.setItem(
-          `clan_chat_${this.clan.id}`, 
-          JSON.stringify(this.chatMessages.slice(-50)) // Keep last 50 messages
-        );
+ localStorage.setItem(
+   `clan_chat_${this.clan.clanId || this.clan._id || this.clan.id}`, 
+   JSON.stringify(this.chatMessages.slice(-50))
+ );
       } catch (error) {
         console.error('Failed to save chat history:', error);
       }
