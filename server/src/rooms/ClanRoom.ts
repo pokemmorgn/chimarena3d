@@ -132,7 +132,7 @@ export class ClanRoom extends Room<ClanRoomState> {
   // Cache des données utilisateurs
   private userDataCache = new Map<string, any>();
 
-  async onAuth(client: Client, options: any, _request?: http.IncomingMessage) {
+  async onAuth(_client: Client, options: any, _request?: http.IncomingMessage) {
     const { userId, clanId } = options?.auth as JoinRoomAuth;
     
     if (!userId || !clanId) {
@@ -181,14 +181,14 @@ export class ClanRoom extends Room<ClanRoomState> {
     this.startStatsUpdate();
     this.startSyncTimer();
 
-    await this.logger.log(this.clanData.leaderId, 'clan_room_created', {
+    await this.logger.log(this.clanData.leaderId, 'screen_viewed', {
       clanId: this.state.clanId,
       clanName: this.state.name,
       roomId: this.roomId
     });
   }
 
-  async onJoin(client: Client, options: any) {
+  async onJoin(client: Client, _options: any) {
     try {
       const auth = client.auth;
       console.log(`👤 ${auth.user.username} joining ClanRoom for clan ${this.state.name}`);
@@ -227,7 +227,7 @@ export class ClanRoom extends Room<ClanRoomState> {
         displayName: auth.user.displayName
       }, { except: client });
 
-      await this.logger.logNavigation('clan_room_joined', auth.userId, {
+      await this.logger.logNavigation('screen_viewed', auth.userId, {
         clanId: this.state.clanId,
         clanName: this.state.name,
         memberRole: auth.member.role
@@ -259,7 +259,7 @@ export class ClanRoom extends Room<ClanRoomState> {
     // Nettoyer le cache
     this.userDataCache.delete(client.sessionId);
 
-    await this.logger.logNavigation('clan_room_left', userData.userId, {
+    await this.logger.logNavigation('app_closed', userData.userId, {
       clanId: this.state.clanId,
       sessionDuration: Date.now() - userData.joinTime || 0,
       consented
@@ -286,10 +286,11 @@ export class ClanRoom extends Room<ClanRoomState> {
 
   private async loadClanData(clanId: string): Promise<void> {
     try {
-      this.clanData = await Clan.findOne({ clanId, isActive: true }).exec();
-      if (!this.clanData) {
+      const clanData = await Clan.findOne({ clanId, isActive: true }).exec();
+      if (!clanData) {
         throw new Error(`Clan ${clanId} not found`);
       }
+      this.clanData = clanData;
 
       await this.syncStateWithDatabase();
       console.log(`📊 Loaded data for clan "${this.clanData.name}" (${this.clanData.memberCount} members)`);
@@ -303,8 +304,10 @@ export class ClanRoom extends Room<ClanRoomState> {
   private async syncStateWithDatabase(): Promise<void> {
     try {
       // Recharger les données depuis la DB
-      this.clanData = await Clan.findOne({ clanId: this.clanData.clanId }).exec();
-      if (!this.clanData) return;
+      const updatedClanData = await Clan.findOne({ clanId: this.clanData.clanId }).exec();
+      if (!updatedClanData) return;
+      
+      this.clanData = updatedClanData;
 
       // Mettre à jour les infos de base
       this.state.clanId = this.clanData.clanId;
@@ -1040,9 +1043,9 @@ export class ClanRoom extends Room<ClanRoomState> {
     for (let i = this.state.chatMessages.length - 1; i >= 0; i--) {
       const msg = this.state.chatMessages[i];
       
-      if (msg.timestamp < dayAgo && msg.type === 'text') {
+      if (msg && msg.timestamp < dayAgo && msg.type === 'text') {
         this.state.chatMessages.splice(i, 1);
-      } else if (msg.type === 'donation_request' && msg.donationData) {
+      } else if (msg && msg.type === 'donation_request' && msg.donationData) {
         try {
           const donationData = JSON.parse(msg.donationData);
           if (donationData.expiresAt && donationData.expiresAt < now) {
