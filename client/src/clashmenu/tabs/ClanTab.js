@@ -57,6 +57,7 @@ class ClanTab {
         <div class="clan-loading">
           <div class="loading-spinner"></div>
           <h3>Loading...</h3>
+          <p>Please wait while we check your clan status...</p>
         </div>`;
     } else if (this.state === 'no_clan') {
       this.tabElement.innerHTML = `
@@ -97,7 +98,6 @@ class ClanTab {
       this.tabElement.querySelector('#btn-create-clan')
         .addEventListener('click', () => this.createOverlay.open());
 
-      // TODO: brancher un vrai overlay pour Find Clan
       this.tabElement.querySelector('#btn-join-clan')
         .addEventListener('click', () => alert('Find Clan coming soon!'));
     } else if (this.state === 'has_clan') {
