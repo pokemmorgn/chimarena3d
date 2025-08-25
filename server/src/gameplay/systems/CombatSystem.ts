@@ -714,7 +714,7 @@ public debugCombatants(): void {
    * Vérifier si un attaquant peut attaquer une cible
    */
 private canAttack(attacker: ICombatant, target: ICombatant): boolean {
-  // 🔧 DEBUG: Log chaque condition
+  // Debug
   console.log(`🔍 CanAttack Checks pour ${attacker.id} → ${target.id}:`);
   
   // Vérifier état de l'attaquant
@@ -739,7 +739,7 @@ private canAttack(attacker: ICombatant, target: ICombatant): boolean {
     return false;
   }
   
-  // 🔧 PROBLÈME POTENTIEL: Vérifier cooldown d'attaque
+  // Vérifier cooldown d'attaque
   const ticksSinceLastAttack = this.currentTick - attacker.lastAttackTick;
   const requiredCooldown = attacker.attackSpeed;
   
@@ -750,12 +750,16 @@ private canAttack(attacker: ICombatant, target: ICombatant): boolean {
     return false;
   }
   
-  // Vérifier portée
+  // 🔧 CORRECTION CRITIQUE: Vérifier portée avec tolérance pour précision flottante
   const distance = this.calculateDistance(attacker.position, target.position);
-  console.log(`   🔍 Range check: ${distance.toFixed(2)} <= ${attacker.attackRange}`);
+  const attackRange = attacker.attackRange;
+  const RANGE_TOLERANCE = 0.01; // Tolérance de 1cm pour erreurs de précision
   
-  if (distance > attacker.attackRange) {
-    console.log(`   ❌ Hors de portée: ${distance.toFixed(2)} > ${attacker.attackRange}`);
+  console.log(`   🔍 Range check: ${distance.toFixed(3)} <= ${attackRange} (tolerance: ${RANGE_TOLERANCE})`);
+  
+  // 🔧 CORRECTION: Utiliser tolérance au lieu de comparaison exacte
+  if (distance > attackRange + RANGE_TOLERANCE) {
+    console.log(`   ❌ Hors de portée: ${distance.toFixed(3)} > ${attackRange + RANGE_TOLERANCE}`);
     return false;
   }
   
@@ -765,7 +769,7 @@ private canAttack(attacker: ICombatant, target: ICombatant): boolean {
     return false;
   }
   
-  console.log(`   ✅ Toutes les conditions remplies !`);
+  console.log(`   ✅ Toutes les conditions remplies ! (Distance: ${distance.toFixed(3)} <= ${attackRange + RANGE_TOLERANCE})`);
   return true;
 }
 
