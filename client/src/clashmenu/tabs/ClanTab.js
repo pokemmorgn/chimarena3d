@@ -2,13 +2,18 @@
  * ClanTab.js - Onglet Clan avec gestion complète
  * Gère : Pas de clan, Création/Recherche, Interface clan complète
  */
+
+import ClanCreateOverlay from '../overlays/ClanCreateOverlay.js';
+
+
 class ClanTab {
   constructor() {
     this.isActive = false;
     this.currentUser = null;
     this.currentClan = null;
     this.clanRoom = null;
-    
+      this.createOverlay = null;  // ✅ Ajouter cette ligne
+
     // États possibles
     this.state = 'loading'; // 'loading', 'no_clan', 'has_clan'
     
@@ -34,26 +39,35 @@ class ClanTab {
    * Initialize clan tab
    */
   async initialize(container) {
-    if (!container) {
-      throw new Error('Container is required for ClanTab');
-    }
-    
-    this.container = container;
-    
-    try {
-      console.log('🏰 Initializing ClanTab...');
-      
-      this.createTabElement();
-      this.checkClanStatus();
-      
-      console.log('✅ ClanTab initialized');
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize ClanTab:', error);
-      throw error;
-    }
+  if (!container) {
+    throw new Error('Container is required for ClanTab');
   }
-
+  
+  this.container = container;
+  
+  try {
+    console.log('🏰 Initializing ClanTab...');
+    
+    this.createTabElement();
+    
+    // Initialize overlays
+    this.createOverlay = new ClanCreateOverlay();
+    this.createOverlay.initialize(this.container);
+    
+    // Setup overlay events
+    this.createOverlay.on('clan:created', (clanData) => {
+      this.handleClanCreated(clanData);
+    });
+    
+    this.checkClanStatus();
+    
+    console.log('✅ ClanTab initialized');
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize ClanTab:', error);
+    throw error;
+  }
+}
   /**
    * Create tab element
    */
@@ -113,6 +127,30 @@ class ClanTab {
     }
   }
 
+  handleClanCreated(clanData) {
+  console.log('🏰 Clan created:', clanData);
+  
+  // Simulate joining the newly created clan
+  this.currentClan = {
+    clanId: 'new_clan_' + Date.now(),
+    name: clanData.name,
+    tag: '#NEWCLAN',
+    description: clanData.description,
+    badge: clanData.badge,
+    memberCount: 1,
+    maxMembers: 50,
+    trophies: 0,
+    myRole: 'leader',
+    stats: {
+      totalDonations: 0,
+      warWins: 0,
+      warLosses: 0
+    }
+  };
+  
+  this.setState('has_clan');
+}
+  
   /**
    * Set current state and render
    */
@@ -615,10 +653,11 @@ class ClanTab {
   /**
    * Show overlay methods (placeholder)
    */
-  showCreateClanOverlay() {
-    console.log('🏰 Show create clan overlay');
-    // TODO: Implement overlay
+showCreateClanOverlay() {
+  if (this.createOverlay) {
+    this.createOverlay.open();
   }
+}
 
   showJoinByTagOverlay() {
     console.log('🏰 Show join by tag overlay');
@@ -791,7 +830,9 @@ class ClanTab {
     if (this.tabElement && this.tabElement.parentNode) {
       this.tabElement.parentNode.removeChild(this.tabElement);
     }
-    
+      if (this.createOverlay) {  // ✅ Ajouter
+    this.createOverlay.cleanup();
+  }
     this.tabElement = null;
     this.container = null;
     this.currentUser = null;
