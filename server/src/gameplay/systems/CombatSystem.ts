@@ -714,10 +714,10 @@ public debugCombatants(): void {
    * Vérifier si un attaquant peut attaquer une cible
    */
 private canAttack(attacker: ICombatant, target: ICombatant): boolean {
-  // Debug
+  // Debug détaillé
   console.log(`🔍 CanAttack Checks pour ${attacker.id} → ${target.id}:`);
   
-  // Vérifier état de l'attaquant
+  // 1. Vérifier état de l'attaquant
   if (!attacker.canAttack) {
     console.log(`   ❌ attacker.canAttack = false`);
     return false;
@@ -733,13 +733,13 @@ private canAttack(attacker: ICombatant, target: ICombatant): boolean {
     return false;
   }
   
-  // Vérifier état de la cible
+  // 2. Vérifier état de la cible
   if (!target.isAlive) {
     console.log(`   ❌ target.isAlive = false`);
     return false;
   }
   
-  // Vérifier cooldown d'attaque
+  // 3. Vérifier cooldown d'attaque
   const ticksSinceLastAttack = this.currentTick - attacker.lastAttackTick;
   const requiredCooldown = attacker.attackSpeed;
   
@@ -750,26 +750,31 @@ private canAttack(attacker: ICombatant, target: ICombatant): boolean {
     return false;
   }
   
-  // 🔧 CORRECTION CRITIQUE: Vérifier portée avec tolérance pour précision flottante
+  // 4. 🔧 CORRECTION CRITIQUE: Vérifier portée avec tolérance généreuse
   const distance = this.calculateDistance(attacker.position, target.position);
   const attackRange = attacker.attackRange;
-  const RANGE_TOLERANCE = 0.01; // Tolérance de 1cm pour erreurs de précision
+  const RANGE_TOLERANCE = 0.15; // 🔧 15cm de tolérance pour combat mêlée stable
   
   console.log(`   🔍 Range check: ${distance.toFixed(3)} <= ${attackRange} (tolerance: ${RANGE_TOLERANCE})`);
   
-  // 🔧 CORRECTION: Utiliser tolérance au lieu de comparaison exacte
+  // 🔧 CORRECTION: Tolérance généreuse pour éviter les micro-distances
   if (distance > attackRange + RANGE_TOLERANCE) {
-    console.log(`   ❌ Hors de portée: ${distance.toFixed(3)} > ${attackRange + RANGE_TOLERANCE}`);
+    console.log(`   ❌ Hors de portée: ${distance.toFixed(3)} > ${(attackRange + RANGE_TOLERANCE).toFixed(2)}`);
     return false;
   }
   
-  // Pas de friendly fire
+  // 5. Pas de friendly fire
   if (attacker.ownerId === target.ownerId) {
     console.log(`   ❌ Friendly fire: ${attacker.ownerId} === ${target.ownerId}`);
     return false;
   }
   
-  console.log(`   ✅ Toutes les conditions remplies ! (Distance: ${distance.toFixed(3)} <= ${attackRange + RANGE_TOLERANCE})`);
+  // 6. ✅ Toutes les conditions remplies !
+  console.log(`   ✅ Toutes les conditions remplies !`);
+  console.log(`      Distance: ${distance.toFixed(3)} <= Range: ${(attackRange + RANGE_TOLERANCE).toFixed(2)}`);
+  console.log(`      Cooldown: ${ticksSinceLastAttack} >= ${requiredCooldown} ✓`);
+  console.log(`      Owners: ${attacker.ownerId.substring(0, 8)} vs ${target.ownerId.substring(0, 8)} ✓`);
+  
   return true;
 }
 
