@@ -35,8 +35,8 @@ class TabNavigation {
         id: 'clan',
         label: 'Clan',
         icon: '🏰',
-        enabled: false,
-        comingSoon: true
+        enabled: true,
+        comingSoon: false
       },
       {
         id: 'shop',
