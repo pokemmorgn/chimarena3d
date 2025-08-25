@@ -290,11 +290,19 @@ class ClanContent {
 
   async connectToClan() {
     try {
+      console.log('🔄 Connecting to clan room...');
       const result = await ClanRoomClient.connect(this.currentUser.id, this.clan.id);
+      
       if (result.success) {
         this.isConnected = true;
-        console.log('✅ Connected to clan room');
+        console.log('✅ Connected to clan room successfully');
         this.showConnectionStatus(true);
+        
+        // Demander les données initiales après connexion
+        setTimeout(() => {
+          this.loadInitialData();
+        }, 1000);
+        
       } else {
         throw new Error(result.error);
       }
@@ -302,7 +310,48 @@ class ClanContent {
       console.error('❌ Failed to connect to clan:', error);
       this.isConnected = false;
       this.showConnectionStatus(false);
-      this.showError('Failed to connect to clan. Some features may not work.');
+      
+      // Afficher une erreur plus détaillée selon le type d'erreur
+      let errorMessage = 'Failed to connect to clan.';
+      
+      if (error.message?.includes('not properly initialized')) {
+        errorMessage = 'Server connection not available. Please try again later.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your internet connection.';
+      } else if (error.message?.includes('unauthorized')) {
+        errorMessage = 'Not authorized to join this clan.';
+      }
+      
+      this.showError(errorMessage);
+      
+      // Proposer une reconnexion après 5 secondes
+      setTimeout(() => {
+        if (!this.isConnected) {
+          this.showReconnectOption();
+        }
+      }, 5000);
+    }
+  }
+
+  showReconnectOption() {
+    const header = this.container.querySelector('.clan-header');
+    if (header && !header.querySelector('.reconnect-banner')) {
+      const banner = document.createElement('div');
+      banner.className = 'reconnect-banner';
+      banner.innerHTML = `
+        <div class="reconnect-content">
+          <span>🔌 Connection lost</span>
+          <button class="reconnect-btn">Reconnect</button>
+        </div>
+      `;
+      
+      header.appendChild(banner);
+      
+      // Bind reconnect button
+      banner.querySelector('.reconnect-btn').addEventListener('click', () => {
+        banner.remove();
+        this.connectToClan();
+      });
     }
   }
 
