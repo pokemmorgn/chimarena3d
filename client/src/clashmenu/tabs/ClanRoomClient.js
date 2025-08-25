@@ -7,9 +7,8 @@ class ClanRoomClient {
     this.eventListeners = new Map();
   }
 
-  /**
-   * Connecter l’utilisateur à la room d’un clan
-   */
+  // ==== Connexion ====
+
   async connect(userId, clanId) {
     try {
       this.room = await this.colyseus.joinOrCreate('clan', {
@@ -23,9 +22,6 @@ class ClanRoomClient {
     }
   }
 
-  /**
-   * Quitter la room
-   */
   leave() {
     if (this.room) {
       this.room.leave();
@@ -33,33 +29,24 @@ class ClanRoomClient {
     }
   }
 
-  /**
-   * Envoyer un message de chat
-   */
+  // ==== Chat ====
+
   sendChat(content) {
-    if (!this.room) return;
-    this.room.send('chat_message', { content });
+    this.room?.send('chat_message', { content });
   }
 
-  /**
-   * Demander des cartes
-   */
-  requestCards(cardId, amount) {
-    if (!this.room) return;
-    this.room.send('request_cards', { cardId, amount });
+  // ==== Donations ====
+
+  requestCards(cardId, amount = 1) {
+    this.room?.send('request_cards', { cardId, amount });
   }
 
-  /**
-   * Donner des cartes
-   */
   donateCards(messageId, amount) {
-    if (!this.room) return;
-    this.room.send('donate_cards', { messageId, amount });
+    this.room?.send('donate_cards', { messageId, amount });
   }
 
-  /**
-   * Actions sur les membres
-   */
+  // ==== Gestion membres ====
+
   promoteMember(targetUserId) {
     this.room?.send('promote_member', { targetUserId });
   }
@@ -72,9 +59,8 @@ class ClanRoomClient {
     this.room?.send('kick_member', { targetUserId, reason });
   }
 
-  /**
-   * Gestion des events
-   */
+  // ==== Event system (wrapper) ====
+
   on(event, callback) {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
@@ -96,18 +82,28 @@ class ClanRoomClient {
     }
   }
 
-  /**
-   * Setup des listeners Colyseus (bridge vers events locaux)
-   */
+  // ==== Bridge Colyseus → events locaux ====
+
   setupListeners() {
     if (!this.room) return;
 
+    // Chat
     this.room.onMessage('new_chat_message', (msg) => this.emit('chat:message', msg));
+
+    // Membres
     this.room.onMessage('member_online', (data) => this.emit('member:online', data));
     this.room.onMessage('member_offline', (data) => this.emit('member:offline', data));
     this.room.onMessage('member_kicked', (data) => this.emit('member:kicked', data));
+
+    // Stats / annonces
     this.room.onMessage('stats_updated', (data) => this.emit('clan:stats', data));
     this.room.onMessage('announcement_updated', (data) => this.emit('clan:announcement', data));
+
+    // Donations
+    this.room.onMessage('new_donation_request', (data) => this.emit('donation:request', data));
+    this.room.onMessage('donation_request_sent', (data) => this.emit('donation:request:sent', data));
+    this.room.onMessage('cards_donated', (data) => this.emit('donation:given', data));
+    this.room.onMessage('donation_sent', (data) => this.emit('donation:sent', data));
   }
 }
 
