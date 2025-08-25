@@ -53,16 +53,53 @@ class ClanTab {
     if (!this.tabElement) return;
 
     if (this.state === 'loading') {
-      this.tabElement.innerHTML =
-        `<div class="clan-loading"><div class="loading-spinner"></div><h3>Loading...</h3></div>`;
+      this.tabElement.innerHTML = `
+        <div class="clan-loading">
+          <div class="loading-spinner"></div>
+          <h3>Loading...</h3>
+        </div>`;
     } else if (this.state === 'no_clan') {
       this.tabElement.innerHTML = `
         <div class="clan-no-clan">
-          <h2>No Clan</h2>
-          <button id="btn-create-clan">Create Clan</button>
+          <div class="no-clan-header">
+            <div class="clan-icon">🏰</div>
+            <h2>No Clan</h2>
+            <p>Join or create a clan to chat, share cards, and battle together!</p>
+          </div>
+
+          <div class="clan-actions">
+            <button class="clan-action-btn primary" id="btn-create-clan">
+              <span class="btn-icon">➕</span>
+              <span class="btn-text">Create Clan</span>
+            </button>
+            <button class="clan-action-btn secondary" id="btn-join-clan">
+              <span class="btn-icon">🔍</span>
+              <span class="btn-text">Find Clan</span>
+            </button>
+          </div>
+
+          <div class="clan-quick-stats">
+            <div class="quick-stat">
+              <div class="stat-number">0</div>
+              <div class="stat-label">Clans</div>
+            </div>
+            <div class="quick-stat">
+              <div class="stat-number">0</div>
+              <div class="stat-label">Members</div>
+            </div>
+            <div class="quick-stat">
+              <div class="stat-number">0</div>
+              <div class="stat-label">Wars</div>
+            </div>
+          </div>
         </div>`;
+
       this.tabElement.querySelector('#btn-create-clan')
         .addEventListener('click', () => this.createOverlay.open());
+
+      // TODO: brancher un vrai overlay pour Find Clan
+      this.tabElement.querySelector('#btn-join-clan')
+        .addEventListener('click', () => alert('Find Clan coming soon!'));
     } else if (this.state === 'has_clan') {
       // déléguer à ClanContent
       this.clanContent = new ClanContent(this.tabElement, this.currentUser, this.currentClan);
