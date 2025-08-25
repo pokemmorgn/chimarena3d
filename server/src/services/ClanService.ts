@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { Types } from 'mongoose';
-import Clan, { IClan, IClanMember, IClanChatMessage } from '../models/Clan';
+import Clan, { IClan, IClanMember } from '../models/Clan';
 import UserData from '../models/UserData';
 import PlayerCollection from '../models/PlayerCollection';
 import CardData from '../models/CardData';
@@ -432,6 +432,9 @@ class ClanService extends EventEmitter {
       
       const playerCard = collection.getCard(cardId);
       // TODO: Vérifier les limites de collection si nécessaire
+      if (playerCard && playerCard.count > 1000) {
+        return { success: false, error: 'Card collection limit reached' };
+      }
       
       // Créer la demande de donation
       const expiresAt = new Date(now.getTime() + this.config.donationRequestDuration);
