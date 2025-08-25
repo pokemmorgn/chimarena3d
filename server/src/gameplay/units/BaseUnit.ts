@@ -457,45 +457,58 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   }
   
   /**
-   * Logique mouvement vers la cible
+   * Logique mouvement vers la cible - CORRIGÉE pour combat mêlée
    */
   private updateMovement(currentTick: number, deltaTime: number): void {
-    if (!this.behavior.destination) {
+    if (!this.behavior.destination || !this.behavior.currentTarget) {
       this.setState('idle');
       return;
     }
     
-    // Calculer la distance vers destination
-    const dx = this.behavior.destination.x - this.x;
-    const dy = this.behavior.destination.y - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    // Calculer la distance vers la CIBLE (pas vers destination)
+    const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
     
     // Vérifier si en range d'attaque de la cible
-    if (this.behavior.currentTarget && distance <= this.baseStats.range) {
+    if (targetDistance <= this.baseStats.range) {
+      console.log(`🎯 ${this.id} en range d'attaque ! Distance: ${targetDistance.toFixed(2)} <= Range: ${this.baseStats.range}`);
       this.setState('attacking');
       return;
     }
     
-    // Se déplacer vers la destination
-    if (distance > 0.1) { // Seuil minimum pour éviter les micro-mouvements
+    // Calculer la direction vers la cible (pas vers destination fixe)
+    const targetPos = this.behavior.currentTarget.position;
+    const dx = targetPos.x - this.x;
+    const dy = targetPos.y - this.y;
+    const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
+    
+    // Se déplacer vers la cible si elle est trop loin
+    if (distanceToTarget > this.baseStats.range + 0.1) { // +0.1 pour éviter l'oscillation
       const moveDistance = this.behavior.moveSpeed * (deltaTime / 1000); // Distance par frame
-      const ratio = Math.min(moveDistance / distance, 1);
+      const ratio = Math.min(moveDistance / distanceToTarget, 1);
       
+      // Avancer vers la cible
       this.x += dx * ratio;
       this.y += dy * ratio;
       
       this.behavior.lastMoveTick = currentTick;
+      
+      // Debug de mouvement
+      if (currentTick % 20 === 0) { // Log chaque seconde
+        console.log(`🏃 ${this.id} se déplace: (${this.x.toFixed(1)}, ${this.y.toFixed(1)}) → cible (${targetPos.x.toFixed(1)}, ${targetPos.y.toFixed(1)}) - Distance: ${distanceToTarget.toFixed(2)}`);
+      }
     } else {
-      // Arrivé à destination
-      this.setState('idle');
+      // Très proche de la cible, passer en attaque
+      console.log(`⚔️ ${this.id} arrive en contact ! Distance: ${distanceToTarget.toFixed(2)}`);
+      this.setState('attacking');
     }
   }
   
   /**
-   * Logique d'attaque - Intégrée avec CombatSystem
+   * Logique d'attaque - CORRIGÉE avec debug
    */
   private updateAttacking(currentTick: number): void {
     if (!this.behavior.currentTarget) {
+      console.log(`❌ ${this.id} en mode attaque mais pas de cible !`);
       this.setState('idle');
       return;
     }
@@ -503,21 +516,31 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     // Vérifier si la cible est encore en range
     const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
     if (targetDistance > this.baseStats.range) {
+      console.log(`🏃 ${this.id} cible trop loin (${targetDistance.toFixed(2)} > ${this.baseStats.range}), retour en mouvement`);
       this.setState('moving');
       return;
     }
     
     // Vérifier si on peut attaquer avec le CombatSystem
     if (currentTick >= this.behavior.nextAttackTick) {
+      console.log(`⚔️ ${this.id} ATTAQUE ${this.behavior.currentTarget.id} ! Distance: ${targetDistance.toFixed(2)}`);
       this.performAttackWithSystem(currentTick);
+    } else {
+      // Debug du cooldown
+      const ticksRemaining = this.behavior.nextAttackTick - currentTick;
+      if (ticksRemaining > 0 && currentTick % 10 === 0) { // Log toutes les 0.5s
+        console.log(`⏱️ ${this.id} cooldown attaque: ${ticksRemaining} ticks restants`);
+      }
     }
   }
   
   /**
-   * Effectuer une attaque via le CombatSystem
+   * Effectuer une attaque via le CombatSystem - AVEC DEBUG
    */
   private performAttackWithSystem(currentTick: number): void {
     if (!this.behavior.currentTarget) return;
+    
+    console.log(`🗡️ ${this.id} prépare l'attaque sur ${this.behavior.currentTarget.id}`);
     
     const attackConfig: IAttackConfig = {
       attackerId: this.id,
@@ -539,6 +562,8 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       ...(this.getKnockbackForce() !== undefined && { knockback: this.getKnockbackForce()! })
     };
     
+    console.log(`⚔️ Configuration attaque: ${attackConfig.damage} dégâts ${attackConfig.damageType}${attackConfig.isProjectile ? ' (projectile)' : ' (mêlée)'}`);
+    
     // Déléguer au CombatSystem
     const result = this.combatSystem.performAttack(attackConfig);
     
@@ -547,8 +572,12 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       this.behavior.nextAttackTick = currentTick + this.attackSpeed;
       this.behavior.lastAttackTick = currentTick;
       
+      console.log(`✅ Attaque effectuée ! Prochaine attaque dans ${this.attackSpeed} ticks`);
+      
       // Callback d'attaque réussie
       this.onAttackPerformed(result);
+    } else {
+      console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id}`);
     }
   }
   
