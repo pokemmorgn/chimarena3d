@@ -60,6 +60,7 @@ this.clanTab = null;         // ✅ Ajouter cette ligne
       await this.tabNavigation.initialize(this.mainContainer);
       await this.battleTab.initialize(this.mainContainer);
       await this.cardsTab.initialize(this.mainContainer); // ✅ Initialize CardsTab
+await this.clanTab.initialize(this.mainContainer);  // ✅ MANQUE CETTE LIGNE !
 
       this.profileOverlay = new ProfileOverlay();
       this.profileOverlay.initialize(this.mainContainer);
