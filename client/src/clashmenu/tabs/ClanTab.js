@@ -4,8 +4,8 @@
  */
 
 import ClanCreateOverlay from './ClanCreateOverlay.js';
-import ClanAPI from '../network/ClanAPI.js';
-import ClanRoomClient from '../network/ClanRoomClient.js';
+import ClanAPI from '../../services/ClanAPI.js';
+import ClanRoomClient from '../../services/ClanRoomClient.js';
 
 class ClanTab {
   constructor() {
@@ -23,8 +23,9 @@ class ClanTab {
     this.donationRequests = [];
   }
 
-  async initialize(container) {
+  async initialize(container, currentUser) {
     this.container = container;
+    this.currentUser = currentUser;
     this.createTabElement();
 
     this.createOverlay = new ClanCreateOverlay();
@@ -34,7 +35,7 @@ class ClanTab {
       this.handleClanCreated(clanData);
     });
 
-    this.checkClanStatus();
+    await this.checkClanStatus();
   }
 
   createTabElement() {
@@ -46,34 +47,23 @@ class ClanTab {
 
   async checkClanStatus() {
     this.setState('loading');
-    setTimeout(() => {
-      const hasClan = Math.random() > 0.5;
-      if (hasClan) {
-        this.currentClan = {
-          clanId: 'test_clan_123',
-          name: 'Epic Warriors',
-          tag: '#ABC123XY',
-          memberCount: 28,
-          maxMembers: 50,
-          myRole: 'member'
-        };
+    try {
+      const response = await ClanAPI.getMyClan();
+      if (response.success && response.data) {
+        this.currentClan = response.data;
         this.setState('has_clan');
         this.connectToClanRoom();
       } else {
         this.setState('no_clan');
       }
-    }, 1000);
+    } catch (err) {
+      console.error('Clan check failed:', err);
+      this.setState('no_clan');
+    }
   }
 
   handleClanCreated(clanData) {
-    this.currentClan = {
-      clanId: 'new_' + Date.now(),
-      name: clanData.name,
-      tag: '#NEWCLAN',
-      memberCount: 1,
-      maxMembers: 50,
-      myRole: 'leader'
-    };
+    this.currentClan = clanData;
     this.setState('has_clan');
     this.connectToClanRoom();
   }
@@ -93,7 +83,11 @@ class ClanTab {
   }
 
   renderLoading() {
-    this.tabElement.innerHTML = `<div class="clan-loading"><div class="loading-spinner"></div><h3>Loading...</h3></div>`;
+    this.tabElement.innerHTML = `
+      <div class="clan-loading">
+        <div class="loading-spinner"></div>
+        <h3>Loading...</h3>
+      </div>`;
   }
 
   renderNoClan() {
@@ -102,7 +96,8 @@ class ClanTab {
         <h2>No Clan</h2>
         <button id="btn-create-clan">Create Clan</button>
       </div>`;
-    this.tabElement.querySelector('#btn-create-clan').addEventListener('click', () => this.showCreateClanOverlay());
+    this.tabElement.querySelector('#btn-create-clan')
+      .addEventListener('click', () => this.showCreateClanOverlay());
   }
 
   renderClanInterface() {
@@ -125,7 +120,9 @@ class ClanTab {
               <button id="btn-send-message" class="chat-send-btn">➤</button>
             </div>
           </div>
-          <div class="clan-tab-content" id="clan-tab-members"><div id="clan-members-list"></div></div>
+          <div class="clan-tab-content" id="clan-tab-members">
+            <div id="clan-members-list"></div>
+          </div>
           <div class="clan-tab-content" id="clan-tab-donations">
             <div class="clan-donations">
               <div class="donation-header">
@@ -172,42 +169,46 @@ class ClanTab {
   }
 
   // ==== Colyseus binding ====
-
   async connectToClanRoom() {
     if (!this.currentClan || !this.currentUser) return;
     const res = await ClanRoomClient.connect(this.currentUser.id, this.currentClan.clanId);
     if (res.success) {
-      // Chat events
-      ClanRoomClient.on('chat:message', (msg) => {
-        this.chatMessages.push(msg);
-        this.addChatMessage(msg);
-      });
-
-      // Donations events
-      ClanRoomClient.on('donation:request', (data) => {
-        this.donationRequests.push(data);
-        this.populateDonations();
-      });
-      ClanRoomClient.on('donation:request:sent', (data) => {
-        this.donationRequests.push(data);
-        this.populateDonations();
-      });
-      ClanRoomClient.on('donation:given', () => {
-        this.populateDonations();
-      });
+      this.setupRoomEvents();
     }
   }
 
-  // ==== CHAT ====
+  setupRoomEvents() {
+    // Chat
+    ClanRoomClient.on('chat:message', (msg) => {
+      this.chatMessages.push(msg);
+      this.addChatMessage(msg);
+    });
 
+    // Members
+    ClanRoomClient.on('member:online', (data) => this.updateMemberStatus(data.userId, true));
+    ClanRoomClient.on('member:offline', (data) => this.updateMemberStatus(data.userId, false));
+
+    // Donations
+    ClanRoomClient.on('donation:request', (data) => {
+      this.donationRequests.push(data);
+      this.populateDonations();
+    });
+    ClanRoomClient.on('donation:request:sent', (data) => {
+      this.donationRequests.push(data);
+      this.populateDonations();
+    });
+    ClanRoomClient.on('donation:given', () => this.populateDonations());
+  }
+
+  // ==== CHAT ====
   populateChatMessages() {
     const container = this.tabElement.querySelector('#clan-chat-messages');
     if (!container) return;
     container.innerHTML = this.chatMessages.map(m =>
       `<div class="chat-message">
         <div class="message-header">
-          <span class="message-author ${m.authorRole || 'member'}">${m.authorUsername || '??'}</span>
-          <span class="message-time">${new Date(m.timestamp || Date.now()).toLocaleTimeString()}</span>
+          <span class="message-author ${m.authorRole}">${m.authorUsername}</span>
+          <span class="message-time">${new Date(m.timestamp).toLocaleTimeString()}</span>
         </div>
         <div class="message-content">${m.content}</div>
       </div>`
@@ -221,8 +222,8 @@ class ClanTab {
     el.className = 'chat-message';
     el.innerHTML = `
       <div class="message-header">
-        <span class="message-author ${message.authorRole || 'member'}">${message.authorUsername || '??'}</span>
-        <span class="message-time">${new Date(message.timestamp || Date.now()).toLocaleTimeString()}</span>
+        <span class="message-author ${message.authorRole}">${message.authorUsername}</span>
+        <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
       </div>
       <div class="message-content">${message.content}</div>
     `;
@@ -238,7 +239,6 @@ class ClanTab {
   }
 
   // ==== DONATIONS ====
-
   populateDonations() {
     const container = this.tabElement.querySelector('#donation-list');
     if (!container) return;
@@ -249,8 +249,8 @@ class ClanTab {
     container.innerHTML = this.donationRequests.map(req => `
       <div class="donation-item">
         <div class="donation-info">
-          <div class="donation-requester">${req.requesterUsername || 'Player'}</div>
-          <div class="donation-card">Card: ${req.cardId || 'Unknown'} (${req.amount || 1})</div>
+          <div class="donation-requester">${req.requesterUsername}</div>
+          <div class="donation-card">Card: ${req.cardId} (${req.amount})</div>
         </div>
         <div class="donation-actions">
           <button class="donation-btn give" data-id="${req.messageId}">Give</button>
@@ -269,10 +269,31 @@ class ClanTab {
     ClanRoomClient.donateCards(messageId, 1);
   }
 
-  // ==== Utils ====
+  // ==== MEMBERS ====
+  updateMemberStatus(userId, isOnline) {
+    const list = this.tabElement.querySelector('#clan-members-list');
+    if (!list) return;
+    // TODO: implémenter affichage/màj membres
+    console.log(`Member ${userId} is now ${isOnline ? 'online' : 'offline'}`);
+  }
 
+  // ==== Utils ====
   showCreateClanOverlay() {
     if (this.createOverlay) this.createOverlay.open();
+  }
+
+  hide() {
+    if (this.tabElement) this.tabElement.classList.remove('active');
+    this.isActive = false;
+    ClanRoomClient.leave();
+  }
+
+  show() {
+    if (this.tabElement) this.tabElement.classList.add('active');
+    this.isActive = true;
+    if (this.state === 'has_clan' && this.currentClan) {
+      this.connectToClanRoom();
+    }
   }
 }
 
