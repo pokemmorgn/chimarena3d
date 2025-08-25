@@ -5,7 +5,7 @@
 class ClanTabStyles {
   static get colors() {
     return {
-      // Base colors
+      // Base
       white: '#ffffff',
       black: '#000000',
 
@@ -16,7 +16,7 @@ class ClanTabStyles {
       neonBlue: '#00bcd4',
       purple: '#7b1fa2',
 
-      // Status colors
+      // Status
       success: '#4caf50',
       warning: '#ff9800',
       danger: '#f44336',
@@ -29,7 +29,7 @@ class ClanTabStyles {
       gray700: '#616161',
       gray900: '#212121',
 
-      // Role colors
+      // Roles
       leader: '#ffd700',
       elder: '#ff9800',
       member: '#9e9e9e'
@@ -48,195 +48,317 @@ class ClanTabStyles {
   }
 
   static getCSS() {
-    const { 
-      white, gold, darkBlue, royalBlue, neonBlue, danger,
-      gray300, gray500, leader, elder, member
-    } = this.colors;
-    const { xs, sm, md, lg, xl } = this.spacing;
+    const { white, gold, darkBlue, neonBlue, danger, gray500, leader, elder, member } = this.colors;
+    const { xs, sm, md } = this.spacing;
 
     return `
-    /* ===== CLAN TAB BASE ===== */
+    /* ===== BASE CLAN TAB ===== */
     .clan-tab {
-      position: absolute;
-      top: 60px;
-      left: 0;
-      width: 100%;
-      height: calc(100% - 120px);
       display: none;
       flex-direction: column;
-      background: linear-gradient(135deg, ${darkBlue}, ${royalBlue});
-      overflow: hidden;
+      height: 100%;
+      color: ${white};
+      background: transparent;
     }
 
-    .clan-tab.active {
-      display: flex;
-    }
-
-    /* ===== LOADING STATE ===== */
     .clan-loading {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
-      padding: ${xl};
-      text-align: center;
+      align-items: center;
+      color: ${white};
+      font-size: 18px;
     }
 
-    .loading-spinner {
-      width: 60px;
-      height: 60px;
-      border: 4px solid rgba(255, 255, 255, 0.2);
-      border-top: 4px solid ${gold};
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: ${lg};
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* ===== NO CLAN STATE ===== */
+    /* ===== NO CLAN ===== */
     .clan-no-clan {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: ${md};
-      overflow-y: auto;
-    }
-
-    .no-clan-header {
-      text-align: center;
-      padding: ${lg} 0;
-      margin-bottom: ${lg};
-    }
-
-    .clan-icon {
-      font-size: 60px;
-      margin-bottom: ${md};
-    }
-
-    .no-clan-header h2 {
-      color: ${white};
-      font-size: 28px;
-      font-weight: bold;
-      margin-bottom: ${sm};
-    }
-
-    .no-clan-header p {
-      color: ${gray300};
-      font-size: 16px;
-      line-height: 1.5;
-      max-width: 300px;
-      margin: 0 auto;
-    }
-
-    /* Action Buttons */
-    .clan-actions {
-      display: flex;
-      flex-direction: column;
-      gap: ${md};
-      margin-bottom: ${lg};
-    }
-
-    .clan-action-btn {
-      display: flex;
       align-items: center;
       justify-content: center;
+      padding: ${md};
       gap: ${md};
-      padding: ${md} ${lg};
+      text-align: center;
+    }
+    .no-clan-header h2 {
+      font-size: 20px;
+      font-weight: bold;
+      color: ${white};
+      margin-bottom: ${sm};
+    }
+    .clan-actions {
+      display: flex;
+      gap: ${sm};
+    }
+    .clan-action-btn {
+      padding: ${sm} ${md};
       border: none;
-      border-radius: 12px;
-      font-size: 18px;
+      border-radius: 8px;
+      font-size: 14px;
       font-weight: bold;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
     }
-
     .clan-action-btn.primary {
-      background: linear-gradient(135deg, ${gold}, #ffb300);
+      background: ${gold};
       color: ${darkBlue};
-      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
     }
-
-    .clan-action-btn.primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
-    }
-
     .clan-action-btn.secondary {
-      background: rgba(255, 255, 255, 0.15);
+      background: ${neonBlue};
+      color: ${darkBlue};
+    }
+
+    /* ===== HEADER ===== */
+    .clan-header {
+      display: flex;
+      align-items: center;
+      gap: ${sm};
+      padding: ${sm} ${md};
+      border-bottom: 2px solid ${gold};
+      background: rgba(255,255,255,0.05);
+    }
+    .clan-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .clan-name {
+      font-size: 18px;
+      font-weight: bold;
       color: ${white};
-      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    .clan-tag {
+      font-size: 14px;
+      color: ${gray500};
+    }
+    .clan-members {
+      font-size: 12px;
+      color: ${gray500};
     }
 
-    .clan-action-btn.secondary:hover {
-      background: rgba(255, 255, 255, 0.25);
-      border-color: rgba(255, 255, 255, 0.5);
-      transform: translateY(-2px);
-    }
-
-    .btn-icon { font-size: 20px; }
-    .btn-text { font-size: 16px; }
-
-    /* Quick Stats */
-    .clan-quick-stats {
+    /* ===== TABS ===== */
+    .clan-tabs {
       display: flex;
       justify-content: space-around;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 10px;
-      padding: ${lg};
-      margin-top: auto;
+      padding: ${xs};
+      background: rgba(255,255,255,0.05);
+      border-bottom: 2px solid ${gold};
     }
-
-    .quick-stat { text-align: center; }
-    .stat-number {
-      font-size: 24px;
+    .clan-tab-btn {
+      flex: 1;
+      padding: ${xs} ${sm};
+      margin: 0 2px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+      color: ${white};
       font-weight: bold;
-      color: ${gold};
-      margin-bottom: ${xs};
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
-    .stat-label {
-      font-size: 12px;
-      color: ${gray300};
-      text-transform: uppercase;
+    .clan-tab-btn.active {
+      background: ${gold};
+      color: ${darkBlue};
     }
 
-    /* ===== CHAT TAB ===== */
-    .chat-messages { flex: 1; padding: ${md}; overflow-y: auto; display: flex; flex-direction: column; gap: ${sm}; }
+    /* ===== CONTENT ===== */
+    .clan-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .clan-tab-content {
+      display: none;
+      flex: 1;
+      padding: ${md};
+    }
+    .clan-tab-content.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== CHAT ===== */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: ${xs};
+      padding: ${sm};
+    }
     .chat-message {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      padding: ${sm} ${md};
-      border-left: 3px solid ${neonBlue};
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: ${xs} ${sm};
+    }
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: ${gray500};
     }
     .message-author.leader { color: ${leader}; }
     .message-author.elder { color: ${elder}; }
     .message-author.member { color: ${member}; }
+    .message-content {
+      font-size: 14px;
+      color: ${white};
+    }
+    .chat-input-container {
+      display: flex;
+      gap: ${sm};
+      padding: ${sm};
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .chat-input {
+      flex: 1;
+      padding: ${xs} ${sm};
+      border: none;
+      border-radius: 6px;
+      outline: none;
+    }
+    .chat-send-btn {
+      background: ${neonBlue};
+      color: ${darkBlue};
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      padding: 0 ${md};
+      cursor: pointer;
+    }
+    .chat-send-btn:hover {
+      background: ${gold};
+    }
 
-    /* ===== DONATIONS TAB ===== */
-    .clan-donations { flex: 1; display: flex; flex-direction: column; padding: ${md}; gap: ${md}; overflow-y: auto; }
+    /* ===== MEMBERS ===== */
+    .clan-members {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: ${sm};
+    }
+    .members-header {
+      font-weight: bold;
+      padding: ${sm};
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .member-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.05);
+      padding: ${xs} ${sm};
+      border-radius: 6px;
+    }
+    .member-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .member-name {
+      font-size: 14px;
+      font-weight: bold;
+      color: ${white};
+    }
+    .member-role {
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: capitalize;
+    }
+    .member-role.leader { color: ${leader}; }
+    .member-role.elder { color: ${elder}; }
+    .member-role.member { color: ${member}; }
+    .member-actions {
+      display: flex;
+      gap: ${xs};
+    }
+    .member-action-btn {
+      border: none;
+      border-radius: 4px;
+      padding: ${xs} ${sm};
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .member-action-btn.danger {
+      background: ${danger};
+      color: ${white};
+    }
+
+    /* ===== DONATIONS ===== */
+    .clan-donations {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: ${sm};
+    }
     .donation-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: ${sm} ${md}; background: rgba(255,255,255,0.1);
-      border-radius: 8px; color: ${white}; font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: ${sm};
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: ${white};
+      font-weight: bold;
+    }
+    .donation-list {
+      display: flex;
+      flex-direction: column;
+      gap: ${sm};
     }
     .donation-item {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 8px; padding: ${sm} ${md};
-      display: flex; align-items: center; justify-content: space-between;
-      border-left: 3px solid ${neonBlue};
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: ${sm};
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .donation-btn { padding: ${xs} ${sm}; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
-    .donation-btn.give { background: ${neonBlue}; color: ${darkBlue}; }
-    .donation-btn.give:hover { background: ${gold}; }
-    .donation-btn.request { background: ${gold}; color: ${darkBlue}; }
-    .donation-btn.request:hover { background: orange; }
+    .donation-requester {
+      font-weight: bold;
+      color: ${gold};
+    }
+    .donation-card {
+      font-size: 13px;
+      color: ${white};
+    }
+    .donation-btn {
+      padding: ${xs} ${sm};
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .donation-btn.give {
+      background: ${neonBlue};
+      color: ${darkBlue};
+    }
+    .donation-btn.request {
+      background: ${gold};
+      color: ${darkBlue};
+    }
 
-    /* ===== WARS TAB ===== */
-    .clan-wars { flex: 1; display: flex; align-items: center; justify-content: center; padding: ${xl}; color: ${gray300}; }
+    /* ===== WARS ===== */
+    .clan-wars {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      color: ${white};
+      gap: ${sm};
+    }
+    .war-status h3 {
+      font-size: 18px;
+      font-weight: bold;
+      color: ${gold};
+    }
+    .war-status p {
+      font-size: 14px;
+      color: ${white};
+    }
     `;
   }
 }
