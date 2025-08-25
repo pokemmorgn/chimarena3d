@@ -334,12 +334,12 @@ class ClanTabStyles {
       flex-direction: column;
     }
 
-    .clan-tab-content {
-      display: none;
-      flex: 1;
-      flex-direction: column;
-      overflow: hidden;
-    }
+.clan-tab-content {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;  /* scroll vertical au lieu de hidden */
+}
 
     .clan-tab-content.active {
       display: flex;
