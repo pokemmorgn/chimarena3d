@@ -420,40 +420,55 @@ performAttack(config: IAttackConfig): ICombatResult | null {
   /**
    * Infliger des dégâts à une cible
    */
-  private dealDamageToTarget(target: ICombatant, damage: number, damageType: DamageType, attacker: ICombatant): number {
-    let actualDamage = damage;
+private dealDamageToTarget(target: ICombatant, damage: number, damageType: DamageType, attacker: ICombatant): number {
+  let actualDamage = damage;
+  
+  console.log(`💥 dealDamageToTarget: ${damage} dégâts à ${target.id} (${target.hitpoints}/${target.maxHitpoints} HP)`);
+  
+  // Shield absorbe d'abord
+  if (target.shield && target.shield > 0) {
+    const shieldAbsorbed = Math.min(target.shield, actualDamage);
+    target.shield -= shieldAbsorbed;
+    actualDamage -= shieldAbsorbed;
     
-    // Shield absorbe d'abord
-    if (target.shield && target.shield > 0) {
-      const shieldAbsorbed = Math.min(target.shield, actualDamage);
-      target.shield -= shieldAbsorbed;
-      actualDamage -= shieldAbsorbed;
-      
-      if (actualDamage <= 0) {
-        return shieldAbsorbed; // Shield a tout absorbé
-      }
+    console.log(`🛡️ Shield absorbe ${shieldAbsorbed}, reste ${actualDamage} dégâts`);
+    
+    if (actualDamage <= 0) {
+      return shieldAbsorbed; // Shield a tout absorbé
     }
-    
-    // Appliquer les dégâts aux HP
-    const oldHp = target.hitpoints;
-    target.hitpoints = Math.max(0, target.hitpoints - actualDamage);
-    const realDamage = oldHp - target.hitpoints;
-    
-    // Callback de dégâts
-    if (target.onTakeDamage) {
-      target.onTakeDamage(realDamage, attacker, damageType);
-    }
-    
-    // Vérifier la mort
-    if (target.hitpoints <= 0 && target.isAlive) {
-      target.isAlive = false;
-      if (target.onDeath) {
-        target.onDeath(attacker);
-      }
-    }
-    
-    return realDamage;
   }
+  
+  // 🔧 CORRECTION CRITIQUE: Appliquer les dégâts aux HP
+  const oldHp = target.hitpoints;
+  target.hitpoints = Math.max(0, target.hitpoints - actualDamage);
+  const realDamage = oldHp - target.hitpoints;
+  
+  console.log(`💀 HP mis à jour: ${oldHp} → ${target.hitpoints} (${realDamage} dégâts réels)`);
+  
+  // 🔧 CORRECTION: Synchroniser avec BaseUnit si c'est une BaseUnit
+  if (target.id && this.combatants.has(target.id)) {
+    const combatant = this.combatants.get(target.id)!;
+    combatant.hitpoints = target.hitpoints; // Synchroniser
+    console.log(`🔄 Sync combattant ${target.id}: HP = ${combatant.hitpoints}`);
+  }
+  
+  // Callback de dégâts
+  if (target.onTakeDamage) {
+    target.onTakeDamage(realDamage, attacker, damageType);
+  }
+  
+  // Vérifier la mort
+  if (target.hitpoints <= 0 && target.isAlive) {
+    target.isAlive = false;
+    console.log(`💀 ${target.id} est mort ! (${oldHp} → 0 HP)`);
+    
+    if (target.onDeath) {
+      target.onDeath(attacker);
+    }
+  }
+  
+  return realDamage;
+}
 
   /**
    * Appliquer les dégâts de zone (splash)
