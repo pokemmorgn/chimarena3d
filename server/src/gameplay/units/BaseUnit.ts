@@ -56,7 +56,7 @@ export interface IUnitBehavior {
   lastStateChange: number;
   
   // Targeting
-  currentTarget?: ITarget;
+  currentTarget?: ITarget | undefined;
   targetAcquisitionRange: number;
   retargetCooldown: number;
   lastRetarget: number;
