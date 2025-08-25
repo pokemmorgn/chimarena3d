@@ -291,7 +291,10 @@ class ClanContent {
   async connectToClan() {
     try {
       console.log('🔄 Connecting to clan room...');
-      const result = await ClanRoomClient.connect(this.currentUser.id, this.clan.id);
+const result = await ClanRoomClient.connect(
+  this.currentUser.id,
+  this.clan.clanId || this.clan._id || this.clan.id
+);
       
       if (result.success) {
         this.isConnected = true;
