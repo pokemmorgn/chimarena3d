@@ -8,6 +8,7 @@ import CardsTab from './tabs/CardsTab';
 import ClanTab from './tabs/ClanTab';        // ✅ Ajouter cette ligne
 import CardsTabStyles from './tabs/CardsTabStyles';
 import ClanTabStyles from './tabs/ClanTabStyles';  // ✅ Ajouter cette ligne
+import ClanCreateOverlayStyles from './tabs/ClanCreateOverlayStyles'; // ✅ AJOUTER
 
 /**
  * Clash Menu Manager - Gestionnaire principal du menu
@@ -122,7 +123,9 @@ styleSheet.textContent =
   styles.getCSS() + "\n" + 
   ProfileOverlayStyles.getCSS() + "\n" + 
   CardsTabStyles.getCSS() + "\n" +
-  ClanTabStyles.getCSS();  // ✅ Ajouter cette ligne
+  ClanTabStyles.getCSS() + "\n" +
+  ClanCreateOverlayStyles.getCSS();  // ✅ AJOUTER CETTE LIGNE
+
     
     document.head.appendChild(styleSheet);
     console.log('🎨 Styles injected (with ProfileOverlay and Cards)');
