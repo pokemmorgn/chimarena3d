@@ -91,9 +91,10 @@ class CombatTestFixed {
     try {
       await BaseUnit.preloadCommonCards();
       
-      // OwnerIds simples et différents
-      const player1Id = 'player1'; // Knight
-      const player2Id = 'player2'; // Goblins
+      // 🔧 CORRECTION: Utiliser des ObjectIds valides pour éviter les erreurs MongoDB
+      const { ObjectId } = await import('mongodb');
+      const player1Id = new ObjectId().toString(); // Knight
+      const player2Id = new ObjectId().toString(); // Goblins
       
       // Créer le Knight - Position optimisée
       this.knight = await BaseUnit.create(
@@ -104,7 +105,7 @@ class CombatTestFixed {
         this.currentTick
       );
       
-      console.log(`✅ Knight créé: ${this.knight.id} (Owner: ${player1Id})`);
+      console.log(`✅ Knight créé: ${this.knight.id} (Owner: ${player1Id.substring(0, 8)}...)`);
       console.log(`   Position: (${this.knight.x}, ${this.knight.y})`);
       console.log(`   HP: ${this.knight.currentHitpoints}/${this.knight.maxHitpoints}`);
       console.log(`   Damage: ${this.knight.currentDamage}`);
@@ -132,7 +133,7 @@ class CombatTestFixed {
           Math.pow(goblin.x - this.knight.x, 2) + Math.pow(goblin.y - this.knight.y, 2)
         );
         
-        console.log(`✅ Goblin ${i + 1} créé: ${goblin.id} (Owner: ${player2Id})`);
+        console.log(`✅ Goblin ${i + 1} créé: ${goblin.id} (Owner: ${player2Id.substring(0, 8)}...)`);
         console.log(`   Position: (${goblin.x}, ${goblin.y}) - ${distanceToKnight.toFixed(2)} tiles du Knight`);
         console.log(`   HP: ${goblin.currentHitpoints}/${goblin.maxHitpoints}`);
         console.log(`   Range: ${goblin.attackRange}`);
