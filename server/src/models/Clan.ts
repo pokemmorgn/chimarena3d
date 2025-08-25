@@ -510,7 +510,7 @@ ClanSchema.methods.addMember = async function(userId: Types.ObjectId, userInfo: 
   }
   
   // Vérifier si l'utilisateur n'est pas déjà membre
-  if (this.members.some(member => member.userId.equals(userId))) {
+  if (this.members.some((member: IClanMember) => member.userId.equals(userId))) {
     return false;
   }
   
@@ -555,7 +555,7 @@ ClanSchema.methods.addMember = async function(userId: Types.ObjectId, userInfo: 
  * Retirer un membre du clan
  */
 ClanSchema.methods.removeMember = async function(userId: Types.ObjectId, removedBy: Types.ObjectId): Promise<boolean> {
-  const memberIndex = this.members.findIndex(member => member.userId.equals(userId));
+  const memberIndex = this.members.findIndex((member: IClanMember) => member.userId.equals(userId));
   if (memberIndex === -1) return false;
   
   const member = this.members[memberIndex];
@@ -566,15 +566,15 @@ ClanSchema.methods.removeMember = async function(userId: Types.ObjectId, removed
   }
   
   // Retirer des rôles de leadership
-  this.coLeaders = this.coLeaders.filter(id => !id.equals(userId));
-  this.elders = this.elders.filter(id => !id.equals(userId));
+  this.coLeaders = this.coLeaders.filter((id: Types.ObjectId) => !id.equals(userId));
+  this.elders = this.elders.filter((id: Types.ObjectId) => !id.equals(userId));
   
   // Retirer de la liste des membres
   this.members.splice(memberIndex, 1);
   this.memberCount = this.members.length;
   
   // Message système
-  const remover = this.members.find(m => m.userId.equals(removedBy));
+  const remover = this.members.find((m: IClanMember) => m.userId.equals(removedBy));
   const isVoluntary = userId.equals(removedBy);
   
   await this.addChatMessage({
@@ -598,10 +598,10 @@ ClanSchema.methods.removeMember = async function(userId: Types.ObjectId, removed
  * Promouvoir un membre
  */
 ClanSchema.methods.promoteMember = async function(userId: Types.ObjectId, promotedBy: Types.ObjectId): Promise<boolean> {
-  const member = this.members.find(m => m.userId.equals(userId));
+  const member = this.members.find((m: IClanMember) => m.userId.equals(userId));
   if (!member) return false;
   
-  const promoter = this.members.find(m => m.userId.equals(promotedBy));
+  const promoter = this.members.find((m: IClanMember) => m.userId.equals(promotedBy));
   if (!promoter) return false;
   
   // Règles de promotion
@@ -610,7 +610,7 @@ ClanSchema.methods.promoteMember = async function(userId: Types.ObjectId, promot
     this.elders.push(userId);
   } else if (member.role === 'elder' && ['leader', 'co-leader'].includes(promoter.role)) {
     member.role = 'co-leader';
-    this.elders = this.elders.filter(id => !id.equals(userId));
+    this.elders = this.elders.filter((id: Types.ObjectId) => !id.equals(userId));
     this.coLeaders.push(userId);
   } else {
     return false; // Promotion impossible
@@ -633,20 +633,20 @@ ClanSchema.methods.promoteMember = async function(userId: Types.ObjectId, promot
  * Rétrograder un membre
  */
 ClanSchema.methods.demoteMember = async function(userId: Types.ObjectId, demotedBy: Types.ObjectId): Promise<boolean> {
-  const member = this.members.find(m => m.userId.equals(userId));
+  const member = this.members.find((m: IClanMember) => m.userId.equals(userId));
   if (!member) return false;
   
-  const demoter = this.members.find(m => m.userId.equals(demotedBy));
+  const demoter = this.members.find((m: IClanMember) => m.userId.equals(demotedBy));
   if (!demoter) return false;
   
   // Règles de rétrogradation
   if (member.role === 'co-leader' && demoter.role === 'leader') {
     member.role = 'elder';
-    this.coLeaders = this.coLeaders.filter(id => !id.equals(userId));
+    this.coLeaders = this.coLeaders.filter((id: Types.ObjectId) => !id.equals(userId));
     this.elders.push(userId);
   } else if (member.role === 'elder' && ['leader', 'co-leader'].includes(demoter.role)) {
     member.role = 'member';
-    this.elders = this.elders.filter(id => !id.equals(userId));
+    this.elders = this.elders.filter((id: Types.ObjectId) => !id.equals(userId));
   } else {
     return false; // Rétrogradation impossible
   }
@@ -691,7 +691,7 @@ ClanSchema.methods.addChatMessage = async function(message: Omit<IClanChatMessag
  * Obtenir un membre par son ID
  */
 ClanSchema.methods.getMember = function(userId: Types.ObjectId): IClanMember | null {
-  return this.members.find(member => member.userId.equals(userId)) || null;
+  return this.members.find((member: IClanMember) => member.userId.equals(userId)) || null;
 };
 
 /**
@@ -714,14 +714,14 @@ ClanSchema.methods.updateStats = async function(): Promise<void> {
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   
   // Statistiques des membres
-  const totalTrophies = this.members.reduce((sum, member) => sum + member.trophies, 0);
-  const onlineMembers = this.members.filter(member => member.isOnline).length;
-  const activeMembers = this.members.filter(member => member.lastActivity >= oneWeekAgo).length;
-  const totalDonations = this.members.reduce((sum, member) => sum + member.donationsGiven, 0);
+  const totalTrophies = this.members.reduce((sum: number, member: IClanMember) => sum + member.trophies, 0);
+  const onlineMembers = this.members.filter((member: IClanMember) => member.isOnline).length;
+  const activeMembers = this.members.filter((member: IClanMember) => member.lastActivity >= oneWeekAgo).length;
+  const totalDonations = this.members.reduce((sum: number, member: IClanMember) => sum + member.donationsGiven, 0);
   
   // Messages récents
-  const recentMessages = this.chatMessages.filter(msg => msg.timestamp >= oneDayAgo).length;
-  const recentDonations = this.chatMessages.filter(msg => 
+  const recentMessages = this.chatMessages.filter((msg: IClanChatMessage) => msg.timestamp >= oneDayAgo).length;
+  const recentDonations = this.chatMessages.filter((msg: IClanChatMessage) => 
     msg.type === 'donation_fulfilled' && msg.timestamp >= oneDayAgo
   ).length;
   
@@ -754,7 +754,7 @@ ClanSchema.methods.updateStats = async function(): Promise<void> {
  */
 ClanSchema.methods.isDonationRequestActive = function(cardId: string): boolean {
   const now = new Date();
-  return this.chatMessages.some(msg => 
+  return this.chatMessages.some((msg: IClanChatMessage) => 
     msg.type === 'donation_request' &&
     msg.donationData?.cardId === cardId &&
     msg.donationData.expiresAt &&
