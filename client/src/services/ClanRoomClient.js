@@ -82,28 +82,76 @@ class ClanRoomClient {
     }
   }
 
-  // ==== Bridge Colyseus → events locaux ====
+  // ==== Bridge Colyseus → events normalisés ====
 
   setupListeners() {
     if (!this.room) return;
 
-    // Chat
-    this.room.onMessage('new_chat_message', (msg) => this.emit('chat:message', msg));
+    // === Chat ===
+    this.room.onMessage('new_chat_message', (msg) => {
+      const normalized = {
+        messageId: msg.messageId,
+        authorId: msg.authorId,
+        authorUsername: msg.authorUsername || 'Unknown',
+        authorRole: msg.authorRole || 'member',
+        content: msg.content || '',
+        timestamp: msg.timestamp || Date.now()
+      };
+      this.emit('chat:message', normalized);
+    });
 
-    // Membres
+    // === Membres ===
     this.room.onMessage('member_online', (data) => this.emit('member:online', data));
     this.room.onMessage('member_offline', (data) => this.emit('member:offline', data));
     this.room.onMessage('member_kicked', (data) => this.emit('member:kicked', data));
 
-    // Stats / annonces
+    // === Stats & annonces ===
     this.room.onMessage('stats_updated', (data) => this.emit('clan:stats', data));
     this.room.onMessage('announcement_updated', (data) => this.emit('clan:announcement', data));
 
-    // Donations
-    this.room.onMessage('new_donation_request', (data) => this.emit('donation:request', data));
-    this.room.onMessage('donation_request_sent', (data) => this.emit('donation:request:sent', data));
-    this.room.onMessage('cards_donated', (data) => this.emit('donation:given', data));
-    this.room.onMessage('donation_sent', (data) => this.emit('donation:sent', data));
+    // === Donations ===
+    this.room.onMessage('new_donation_request', (msg) => {
+      const normalized = {
+        messageId: msg.messageId,
+        requesterUsername: msg.requesterUsername || 'Unknown',
+        cardId: msg.cardId || 'unknown',
+        amount: msg.amount || 1,
+        timestamp: msg.timestamp || Date.now()
+      };
+      this.emit('donation:request', normalized);
+    });
+
+    this.room.onMessage('donation_request_sent', (msg) => {
+      const normalized = {
+        messageId: msg.messageId,
+        requesterUsername: this.room.sessionId || 'You',
+        cardId: msg.cardId || 'unknown',
+        amount: msg.amount || 1,
+        timestamp: msg.timestamp || Date.now()
+      };
+      this.emit('donation:request:sent', normalized);
+    });
+
+    this.room.onMessage('cards_donated', (msg) => {
+      const normalized = {
+        messageId: msg.messageId,
+        donorUsername: msg.donorUsername || 'Unknown',
+        amount: msg.amount || 0,
+        xpGained: msg.xpGained || 0,
+        timestamp: msg.timestamp || Date.now()
+      };
+      this.emit('donation:given', normalized);
+    });
+
+    this.room.onMessage('donation_sent', (msg) => {
+      const normalized = {
+        messageId: msg.messageId,
+        amount: msg.amount || 0,
+        xpGained: msg.xpGained || 0,
+        timestamp: msg.timestamp || Date.now()
+      };
+      this.emit('donation:sent', normalized);
+    });
   }
 }
 
