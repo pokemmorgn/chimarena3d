@@ -5,7 +5,9 @@ import Header from './components/Header.js';
 import ProfileOverlay from './components/ProfileOverlay.js';
 import ProfileOverlayStyles from './components/ProfileOverlayStyles.js';
 import CardsTab from './tabs/CardsTab';
+import ClanTab from './tabs/ClanTab';        // ✅ Ajouter cette ligne
 import CardsTabStyles from './tabs/CardsTabStyles';
+import ClanTabStyles from './tabs/ClanTabStyles';  // ✅ Ajouter cette ligne
 
 /**
  * Clash Menu Manager - Gestionnaire principal du menu
@@ -24,6 +26,7 @@ class ClashMenuManager {
     this.header = null;
     this.cardsTab = null; // ✅ Cards tab
     this.profileOverlay = null;
+this.clanTab = null;         // ✅ Ajouter cette ligne
 
     // HTML container
     this.mainContainer = null;
@@ -52,7 +55,8 @@ class ClashMenuManager {
       this.tabNavigation = new TabNavigation();
       this.battleTab = new BattleTab();
       this.cardsTab = new CardsTab(); // ✅ Initialize CardsTab
-      
+      this.clanTab = new ClanTab();    // ✅ Ajouter cette ligne
+
       await this.tabNavigation.initialize(this.mainContainer);
       await this.battleTab.initialize(this.mainContainer);
       await this.cardsTab.initialize(this.mainContainer); // ✅ Initialize CardsTab
@@ -111,11 +115,13 @@ class ClashMenuManager {
     if (existingStyle) {
       existingStyle.remove();
     }
-    // Create and inject new styles
     const styleSheet = document.createElement('style');
-    styleSheet.id = 'clash-menu-styles';
-    styleSheet.textContent = 
-      styles.getCSS() + "\n" + ProfileOverlayStyles.getCSS() + "\n" + CardsTabStyles.getCSS();
+styleSheet.id = 'clash-menu-styles';
+styleSheet.textContent = 
+  styles.getCSS() + "\n" + 
+  ProfileOverlayStyles.getCSS() + "\n" + 
+  CardsTabStyles.getCSS() + "\n" +
+  ClanTabStyles.getCSS();  // ✅ Ajouter cette ligne
     
     document.head.appendChild(styleSheet);
     console.log('🎨 Styles injected (with ProfileOverlay and Cards)');
@@ -176,6 +182,9 @@ class ClashMenuManager {
     if (this.cardsTab && user) { // ✅ Update CardsTab
       this.cardsTab.updatePlayerData(user);
     }
+    if (this.clanTab && user) {
+  this.clanTab.updatePlayerData(user);
+}
     if (this.header && user) {
       this.header.updatePlayerData(user);
     }
@@ -204,7 +213,11 @@ class ClashMenuManager {
     if (this.cardsTab) { // ✅ Deactivate CardsTab
       this.cardsTab.deactivate();
     }
-    
+
+    // Dans deactivate():
+if (this.clanTab) {
+  this.clanTab.deactivate();
+}
     console.log('⚔️ ClashMenuManager deactivated');
   }
 
@@ -225,9 +238,9 @@ class ClashMenuManager {
       case 'cards':
         this.showCardsTab(); // ✅ Fixed - no parameter
         break;
-      case 'clan':
-        this.showComingSoon('Clan');
-        break;
+case 'clan':                   // ✅ Ajouter ce case
+  this.showClanTab();
+  break;
       case 'shop':
         this.showComingSoon('Shop');
         break;
@@ -269,6 +282,18 @@ class ClashMenuManager {
     console.log('🃏 Cards tab shown');
   }
 
+  showClanTab() {               // ✅ Ajouter cette méthode
+  if (this.clanTab) {
+    this.clanTab.show();
+  }
+  
+  if (this.tabNavigation) {
+    this.tabNavigation.setActiveTab('clan');
+  }
+  
+  console.log('🏰 Clan tab shown');
+}
+  
   /**
    * Hide all tabs
    */
@@ -280,6 +305,10 @@ class ClashMenuManager {
     if (this.cardsTab) { // ✅ Hide CardsTab
       this.cardsTab.hide();
     }
+
+    if (this.clanTab) {           // ✅ Ajouter ces lignes
+  this.clanTab.hide();
+}
     
     // Hide coming soon message
     this.hideComingSoon();
@@ -339,7 +368,9 @@ class ClashMenuManager {
     if (this.cardsTab) { // ✅ Update CardsTab
       this.cardsTab.updatePlayerData(this.currentUser);
     }
-    
+    if (this.clanTab) {
+  this.clanTab.updatePlayerData(this.currentUser);
+}
     if (this.header) {
       this.header.updatePlayerData(this.currentUser);
     }
@@ -431,7 +462,9 @@ class ClashMenuManager {
     if (this.tabNavigation) {
       await this.tabNavigation.cleanup();
     }
-    
+    if (this.clanTab) {
+  await this.clanTab.cleanup();
+}
     if (this.header) {
       this.header.cleanup();
     }
