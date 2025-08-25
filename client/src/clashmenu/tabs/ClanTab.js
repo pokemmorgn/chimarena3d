@@ -3,7 +3,7 @@
  * Gère : Pas de clan, Création/Recherche, Interface clan complète
  */
 
-import ClanCreateOverlay from '../overlays/ClanCreateOverlay.js';
+import ClanCreateOverlay from './ClanCreateOverlay.js';
 
 
 class ClanTab {
