@@ -175,6 +175,7 @@ export class ClanRoom extends Room<ClanRoomState> {
     // Setup des handlers
     this.setupMessageHandlers();
     this.setupServiceEvents();
+    this.setupAdvancedHandlers();
     
     // Démarrer les timers
     this.startHeartbeat();
@@ -1009,6 +1010,34 @@ export class ClanRoom extends Room<ClanRoomState> {
     this.onMessage('ping', (client) => {
       client.send('pong', { timestamp: Date.now() });
     });
+
+    // Utiliser les méthodes utilitaires
+    this.onMessage('notify_leaders', (client, data: { message: string }) => {
+      const userData = this.getClientData(client);
+      if (userData && this.hasPermission(userData.member.role, 'promote')) {
+        this.broadcastToRole('leader', 'leader_notification', {
+          from: userData.user.username,
+          message: data.message,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    this.onMessage('whisper', (client, data: { targetUserId: string, message: string }) => {
+      const userData = this.getClientData(client);
+      if (userData) {
+        const sent = this.sendToUser(data.targetUserId, 'whisper_received', {
+          from: userData.user.username,
+          message: data.message,
+          timestamp: Date.now()
+        });
+        
+        client.send('whisper_status', { 
+          sent, 
+          targetUserId: data.targetUserId 
+        });
+      }
+    });
   }
 
   // ===== GESTION DES ERREURS =====
@@ -1023,6 +1052,17 @@ export class ClanRoom extends Room<ClanRoomState> {
       message: 'An unexpected error occurred',
       code: 'CLIENT_ERROR',
       timestamp: Date.now()
+    });
+  }
+
+  // Utiliser handleClientError dans les try/catch existants
+  private setupErrorHandling(): void {
+    this.onMessage('*', async (client, type, message) => {
+      try {
+        // Les handlers existants gèrent déjà leurs propres erreurs
+      } catch (error) {
+        this.handleClientError(client, error);
+      }
     });
   }
 
