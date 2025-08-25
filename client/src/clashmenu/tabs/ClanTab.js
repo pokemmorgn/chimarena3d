@@ -1,24 +1,22 @@
 /**
- * ClanTab.js - Onglet Clan avec gestion complète (REST + Colyseus)
+ * ClanTab.js - Onglet Clan (REST + Colyseus via ClanRoomClient)
  */
 
 import ClanCreateOverlay from './ClanCreateOverlay.js';
 import ClanAPI from '../network/ClanAPI.js';
-import NetworkManager from '../network/NetworkManager.js';
+import ClanRoomClient from '../network/ClanRoomClient.js';
 
 class ClanTab {
   constructor() {
     this.isActive = false;
     this.currentUser = null;
     this.currentClan = null;
-    this.clanRoom = null;
     this.createOverlay = null;
 
     this.state = 'loading'; // 'loading', 'no_clan', 'has_clan'
     this.container = null;
     this.tabElement = null;
 
-    this.eventListeners = new Map();
     this.chatMessages = [];
     this.clanMembers = [];
   }
@@ -51,7 +49,7 @@ class ClanTab {
     if (res.success && res.clan) {
       this.currentClan = res.clan;
       this.setState('has_clan');
-      await this.connectToClanRoom(); // Colyseus ici
+      await this.connectToClanRoom();
     } else {
       this.setState('no_clan');
     }
@@ -71,58 +69,35 @@ class ClanTab {
   async leaveClan() {
     const res = await ClanAPI.leaveClan();
     if (res.success) {
-      this.disconnectFromClanRoom();
+      ClanRoomClient.leave();
       this.currentClan = null;
       this.setState('no_clan');
     }
   }
 
-  // ==== COLOSEUS ====
+  // ==== COLOSEUS (via ClanRoomClient) ====
 
   async connectToClanRoom() {
     if (!this.currentClan || !this.currentUser) return;
-    try {
-      const colyseus = NetworkManager.getColyseusManager();
-      this.clanRoom = await colyseus.joinOrCreate('clan', {
-        auth: {
-          userId: this.currentUser.id,
-          clanId: this.currentClan.clanId
+    const res = await ClanRoomClient.connect(this.currentUser.id, this.currentClan.clanId);
+    if (res.success) {
+      // Abonnements
+      ClanRoomClient.on('chat:message', (msg) => this.addChatMessage(msg));
+      ClanRoomClient.on('member:online', () => this.populateMembers());
+      ClanRoomClient.on('member:offline', () => this.populateMembers());
+      ClanRoomClient.on('member:kicked', (data) => {
+        if (data.targetUserId === this.currentUser.id) {
+          this.currentClan = null;
+          this.setState('no_clan');
         }
       });
-      this.setupClanRoomEvents();
-    } catch (err) {
-      console.error('❌ Failed to connect to ClanRoom:', err);
+      ClanRoomClient.on('clan:stats', (data) => console.log('📊 Stats updated:', data));
+      ClanRoomClient.on('clan:announcement', (data) => console.log('📢 Announcement:', data.announcement));
     }
   }
 
   disconnectFromClanRoom() {
-    if (this.clanRoom) {
-      this.clanRoom.leave();
-      this.clanRoom = null;
-    }
-  }
-
-  setupClanRoomEvents() {
-    if (!this.clanRoom) return;
-
-    this.clanRoom.onMessage('new_chat_message', (msg) => this.addChatMessage(msg));
-    this.clanRoom.onMessage('member_online', () => this.populateMembers());
-    this.clanRoom.onMessage('member_offline', () => this.populateMembers());
-
-    this.clanRoom.onMessage('member_kicked', (data) => {
-      if (data.targetUserId === this.currentUser.id) {
-        this.currentClan = null;
-        this.setState('no_clan');
-      }
-    });
-
-    this.clanRoom.onMessage('stats_updated', (data) => {
-      console.log('📊 Stats updated:', data.stats);
-    });
-
-    this.clanRoom.onMessage('announcement_updated', (data) => {
-      console.log('📢 Announcement:', data.announcement);
-    });
+    ClanRoomClient.leave();
   }
 
   // ==== RENDER ====
@@ -226,12 +201,7 @@ class ClanTab {
     const input = this.tabElement.querySelector('#clan-chat-input');
     if (!input || !input.value.trim()) return;
 
-    if (this.clanRoom) {
-      this.clanRoom.send('chat_message', { content: input.value.trim() });
-    } else {
-      ClanAPI.sendChatMessage(this.currentClan.clanId, input.value.trim());
-    }
-
+    ClanRoomClient.sendChat(input.value.trim()); // temps réel
     input.value = '';
   }
 
