@@ -190,14 +190,21 @@ class CombatSystem {
   update(tick: number, combatants: Map<string, ICombatant>): void {
     const startTime = Date.now();
     this.currentTick = tick;
-    this.combatants = combatants;
+    
+    // 🔧 CORRECTION CRITIQUE: S'assurer que this.combatants est à jour
+    this.updateCombatants(combatants);
+    
+    // Debug périodique
+    if (tick % 100 === 0) { // Toutes les 5 secondes
+      console.log(`🔄 CombatSystem.update tick ${tick}: ${this.combatants.size} combattants actifs`);
+    }
     
     // 1. Mettre à jour les projectiles
     if (tick % this.config.projectileUpdateInterval === 0) {
       this.updateProjectiles(tick);
     }
     
-    // 2. Nettoyer les effets expirés (stun, invulnerability)
+    // 2. Nettoyer les effets expirés
     this.updateStatusEffects(tick);
     
     // Performance monitoring
@@ -210,33 +217,60 @@ class CombatSystem {
   /**
    * Effectuer une attaque
    */
-  performAttack(config: IAttackConfig): ICombatResult | null {
-    const attacker = this.combatants.get(config.attackerId);
-    const target = this.combatants.get(config.targetId);
-    
-    if (!attacker || !target) {
-      if (this.config.combatLoggingEnabled) {
-        console.warn(`Combat: Invalid attacker or target - ${config.attackerId} → ${config.targetId}`);
-      }
-      return null;
-    }
-    
-    // Vérifier si l'attaquant peut attaquer
-    if (!this.canAttack(attacker, target)) {
-      return null;
-    }
-    
-    // Mettre à jour le timestamp d'attaque
-    attacker.lastAttackTick = this.currentTick;
-    
-    // Si c'est un projectile, créer le projectile au lieu d'infliger les dégâts immédiatement
-    if (config.isProjectile && config.projectileSpeed) {
-      return this.launchProjectile(config);
-    }
-    
-    // Sinon, attaque instantanée (melee)
-    return this.executeAttack(config);
+performAttack(config: IAttackConfig): ICombatResult | null {
+  const attacker = this.combatants.get(config.attackerId);
+  const target = this.combatants.get(config.targetId);
+  
+  // 🔧 DEBUG: Vérifier pourquoi les attaques échouent
+  console.log(`🔍 CombatSystem.performAttack DEBUG:`);
+  console.log(`   Attacker ID: ${config.attackerId}`);
+  console.log(`   Target ID: ${config.targetId}`);
+  console.log(`   Attacker trouvé: ${attacker ? 'OUI' : 'NON'}`);
+  console.log(`   Target trouvé: ${target ? 'OUI' : 'NON'}`);
+  
+  if (!attacker) {
+    console.error(`❌ ATTACKER NOT FOUND: ${config.attackerId}`);
+    console.log(`🔍 Combattants disponibles: ${Array.from(this.combatants.keys()).join(', ')}`);
+    return null;
   }
+  
+  if (!target) {
+    console.error(`❌ TARGET NOT FOUND: ${config.targetId}`);
+    console.log(`🔍 Combattants disponibles: ${Array.from(this.combatants.keys()).join(', ')}`);
+    return null;
+  }
+  
+  // 🔧 DEBUG: Vérifier les conditions d'attaque
+  const canAttackResult = this.canAttack(attacker, target);
+  console.log(`🔍 Can Attack Check: ${canAttackResult}`);
+  
+  if (!canAttackResult) {
+    console.log(`🔍 Détails de l'échec:`);
+    console.log(`   Attacker.canAttack: ${attacker.canAttack}`);
+    console.log(`   Attacker.isAlive: ${attacker.isAlive}`);
+    console.log(`   Attacker.isStunned: ${attacker.isStunned || false}`);
+    console.log(`   Target.isAlive: ${target.isAlive}`);
+    console.log(`   Ticks depuis dernière attaque: ${this.currentTick - attacker.lastAttackTick}`);
+    console.log(`   Attack Speed requis: ${attacker.attackSpeed}`);
+    
+    const distance = this.calculateDistance(attacker.position, target.position);
+    console.log(`   Distance: ${distance.toFixed(2)} vs Range: ${attacker.attackRange}`);
+    console.log(`   OwnerIds: ${attacker.ownerId} vs ${target.ownerId}`);
+    
+    return null;
+  }
+  
+  // Mettre à jour le timestamp d'attaque
+  attacker.lastAttackTick = this.currentTick;
+  
+  // Si c'est un projectile, créer le projectile
+  if (config.isProjectile && config.projectileSpeed) {
+    return this.launchProjectile(config);
+  }
+  
+  // Sinon, attaque instantanée (melee)
+  return this.executeAttack(config);
+}
 
   /**
    * Lancer un projectile
@@ -603,6 +637,46 @@ private updateProjectiles(tick: number): void {
     }
   }
 
+  public updateCombatants(combatants: Map<string, ICombatant>): void {
+  console.log(`🔄 CombatSystem: Mise à jour ${combatants.size} combattants`);
+  
+  // Vérifier que les combattants sont bien enregistrés
+  for (const [id, combatant] of combatants) {
+    if (!this.combatants.has(id)) {
+      console.log(`➕ Ajout nouveau combattant: ${id}`);
+      this.combatants.set(id, combatant);
+    } else {
+      // Mettre à jour le combattant existant
+      this.combatants.set(id, combatant);
+    }
+  }
+  
+  // Supprimer les combattants qui n'existent plus
+  for (const [id] of this.combatants) {
+    if (!combatants.has(id)) {
+      console.log(`➖ Suppression combattant: ${id}`);
+      this.combatants.delete(id);
+    }
+  }
+  
+  console.log(`📊 Combattants finaux: ${this.combatants.size}`);
+}
+
+// 🔧 MÉTHODE DEBUG: Lister tous les combattants
+public debugCombatants(): void {
+  console.log(`🔍 DEBUG CombatSystem - ${this.combatants.size} combattants:`);
+  
+  for (const [id, combatant] of this.combatants) {
+    console.log(`   ${id}:`);
+    console.log(`     Position: (${combatant.position.x.toFixed(1)}, ${combatant.position.y.toFixed(1)})`);
+    console.log(`     HP: ${combatant.hitpoints}/${combatant.maxHitpoints}`);
+    console.log(`     Owner: ${combatant.ownerId}`);
+    console.log(`     CanAttack: ${combatant.canAttack}`);
+    console.log(`     IsAlive: ${combatant.isAlive}`);
+    console.log(`     Range: ${combatant.attackRange}`);
+    console.log(`     Last Attack: ${combatant.lastAttackTick} (current: ${this.currentTick})`);
+  }
+}
   /**
    * Mettre à jour la position d'un projectile en vol
    */
@@ -639,28 +713,61 @@ private updateProjectiles(tick: number): void {
   /**
    * Vérifier si un attaquant peut attaquer une cible
    */
-  private canAttack(attacker: ICombatant, target: ICombatant): boolean {
-    // Vérifier état de l'attaquant
-    if (!attacker.canAttack) return false;
-    if (!attacker.isAlive) return false;
-    if (attacker.isStunned) return false;
-    
-    // Vérifier état de la cible
-    if (!target.isAlive) return false;
-    
-    // Vérifier cooldown d'attaque
-    const ticksSinceLastAttack = this.currentTick - attacker.lastAttackTick;
-    if (ticksSinceLastAttack < attacker.attackSpeed) return false;
-    
-    // Vérifier portée
-    const distance = this.calculateDistance(attacker.position, target.position);
-    if (distance > attacker.attackRange) return false;
-    
-    // Pas de friendly fire
-    if (attacker.ownerId === target.ownerId) return false;
-    
-    return true;
+private canAttack(attacker: ICombatant, target: ICombatant): boolean {
+  // 🔧 DEBUG: Log chaque condition
+  console.log(`🔍 CanAttack Checks pour ${attacker.id} → ${target.id}:`);
+  
+  // Vérifier état de l'attaquant
+  if (!attacker.canAttack) {
+    console.log(`   ❌ attacker.canAttack = false`);
+    return false;
   }
+  
+  if (!attacker.isAlive) {
+    console.log(`   ❌ attacker.isAlive = false`);
+    return false;
+  }
+  
+  if (attacker.isStunned) {
+    console.log(`   ❌ attacker.isStunned = true`);
+    return false;
+  }
+  
+  // Vérifier état de la cible
+  if (!target.isAlive) {
+    console.log(`   ❌ target.isAlive = false`);
+    return false;
+  }
+  
+  // 🔧 PROBLÈME POTENTIEL: Vérifier cooldown d'attaque
+  const ticksSinceLastAttack = this.currentTick - attacker.lastAttackTick;
+  const requiredCooldown = attacker.attackSpeed;
+  
+  console.log(`   🔍 Cooldown check: ${ticksSinceLastAttack} >= ${requiredCooldown}`);
+  
+  if (ticksSinceLastAttack < requiredCooldown) {
+    console.log(`   ❌ Cooldown pas prêt: ${ticksSinceLastAttack} < ${requiredCooldown}`);
+    return false;
+  }
+  
+  // Vérifier portée
+  const distance = this.calculateDistance(attacker.position, target.position);
+  console.log(`   🔍 Range check: ${distance.toFixed(2)} <= ${attacker.attackRange}`);
+  
+  if (distance > attacker.attackRange) {
+    console.log(`   ❌ Hors de portée: ${distance.toFixed(2)} > ${attacker.attackRange}`);
+    return false;
+  }
+  
+  // Pas de friendly fire
+  if (attacker.ownerId === target.ownerId) {
+    console.log(`   ❌ Friendly fire: ${attacker.ownerId} === ${target.ownerId}`);
+    return false;
+  }
+  
+  console.log(`   ✅ Toutes les conditions remplies !`);
+  return true;
+}
 
   /**
    * Calculer la distance entre deux positions
