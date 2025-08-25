@@ -23,6 +23,11 @@ export interface IUserData extends Document {
     highestTrophies: number;
     currentTrophies: number;
   };
+
+  // === Clan Membership ===
+  clanId: mongoose.Types.ObjectId | null;
+  clanRole: 'leader' | 'co-leader' | 'elder' | 'member' | null;
+  joinedClanAt: Date | null;
   
   // Account management
   isActive: boolean;
@@ -118,6 +123,23 @@ const UserDataSchema = new Schema<IUserData>({
     highestTrophies: { type: Number, default: 0, min: 0 },
     currentTrophies: { type: Number, default: 0, min: 0 }
   },
+
+  // === Clan Membership ===
+  clanId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Clan',
+    default: null,
+    index: true
+  },
+  clanRole: {
+    type: String,
+    enum: ['leader', 'co-leader', 'elder', 'member', null],
+    default: null
+  },
+  joinedClanAt: {
+    type: Date,
+    default: null
+  },
   
   isActive: {
     type: Boolean,
@@ -163,9 +185,9 @@ const UserDataSchema = new Schema<IUserData>({
 });
 
 // Index for performance
-
 UserDataSchema.index({ 'stats.currentTrophies': -1 });
 UserDataSchema.index({ walletAddress: 1 });
+UserDataSchema.index({ clanId: 1 });
 
 // Pre-save middleware to hash password
 UserDataSchema.pre('save', async function(next) {
