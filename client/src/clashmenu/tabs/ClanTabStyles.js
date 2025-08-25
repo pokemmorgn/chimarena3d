@@ -1350,6 +1350,53 @@ class ClanTabStyles {
       outline: 2px solid ${gold};
       outline-offset: 2px;
     }
+
+    /* Reconnection Banner */
+    .reconnect-banner {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, ${danger}, #d32f2f);
+      color: ${white};
+      z-index: 100;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    .reconnect-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+    }
+
+    .reconnect-btn {
+      background: ${white};
+      color: ${danger};
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .reconnect-btn:hover {
+      background: ${gray100};
+      transform: scale(1.05);
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
     `;
   }
 }
