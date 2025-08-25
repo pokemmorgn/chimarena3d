@@ -25,8 +25,9 @@ class ClanRoomClient {
 
       console.log('🔄 Attempting to join clan room...', { userId, clanId });
 
-      // Joindre la room clan
+      // Passer clanId en racine (pour onCreate) et auth (pour onAuth)
       this.room = await this.client.joinOrCreate('clan', {
+        clanId,
         auth: { userId, clanId }
       });
 
