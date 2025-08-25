@@ -951,7 +951,7 @@ router.post('/members/transfer-leadership', clanActionLimiter, async (req: Reque
  * GET /api/clan/service/stats
  * Obtenir les statistiques du service (pour les admins)
  */
-router.get('/service/stats', async (req: Request, res: Response): Promise<void> => {
+router.get('/service/stats', async (_req: Request, res: Response): Promise<void> => {
   try {
     // TODO: Ajouter une vérification admin
     const stats = clanService.getServiceStats();
