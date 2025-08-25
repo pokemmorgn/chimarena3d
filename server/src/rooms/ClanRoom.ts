@@ -474,7 +474,7 @@ export class ClanRoom extends Room<ClanRoomState> {
 
     } catch (error) {
       console.error('Error handling chat message:', error);
-      client.send('error', { message: 'Failed to send message', code: 'CHAT_ERROR' });
+      this.handleClientError(client, new Error('Failed to send message'));
     }
   }
 
@@ -507,7 +507,7 @@ export class ClanRoom extends Room<ClanRoomState> {
 
     } catch (error) {
       console.error('Error handling card request:', error);
-      client.send('error', { message: 'Failed to request cards', code: 'DONATION_ERROR' });
+      this.handleClientError(client, new Error('Failed to request cards'));
     }
   }
 
@@ -540,7 +540,7 @@ export class ClanRoom extends Room<ClanRoomState> {
 
     } catch (error) {
       console.error('Error handling card donation:', error);
-      client.send('error', { message: 'Failed to donate cards', code: 'DONATION_ERROR' });
+      this.handleClientError(client, new Error('Failed to donate cards'));
     }
   }
 
@@ -566,7 +566,7 @@ export class ClanRoom extends Room<ClanRoomState> {
 
     } catch (error) {
       console.error('Error handling member promotion:', error);
-      client.send('error', { message: 'Failed to promote member', code: 'PROMOTION_ERROR' });
+      this.handleClientError(client, new Error('Failed to promote member'));
     }
   }
 
@@ -592,7 +592,7 @@ export class ClanRoom extends Room<ClanRoomState> {
 
     } catch (error) {
       console.error('Error handling member demotion:', error);
-      client.send('error', { message: 'Failed to demote member', code: 'DEMOTION_ERROR' });
+      this.handleClientError(client, new Error('Failed to demote member'));
     }
   }
 
@@ -632,7 +632,7 @@ export class ClanRoom extends Room<ClanRoomState> {
 
     } catch (error) {
       console.error('Error handling member kick:', error);
-      client.send('error', { message: 'Failed to kick member', code: 'KICK_ERROR' });
+      this.handleClientError(client, new Error('Failed to kick member'));
     }
   }
 
@@ -648,7 +648,7 @@ export class ClanRoom extends Room<ClanRoomState> {
         timestamp: Date.now()
       });
     } catch (error) {
-      client.send('error', { message: 'Failed to refresh data', code: 'REFRESH_ERROR' });
+      this.handleClientError(client, new Error('Failed to refresh data'));
     }
   }
 
@@ -1052,17 +1052,6 @@ export class ClanRoom extends Room<ClanRoomState> {
       message: 'An unexpected error occurred',
       code: 'CLIENT_ERROR',
       timestamp: Date.now()
-    });
-  }
-
-  // Utiliser handleClientError dans les try/catch existants
-  private setupErrorHandling(): void {
-    this.onMessage('*', async (client, type, message) => {
-      try {
-        // Les handlers existants gèrent déjà leurs propres erreurs
-      } catch (error) {
-        this.handleClientError(client, error);
-      }
     });
   }
 
