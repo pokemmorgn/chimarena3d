@@ -17,8 +17,10 @@ class ClanTab {
     this.container = container;
     this.currentUser = currentUser;
 
+    // 🔹 conteneur caché par défaut
     this.tabElement = document.createElement('div');
     this.tabElement.className = 'clan-tab';
+    this.tabElement.style.display = 'none'; 
     this.container.appendChild(this.tabElement);
 
     this.createOverlay = new ClanCreateOverlay();
@@ -48,12 +50,11 @@ class ClanTab {
   }
 
   render() {
+    if (!this.tabElement) return;
+
     if (this.state === 'loading') {
-      this.tabElement.innerHTML = `
-        <div class="clan-loading">
-          <div class="loading-spinner"></div>
-          <h3>Loading...</h3>
-        </div>`;
+      this.tabElement.innerHTML =
+        `<div class="clan-loading"><div class="loading-spinner"></div><h3>Loading...</h3></div>`;
     } else if (this.state === 'no_clan') {
       this.tabElement.innerHTML = `
         <div class="clan-no-clan">
@@ -69,9 +70,6 @@ class ClanTab {
     }
   }
 
-  /**
-   * Met à jour les données du joueur côté ClanTab
-   */
   updatePlayerData(player) {
     this.currentUser = {
       id: player._id || player.id,
@@ -83,28 +81,26 @@ class ClanTab {
       clanRole: player.clanRole || null
     };
 
-    // Si ClanContent est déjà actif, propager la mise à jour
-    if (this.clanContent && typeof this.clanContent.updatePlayer === 'function') {
+    if (this.clanContent) {
       this.clanContent.updatePlayer(this.currentUser);
     }
   }
 
-  /**
-   * Cache le contenu de l'onglet (utilisé par TabNavigation)
-   */
+  // 🔹 Gestion de visibilité pour TabNavigation
   hide() {
-    if (this.tabElement) {
-      this.tabElement.style.display = 'none';
-    }
+    if (this.tabElement) this.tabElement.style.display = 'none';
   }
 
-  /**
-   * Affiche le contenu de l'onglet (utilisé par TabNavigation)
-   */
   show() {
-    if (this.tabElement) {
-      this.tabElement.style.display = 'flex'; // cohérent avec .clan-tab.active
+    if (this.tabElement) this.tabElement.style.display = 'flex'; // cohérent avec CSS .clan-tab
+  }
+
+  async cleanup() {
+    if (this.tabElement && this.tabElement.parentNode) {
+      this.tabElement.parentNode.removeChild(this.tabElement);
     }
+    this.tabElement = null;
+    this.clanContent = null;
   }
 }
 
