@@ -326,11 +326,10 @@ class CombatTestFixed {
   }
 
   /**
-   * 🔧 CORRIGÉ: Log d'état détaillé pour debug
+   * 🔧 Log d'état détaillé pour debug
    */
   private logDetailedGameState(): void {
     const seconds = Math.round(this.currentTick / 20);
-    const aliveGoblins = this.goblins.filter(g => g.isAlive);
     
     console.log(`\n⏰ T+${seconds}s (Tick ${this.currentTick}):`);
     console.log('━'.repeat(50));
