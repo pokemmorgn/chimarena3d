@@ -1,394 +1,213 @@
 // server/src/scripts/testCombatFixed.ts
-// Test de Combat avec connexion MongoDB
-import mongoose from 'mongoose';
-import BaseUnit from '../gameplay/units/BaseUnit';
-import { getCombatSystem } from '../gameplay/systems/CombatSystem';
-import { ITargetableEntity } from '../gameplay/systems/TargetingSystem';
+// CORRECTIONS PRINCIPALES pour le targeting
 
 /**
- * Script de test de combat avec connexion MongoDB
+ * 🔧 CORRECTION MAJEURE: Mettre à jour le targeting à CHAQUE tick
  */
-class CombatTestFixed {
-  private combatSystem = getCombatSystem();
-  private knight!: BaseUnit;
-  private goblins: BaseUnit[] = [];
-  private currentTick = 0;
-  private readonly TICK_RATE_MS = 50; // 20 TPS
-  private gameLoop: NodeJS.Timeout | null = null;
+private updateTargeting(): void {
+  const allTargetableEntities = this.getAllTargetableEntities();
   
-  private testStats = {
-    totalTicks: 0,
-    attacksPerformed: 0,
-    damageDealt: 0,
-    unitsKilled: 0,
-    testStartTime: 0,
-    testEndTime: 0
-  };
+  console.log(`🎯 Mise à jour targeting: ${allTargetableEntities.length} entités disponibles`);
 
-  constructor() {
-    console.log('🎮 Test de combat avec connexion MongoDB...');
-    console.log('⚔️ Scénario: Knight Level 3 vs 3 Goblins Level 3\n');
-  }
-
-  /**
-   * Connecter à MongoDB
-   */
-  async connectDatabase(): Promise<void> {
-    console.log('🔗 Connexion à MongoDB...');
+  // 🔧 Knight cherche les Goblins
+  if (this.knight.isAlive) {
+    const goblinTargets = allTargetableEntities.filter(entity => 
+      entity.ownerId !== this.knight.ownerId && entity.isAlive
+    );
     
-    try {
-      const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/chimarena3d';
-      
-      await mongoose.connect(MONGODB_URI, {
-        maxPoolSize: 5,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-      });
-      
-      console.log('✅ MongoDB connecté avec succès');
-      console.log(`📍 URI: ${MONGODB_URI.replace(/\/\/.*@/, '//***@')}\n`);
-      
-    } catch (error) {
-      console.error('❌ Erreur de connexion MongoDB:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Vérifier que les cartes existent
-   */
-  async verifyCards(): Promise<void> {
-    console.log('🃏 Vérification des cartes dans MongoDB...');
+    console.log(`🔵 Knight: ${goblinTargets.length} cibles Goblin disponibles`);
+    this.knight.updateAvailableTargets(goblinTargets);
     
-    try {
-      // Import dynamique pour éviter les problèmes de circular dependency
-      const CardData = (await import('../models/CardData')).default;
-      
-      const knight = await CardData.findOne({ id: 'knight', isEnabled: true });
-      const goblins = await CardData.findOne({ id: 'goblins', isEnabled: true });
-      
-      if (!knight) throw new Error('Carte "knight" non trouvée dans MongoDB');
-      if (!goblins) throw new Error('Carte "goblins" non trouvée dans MongoDB');
-      
-      console.log(`✅ Knight trouvé: ${knight.nameKey} (${knight.type})`);
-      console.log(`   Stats: ${knight.stats.hitpoints} HP, ${knight.stats.damage} DMG`);
-      
-      console.log(`✅ Goblins trouvé: ${goblins.nameKey} (${goblins.type})`);
-      console.log(`   Stats: ${goblins.stats.hitpoints} HP, ${goblins.stats.damage} DMG\n`);
-      
-    } catch (error) {
-      console.error('❌ Erreur lors de la vérification des cartes:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Initialiser le test avec les unités
-   */
-  async initializeTest(): Promise<void> {
-    console.log('🏭 Création des unités...');
-    
-    try {
-      // Précharger le cache des cartes communes pour performance
-      await BaseUnit.preloadCommonCards();
-      
-      // Utiliser des ObjectIds valides pour éviter les erreurs de logging
-      const { ObjectId } = await import('mongodb');
-      const player1Id = new ObjectId().toString();
-      const player2Id = new ObjectId().toString();
-      
-      // Créer le Knight (niveau 3) - Position plus proche !
-      this.knight = await BaseUnit.create(
-        'knight',
-        3,
-        player1Id,  // ObjectId valide
-        { x: 9, y: 16 },  // Plus proche des Goblins !
-        this.currentTick
-      );
-      
-      console.log(`✅ Knight créé: ${this.knight.id}`);
-      console.log(`   Position: (${this.knight.x}, ${this.knight.y})`);
-      console.log(`   HP: ${this.knight.currentHitpoints}/${this.knight.maxHitpoints}`);
-      console.log(`   Damage: ${this.knight.currentDamage}`);
-      console.log(`   Range: ${this.knight.attackRange}`);
-
-      // Créer 3 Goblins - Positions ajustées
-      const goblinPositions = [
-        { x: 8, y: 12 },   // Goblin 1 - gauche
-        { x: 9, y: 10 },   // Goblin 2 - centre  
-        { x: 10, y: 12 }   // Goblin 3 - droite
-      ];
-
-      for (let i = 0; i < 3; i++) {
-        const goblin = await BaseUnit.create(
-          'goblins',
-          3,
-          player2Id,  // ObjectId valide
-          goblinPositions[i],
-          this.currentTick
-        );
-        
-        this.goblins.push(goblin);
-        console.log(`✅ Goblin ${i + 1} créé: ${goblin.id} (${goblin.x}, ${goblin.y}) - ${goblin.currentHitpoints} HP`);
-      }
-
-      console.log('\n📊 Terrain de combat (distances réduites):');
-      console.log('   🔵 Knight:   (9, 16) - Position rapprochée');
-      console.log('   🔴 Goblin 1: (8, 12)');
-      console.log('   🔴 Goblin 2: (9, 10)');
-      console.log('   🔴 Goblin 3: (10,12)');
-      console.log(`   📏 Distance initiale: ~4-6 tiles (combat possible !)`);
-
-    } catch (error) {
-      console.error('❌ Erreur lors de la création des unités:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Démarrer le test de combat
-   */
-  async startCombatTest(): Promise<void> {
-    console.log('\n🚀 DÉBUT DU COMBAT !');
-    console.log('═'.repeat(50));
-    
-    this.testStats.testStartTime = Date.now();
-
-    // Démarrer la boucle de jeu
-    this.gameLoop = setInterval(() => {
-      this.processTick();
-    }, this.TICK_RATE_MS);
-
-    console.log('⏰ Combat en cours à 20 TPS...\n');
-  }
-
-  /**
-   * Traiter un tick de jeu
-   */
-  private processTick(): void {
-    this.currentTick++;
-    this.testStats.totalTicks++;
-
-    // Mettre à jour le CombatSystem
-    const allCombatants = this.getAllCombatants();
-    this.combatSystem.update(this.currentTick, allCombatants);
-
-    // Mettre à jour toutes les unités
-    this.updateAllUnits();
-
-    // Mettre à jour le targeting
-    this.updateTargeting();
-
-    // Vérifier fin de combat
-    this.checkEndConditions();
-
-    // Log périodique (toutes les 2 secondes)
+    // Debug périodique
     if (this.currentTick % 40 === 0) {
-      this.logGameState();
+      console.log(`🔍 Knight targeting debug:`);
+      this.knight.debugTargeting();
     }
   }
 
-  private updateAllUnits(): void {
-    if (this.knight.isAlive) {
-      this.knight.update(this.currentTick, this.TICK_RATE_MS);
-    }
-
-    this.goblins.forEach(goblin => {
-      if (goblin.isAlive) {
-        goblin.update(this.currentTick, this.TICK_RATE_MS);
-      }
-    });
-  }
-
-  private updateTargeting(): void {
-    const allTargetableEntities = this.getAllTargetableEntities();
-
-    // Knight cherche les Goblins
-    if (this.knight.isAlive) {
-      const goblinTargets = allTargetableEntities.filter(entity => 
-        entity.ownerId === 'player2' && entity.isAlive
+  // 🔧 Goblins cherchent le Knight
+  this.goblins.forEach((goblin, index) => {
+    if (goblin.isAlive) {
+      const knightTargets = allTargetableEntities.filter(entity => 
+        entity.ownerId !== goblin.ownerId && entity.isAlive
       );
-      this.knight.updateAvailableTargets(goblinTargets);
-    }
-
-    // Goblins cherchent le Knight
-    this.goblins.forEach(goblin => {
-      if (goblin.isAlive) {
-        const knightTargets = allTargetableEntities.filter(entity => 
-          entity.ownerId === 'player1' && entity.isAlive
-        );
-        goblin.updateAvailableTargets(knightTargets);
+      
+      if (this.currentTick % 40 === 0) {
+        console.log(`🔴 Goblin ${index + 1}: ${knightTargets.length} cibles Knight disponibles`);
       }
-    });
-  }
-
-  private getAllCombatants(): Map<string, any> {
-    const combatants = new Map();
-
-    if (this.knight.isAlive) {
-      combatants.set(this.knight.id, this.knight.toCombatant());
+      
+      goblin.updateAvailableTargets(knightTargets);
     }
-
-    this.goblins.forEach(goblin => {
-      if (goblin.isAlive) {
-        combatants.set(goblin.id, goblin.toCombatant());
-      }
-    });
-
-    return combatants;
-  }
-
-  private getAllTargetableEntities(): ITargetableEntity[] {
-    const entities: ITargetableEntity[] = [];
-
-    if (this.knight.isAlive) {
-      entities.push(this.knight.toTargetableEntity());
-    }
-
-    this.goblins.forEach(goblin => {
-      if (goblin.isAlive) {
-        entities.push(goblin.toTargetableEntity());
-      }
-    });
-
-    return entities;
-  }
-
-  private checkEndConditions(): void {
-    const aliveGoblins = this.goblins.filter(g => g.isAlive);
-    
-    if (aliveGoblins.length === 0) {
-      this.endTest('🏆 KNIGHT WINS!', 'Tous les Goblins éliminés');
-      return;
-    }
-
-    if (!this.knight.isAlive) {
-      this.endTest('🔴 GOBLINS WIN!', 'Le Knight a été éliminé');
-      return;
-    }
-
-    // Timeout 30 secondes
-    if (this.currentTick >= 600) {
-      this.endTest('⏰ TIMEOUT', 'Combat trop long');
-      return;
-    }
-  }
-
-  private logGameState(): void {
-    const seconds = Math.round(this.currentTick / 20);
-    const aliveGoblins = this.goblins.filter(g => g.isAlive);
-    
-    console.log(`\n⏰ T+${seconds}s (Tick ${this.currentTick}):`);
-    
-    const knightStatus = this.knight.isAlive 
-      ? `${this.knight.currentHitpoints}/${this.knight.maxHitpoints} HP [${this.knight.state}]`
-      : '💀 MORT';
-    console.log(`🔵 Knight: ${knightStatus} (${this.knight.x.toFixed(1)}, ${this.knight.y.toFixed(1)})`);
-    
-    this.goblins.forEach((goblin, i) => {
-      const goblinStatus = goblin.isAlive
-        ? `${goblin.currentHitpoints}/${goblin.maxHitpoints} HP [${goblin.state}]`
-        : '💀 MORT';
-      console.log(`🔴 Goblin ${i + 1}: ${goblinStatus} (${goblin.x.toFixed(1)}, ${goblin.y.toFixed(1)})`);
-    });
-
-    console.log(`📊 Goblins restants: ${aliveGoblins.length}/3`);
-  }
-
-  private endTest(result: string, description: string): void {
-    if (this.gameLoop) {
-      clearInterval(this.gameLoop);
-      this.gameLoop = null;
-    }
-
-    this.testStats.testEndTime = Date.now();
-    const duration = this.testStats.testEndTime - this.testStats.testStartTime;
-
-    console.log('\n' + '═'.repeat(50));
-    console.log(result);
-    console.log('═'.repeat(50));
-    console.log(description);
-    
-    console.log('\n📊 STATISTIQUES:');
-    console.log(`   Durée: ${(duration / 1000).toFixed(1)}s`);
-    console.log(`   Ticks: ${this.testStats.totalTicks}`);
-    console.log(`   TPS moyen: ${Math.round(this.testStats.totalTicks / (duration / 1000))}`);
-    
-    console.log('\n💀 ÉTAT FINAL:');
-    console.log(`   Knight: ${this.knight.isAlive ? 'VIVANT' : 'MORT'} (${this.knight.currentHitpoints}/${this.knight.maxHitpoints} HP)`);
-    
-    this.goblins.forEach((goblin, i) => {
-      console.log(`   Goblin ${i + 1}: ${goblin.isAlive ? 'VIVANT' : 'MORT'} (${goblin.currentHitpoints}/${goblin.maxHitpoints} HP)`);
-    });
-
-    const combatStats = this.combatSystem.getPerformanceStats();
-    console.log('\n⚔️ COMBAT STATS:');
-    console.log(`   Attaques: ${combatStats.attacksProcessed}`);
-    console.log(`   Projectiles: ${combatStats.activeProjectiles}`);
-    console.log(`   Temps moyen: ${combatStats.averageProcessingTime.toFixed(2)}ms`);
-
-    this.cleanup();
-    console.log('\n✅ Test terminé avec succès !');
-  }
-
-  private cleanup(): void {
-    console.log('🧹 Nettoyage...');
-    this.knight.cleanup();
-    this.goblins.forEach(goblin => goblin.cleanup());
-    this.combatSystem.cleanup();
-  }
-
-  /**
-   * Fermer la connexion MongoDB
-   */
-  async disconnect(): Promise<void> {
-    console.log('🔌 Fermeture de la connexion MongoDB...');
-    await mongoose.disconnect();
-    console.log('✅ Connexion fermée');
-  }
-}
-
-/**
- * Fonction principale
- */
-async function runFixedCombatTest(): Promise<void> {
-  console.log('🎬 TEST DE COMBAT CLASH ROYALE - VERSION FIXE');
-  console.log('=' .repeat(60));
-  console.log('📅 ' + new Date().toLocaleString());
-  console.log('=' .repeat(60) + '\n');
-
-  const test = new CombatTestFixed();
-
-  try {
-    // 1. Connecter MongoDB
-    await test.connectDatabase();
-    
-    // 2. Vérifier les cartes
-    await test.verifyCards();
-    
-    // 3. Initialiser le test
-    await test.initializeTest();
-    
-    // 4. Démarrer le combat
-    await test.startCombatTest();
-    
-    // Attendre la fin (ou Ctrl+C)
-    
-  } catch (error) {
-    console.error('❌ ERREUR:', error);
-  }
-  
-  // Nettoyage en cas d'interruption
-  process.on('SIGINT', async () => {
-    console.log('\n🛑 Interruption détectée...');
-    await test.disconnect();
-    process.exit(0);
   });
 }
 
-// Lancer le test si appelé directement
-if (require.main === module) {
-  runFixedCombatTest();
+/**
+ * 🔧 CORRECTION: Utiliser des ownerIds différents et cohérents
+ */
+async initializeTest(): Promise<void> {
+  console.log('🏭 Création des unités...');
+  
+  try {
+    // Précharger le cache des cartes communes pour performance
+    await BaseUnit.preloadCommonCards();
+    
+    // 🔧 CORRECTION CRITIQUE: OwnerIds différents et simples
+    const player1Id = 'player1'; // Knight
+    const player2Id = 'player2'; // Goblins
+    
+    // 🔧 Créer le Knight - Position optimisée pour combat proche
+    this.knight = await BaseUnit.create(
+      'knight',
+      3,
+      player1Id,
+      { x: 9, y: 14 },  // Position plus proche !
+      this.currentTick
+    );
+    
+    console.log(`✅ Knight créé: ${this.knight.id} (Owner: ${player1Id})`);
+    console.log(`   Position: (${this.knight.x}, ${this.knight.y})`);
+    console.log(`   HP: ${this.knight.currentHitpoints}/${this.knight.maxHitpoints}`);
+    console.log(`   Damage: ${this.knight.currentDamage}`);
+    console.log(`   Range: ${this.knight.attackRange}`);
+
+    // 🔧 Créer 3 Goblins - Positions encore plus proches !
+    const goblinPositions = [
+      { x: 8.5, y: 11 },   // Goblin 1 - gauche  (~3 tiles du Knight)
+      { x: 9, y: 11 },     // Goblin 2 - centre  (~3 tiles du Knight)
+      { x: 9.5, y: 11 }    // Goblin 3 - droite  (~3 tiles du Knight)
+    ];
+
+    for (let i = 0; i < 3; i++) {
+      const goblin = await BaseUnit.create(
+        'goblins',
+        3,
+        player2Id,  // Même ownerId pour les 3 Goblins
+        goblinPositions[i],
+        this.currentTick
+      );
+      
+      this.goblins.push(goblin);
+      
+      // 🔧 Calculer distance réelle au Knight
+      const distanceToKnight = Math.sqrt(
+        Math.pow(goblin.x - this.knight.x, 2) + Math.pow(goblin.y - this.knight.y, 2)
+      );
+      
+      console.log(`✅ Goblin ${i + 1} créé: ${goblin.id} (Owner: ${player2Id})`);
+      console.log(`   Position: (${goblin.x}, ${goblin.y}) - ${distanceToKnight.toFixed(2)} tiles du Knight`);
+      console.log(`   HP: ${goblin.currentHitpoints}/${goblin.maxHitpoints}`);
+      console.log(`   Range: ${goblin.attackRange}`);
+    }
+
+    console.log('\n📊 Terrain de combat optimisé:');
+    console.log('   🔵 Knight:   (9, 14) - Range: 1.2 tiles');
+    console.log('   🔴 Goblin 1: (8.5, 11) - Range: 1.2 tiles');
+    console.log('   🔴 Goblin 2: (9, 11) - Range: 1.2 tiles');
+    console.log('   🔴 Goblin 3: (9.5, 11) - Range: 1.2 tiles');
+    console.log(`   📏 Distance initiale: ~3 tiles (combat garanti !)`);
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la création des unités:', error);
+    throw error;
+  }
 }
 
-export { CombatTestFixed, runFixedCombatTest };
+/**
+ * 🔧 CORRECTION: Processing tick amélioré avec debug
+ */
+private processTick(): void {
+  this.currentTick++;
+  this.testStats.totalTicks++;
+
+  // 🔧 Mettre à jour le targeting à CHAQUE tick (crucial !)
+  this.updateTargeting();
+
+  // Mettre à jour le CombatSystem
+  const allCombatants = this.getAllCombatants();
+  this.combatSystem.update(this.currentTick, allCombatants);
+
+  // Mettre à jour toutes les unités
+  this.updateAllUnits();
+
+  // 🔧 Debug détaillé toutes les 1 seconde
+  if (this.currentTick % 20 === 0) {
+    this.logDetailedGameState();
+  }
+
+  // Vérifier fin de combat
+  this.checkEndConditions();
+
+  // 🔧 Test de combat forcé après 5 secondes si pas de combat naturel
+  if (this.currentTick === 100 && this.combatSystem.getPerformanceStats().attacksProcessed === 0) {
+    console.log('\n🧪 PAS DE COMBAT DÉTECTÉ - TEST DE COMBAT FORCÉ:');
+    this.testForcedCombat();
+  }
+}
+
+/**
+ * 🔧 NOUVELLE MÉTHODE: Test de combat forcé pour debug
+ */
+private testForcedCombat(): void {
+  const aliveGoblins = this.goblins.filter(g => g.isAlive);
+  if (aliveGoblins.length > 0) {
+    console.log(`🧪 Test combat forcé: Knight attaque ${aliveGoblins[0].id}`);
+    const result = this.knight.forceAttack(aliveGoblins[0].id);
+    if (result) {
+      console.log(`✅ Combat forcé réussi ! Dégâts: ${result.damageDealt}`);
+    } else {
+      console.log(`❌ Combat forcé échoué !`);
+    }
+  }
+}
+
+/**
+ * 🔧 Log d'état détaillé pour debug
+ */
+private logDetailedGameState(): void {
+  const seconds = Math.round(this.currentTick / 20);
+  const aliveGoblins = this.goblins.filter(g => g.isAlive);
+  
+  console.log(`\n⏰ T+${seconds}s (Tick ${this.currentTick}):`);
+  console.log('━'.repeat(50));
+  
+  // État détaillé du Knight
+  if (this.knight.isAlive) {
+    const knightInfo = this.knight.getCombatInfo();
+    console.log(`🔵 KNIGHT ${this.knight.id}:`);
+    console.log(`   HP: ${knightInfo.hitpoints}/${knightInfo.maxHitpoints}`);
+    console.log(`   Position: (${knightInfo.position.x.toFixed(1)}, ${knightInfo.position.y.toFixed(1)})`);
+    console.log(`   État: ${knightInfo.state}`);
+    console.log(`   Cible: ${knightInfo.currentTarget?.id || 'aucune'}`);
+    console.log(`   Peut attaquer: ${knightInfo.canAttack}`);
+    console.log(`   Dernière attaque: tick ${knightInfo.lastAttackTick}`);
+  } else {
+    console.log(`🔵 Knight: 💀 MORT`);
+  }
+  
+  // État détaillé des Goblins
+  this.goblins.forEach((goblin, i) => {
+    if (goblin.isAlive) {
+      const goblinInfo = goblin.getCombatInfo();
+      const distanceToKnight = this.knight.isAlive 
+        ? Math.sqrt(Math.pow(goblin.x - this.knight.x, 2) + Math.pow(goblin.y - this.knight.y, 2))
+        : 0;
+        
+      console.log(`🔴 GOBLIN ${i + 1} ${goblin.id}:`);
+      console.log(`   HP: ${goblinInfo.hitpoints}/${goblinInfo.maxHitpoints}`);
+      console.log(`   Position: (${goblinInfo.position.x.toFixed(1)}, ${goblinInfo.position.y.toFixed(1)})`);
+      console.log(`   État: ${goblinInfo.state}`);
+      console.log(`   Distance Knight: ${distanceToKnight.toFixed(2)} tiles`);
+      console.log(`   Cible: ${goblinInfo.currentTarget?.id || 'aucune'}`);
+    } else {
+      console.log(`🔴 Goblin ${i + 1}: 💀 MORT`);
+    }
+  });
+
+  // Stats de combat
+  const combatStats = this.combatSystem.getPerformanceStats();
+  console.log(`\n📊 COMBAT STATS:`);
+  console.log(`   Attaques: ${combatStats.attacksProcessed}`);
+  console.log(`   Projectiles: ${combatStats.activeProjectiles}`);
+  console.log(`   Combattants: ${combatStats.activeCombatants}`);
+  console.log(`   Temps moyen: ${combatStats.averageProcessingTime.toFixed(2)}ms`);
+}
