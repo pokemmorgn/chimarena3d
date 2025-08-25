@@ -88,6 +88,24 @@ class ClanTab {
       this.clanContent.updatePlayer(this.currentUser);
     }
   }
+
+  /**
+   * Cache le contenu de l'onglet (utilisé par TabNavigation)
+   */
+  hide() {
+    if (this.tabElement) {
+      this.tabElement.style.display = 'none';
+    }
+  }
+
+  /**
+   * Affiche le contenu de l'onglet (utilisé par TabNavigation)
+   */
+  show() {
+    if (this.tabElement) {
+      this.tabElement.style.display = 'flex'; // cohérent avec .clan-tab.active
+    }
+  }
 }
 
 export default ClanTab;
