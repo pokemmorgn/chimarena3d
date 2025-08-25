@@ -1,10 +1,10 @@
 /**
- * ClanTab.js - Onglet Clan avec gestion complète
- * Gère : Pas de clan, Création/Recherche, Interface clan complète
+ * ClanTab.js - Onglet Clan avec gestion complète (REST + Colyseus)
  */
 
 import ClanCreateOverlay from './ClanCreateOverlay.js';
 import ClanAPI from '../network/ClanAPI.js';
+import NetworkManager from '../network/NetworkManager.js';
 
 class ClanTab {
   constructor() {
@@ -14,76 +14,36 @@ class ClanTab {
     this.clanRoom = null;
     this.createOverlay = null;
 
-    // États possibles
     this.state = 'loading'; // 'loading', 'no_clan', 'has_clan'
-    
-    // Composants
     this.container = null;
     this.tabElement = null;
-    
-    // Event system
+
     this.eventListeners = new Map();
-    
-    // Chat data
     this.chatMessages = [];
-    this.chatContainer = null;
-    this.chatInput = null;
-    
-    // Members data
     this.clanMembers = [];
-    
-    console.log('🏰 ClanTab created');
   }
 
-  /**
-   * Initialize clan tab
-   */
   async initialize(container) {
-    if (!container) {
-      throw new Error('Container is required for ClanTab');
-    }
-  
+    if (!container) throw new Error('Container is required for ClanTab');
     this.container = container;
-  
-    try {
-      console.log('🏰 Initializing ClanTab...');
-      
-      this.createTabElement();
-      
-      // Initialize overlays
-      this.createOverlay = new ClanCreateOverlay();
-      this.createOverlay.initialize(this.container);
-      
-      // Setup overlay events
-      this.createOverlay.on('clan:created', (clanData) => {
-        this.handleClanCreated(clanData);
-      });
-      
-      this.checkClanStatus();
-      
-      console.log('✅ ClanTab initialized');
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize ClanTab:', error);
-      throw error;
-    }
+
+    this.createTabElement();
+
+    this.createOverlay = new ClanCreateOverlay();
+    this.createOverlay.initialize(this.container);
+    this.createOverlay.on('clan:created', (clanData) => this.handleClanCreated(clanData));
+
+    await this.checkClanStatus();
   }
 
-  /**
-   * Create tab element
-   */
   createTabElement() {
     this.tabElement = document.createElement('div');
     this.tabElement.className = 'clan-tab';
-    this.tabElement.id = 'clan-tab';
     this.container.appendChild(this.tabElement);
-    
-    console.log('🏰 Clan tab element created');
   }
 
-  /**
-   * Check clan status from API
-   */
+  // ==== REST API ====
+
   async checkClanStatus() {
     this.setState('loading');
     const res = await ClanAPI.getMyClan();
@@ -91,6 +51,7 @@ class ClanTab {
     if (res.success && res.clan) {
       this.currentClan = res.clan;
       this.setState('has_clan');
+      await this.connectToClanRoom(); // Colyseus ici
     } else {
       this.setState('no_clan');
     }
@@ -101,344 +62,193 @@ class ClanTab {
     if (res.success && res.clan) {
       this.currentClan = res.clan;
       this.setState('has_clan');
+      await this.connectToClanRoom();
     } else {
-      console.error('❌ Failed to create clan:', res.error);
       this.setState('no_clan');
     }
   }
-  
-  /**
-   * Set current state and render
-   */
-  setState(newState) {
-    this.state = newState;
-    this.render();
-    console.log(`🏰 Clan state set to: ${newState}`);
-  }
 
-  /**
-   * Main render method
-   */
-  render() {
-    if (!this.tabElement) return;
-    
-    switch (this.state) {
-      case 'loading':
-        this.renderLoading();
-        break;
-      case 'no_clan':
-        this.renderNoClan();
-        break;
-      case 'has_clan':
-        this.renderClanInterface();
-        break;
-      default:
-        this.renderError();
+  async leaveClan() {
+    const res = await ClanAPI.leaveClan();
+    if (res.success) {
+      this.disconnectFromClanRoom();
+      this.currentClan = null;
+      this.setState('no_clan');
     }
   }
 
-  /**
-   * Render loading state
-   */
-  renderLoading() {
-    this.tabElement.innerHTML = `
-      <div class="clan-loading">
-        <div class="loading-spinner"></div>
-        <h3>🏰 Loading Clan Info...</h3>
-        <p>Checking your clan status</p>
-      </div>
-    `;
+  // ==== COLOSEUS ====
+
+  async connectToClanRoom() {
+    if (!this.currentClan || !this.currentUser) return;
+    try {
+      const colyseus = NetworkManager.getColyseusManager();
+      this.clanRoom = await colyseus.joinOrCreate('clan', {
+        auth: {
+          userId: this.currentUser.id,
+          clanId: this.currentClan.clanId
+        }
+      });
+      this.setupClanRoomEvents();
+    } catch (err) {
+      console.error('❌ Failed to connect to ClanRoom:', err);
+    }
   }
 
-  /**
-   * Render no clan state (create/join options)
-   */
+  disconnectFromClanRoom() {
+    if (this.clanRoom) {
+      this.clanRoom.leave();
+      this.clanRoom = null;
+    }
+  }
+
+  setupClanRoomEvents() {
+    if (!this.clanRoom) return;
+
+    this.clanRoom.onMessage('new_chat_message', (msg) => this.addChatMessage(msg));
+    this.clanRoom.onMessage('member_online', () => this.populateMembers());
+    this.clanRoom.onMessage('member_offline', () => this.populateMembers());
+
+    this.clanRoom.onMessage('member_kicked', (data) => {
+      if (data.targetUserId === this.currentUser.id) {
+        this.currentClan = null;
+        this.setState('no_clan');
+      }
+    });
+
+    this.clanRoom.onMessage('stats_updated', (data) => {
+      console.log('📊 Stats updated:', data.stats);
+    });
+
+    this.clanRoom.onMessage('announcement_updated', (data) => {
+      console.log('📢 Announcement:', data.announcement);
+    });
+  }
+
+  // ==== RENDER ====
+
+  setState(newState) {
+    this.state = newState;
+    this.render();
+  }
+
+  render() {
+    if (!this.tabElement) return;
+
+    switch (this.state) {
+      case 'loading': this.renderLoading(); break;
+      case 'no_clan': this.renderNoClan(); break;
+      case 'has_clan': this.renderClanInterface(); break;
+      default: this.renderError();
+    }
+  }
+
+  renderLoading() {
+    this.tabElement.innerHTML = `<div>Loading clan...</div>`;
+  }
+
   renderNoClan() {
     this.tabElement.innerHTML = `
       <div class="clan-no-clan">
-        <div class="no-clan-header">
-          <div class="clan-icon">🏰</div>
-          <h2>Join a Clan!</h2>
-          <p>Team up with other players, share cards, and participate in Clan Wars!</p>
-        </div>
-
-        <div class="clan-actions">
-          <button class="clan-action-btn primary" id="btn-create-clan">
-            <span class="btn-icon">✨</span>
-            <span class="btn-text">Create Clan</span>
-          </button>
-          
-          <button class="clan-action-btn secondary" id="btn-join-by-tag">
-            <span class="btn-icon">🔍</span>
-            <span class="btn-text">Join by Tag</span>
-          </button>
-          
-          <button class="clan-action-btn secondary" id="btn-search-clans">
-            <span class="btn-icon">📋</span>
-            <span class="btn-text">Search Clans</span>
-          </button>
-        </div>
+        <button id="btn-create-clan">Create Clan</button>
+        <button id="btn-join-by-tag">Join by Tag</button>
+        <button id="btn-search-clans">Search Clans</button>
       </div>
     `;
-    
-    this.setupNoClanEvents();
+    this.tabElement.querySelector('#btn-create-clan')
+      ?.addEventListener('click', () => this.showCreateClanOverlay());
   }
 
-  /**
-   * Render full clan interface
-   */
   renderClanInterface() {
-    if (!this.currentClan) return;
-    
     this.tabElement.innerHTML = `
       <div class="clan-interface">
         <div class="clan-header">
-          <div class="clan-info">
-            <div class="clan-name">${this.currentClan.name}</div>
-            <div class="clan-tag">${this.currentClan.tag}</div>
-            <div class="clan-members">${this.currentClan.memberCount}/${this.currentClan.maxMembers} members</div>
-          </div>
-          <div class="clan-actions-header">
-            <button class="clan-header-btn danger" id="btn-leave-clan">🚪</button>
-          </div>
+          <div>${this.currentClan.name} (${this.currentClan.tag})</div>
+          <button id="btn-leave-clan">Leave</button>
         </div>
-
         <div class="clan-tabs">
-          <button class="clan-tab-btn active" data-clan-tab="chat">💬 Chat</button>
-          <button class="clan-tab-btn" data-clan-tab="members">👥 Members</button>
+          <button data-tab="chat" class="active">Chat</button>
+          <button data-tab="members">Members</button>
         </div>
-
         <div class="clan-content">
-          <div class="clan-tab-content active" id="clan-tab-chat">
-            <div class="clan-chat">
-              <div class="chat-messages" id="clan-chat-messages"></div>
-              <div class="chat-input-container">
-                <input type="text" class="chat-input" id="clan-chat-input" placeholder="Type your message..." maxlength="200">
-                <button class="chat-send-btn" id="btn-send-message">➤</button>
-              </div>
-            </div>
+          <div id="clan-tab-chat" class="active">
+            <div id="clan-chat-messages"></div>
+            <input id="clan-chat-input" placeholder="Message..." />
+            <button id="btn-send-message">Send</button>
           </div>
-
-          <div class="clan-tab-content" id="clan-tab-members">
-            <div class="clan-members">
-              <div class="members-list" id="clan-members-list"></div>
-            </div>
+          <div id="clan-tab-members">
+            <div id="clan-members-list"></div>
           </div>
         </div>
       </div>
     `;
-    
+
     this.setupClanInterfaceEvents();
     this.populateChatMessages();
     this.populateMembers();
   }
 
-  /**
-   * Render error state
-   */
   renderError() {
-    this.tabElement.innerHTML = `
-      <div class="clan-error">
-        <div class="error-icon">❌</div>
-        <h3>Error Loading Clan</h3>
-        <p>Unable to load clan information</p>
-        <button class="retry-btn" id="btn-retry-clan">🔄 Retry</button>
-      </div>
-    `;
-
-    const retry = this.tabElement.querySelector('#btn-retry-clan');
-    if (retry) retry.addEventListener('click', () => this.checkClanStatus());
+    this.tabElement.innerHTML = `<div>❌ Error loading clan</div>`;
   }
 
-  /**
-   * Setup events for no clan state
-   */
-  setupNoClanEvents() {
-    const createBtn = this.tabElement.querySelector('#btn-create-clan');
-    if (createBtn) createBtn.addEventListener('click', () => this.showCreateClanOverlay());
-
-    const joinBtn = this.tabElement.querySelector('#btn-join-by-tag');
-    if (joinBtn) joinBtn.addEventListener('click', () => this.showJoinByTagOverlay());
-
-    const searchBtn = this.tabElement.querySelector('#btn-search-clans');
-    if (searchBtn) searchBtn.addEventListener('click', () => this.showSearchClansOverlay());
-  }
-
-  /**
-   * Setup events for clan interface
-   */
   setupClanInterfaceEvents() {
-    const tabBtns = this.tabElement.querySelectorAll('.clan-tab-btn');
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tabName = btn.dataset.clanTab;
-        this.switchClanTab(tabName);
-      });
-    });
+    this.tabElement.querySelector('#btn-leave-clan')
+      ?.addEventListener('click', () => this.leaveClan());
 
-    const leaveBtn = this.tabElement.querySelector('#btn-leave-clan');
-    if (leaveBtn) leaveBtn.addEventListener('click', () => this.leaveClan());
-
-    const chatInput = this.tabElement.querySelector('#clan-chat-input');
+    const input = this.tabElement.querySelector('#clan-chat-input');
     const sendBtn = this.tabElement.querySelector('#btn-send-message');
-    
-    if (chatInput && sendBtn) {
-      chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          this.sendChatMessage();
-        }
-      });
-      sendBtn.addEventListener('click', () => this.sendChatMessage());
-    }
+    sendBtn?.addEventListener('click', () => this.sendChatMessage());
+    input?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.sendChatMessage();
+    });
   }
 
-  /**
-   * Switch clan internal tab
-   */
-  switchClanTab(tabName) {
-    const tabBtns = this.tabElement.querySelectorAll('.clan-tab-btn');
-    tabBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.clanTab === tabName));
+  // ==== CHAT ====
 
-    const contents = this.tabElement.querySelectorAll('.clan-tab-content');
-    contents.forEach(content => content.classList.toggle('active', content.id === `clan-tab-${tabName}`));
-  }
-
-  /**
-   * Populate chat messages
-   */
   populateChatMessages() {
-    const messagesContainer = this.tabElement.querySelector('#clan-chat-messages');
-    if (!messagesContainer || !this.currentClan?.recentChat) return;
-
-    messagesContainer.innerHTML = this.currentClan.recentChat.map(msg => `
-      <div class="chat-message">
-        <div class="message-header">
-          <span class="message-author ${msg.role}">${msg.author}</span>
-          <span class="message-time">${this.formatTime(msg.timestamp)}</span>
-        </div>
-        <div class="message-content">${msg.content}</div>
-      </div>
-    `).join('');
-
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    const container = this.tabElement.querySelector('#clan-chat-messages');
+    if (!container) return;
+    container.innerHTML = (this.currentClan.recentChat || [])
+      .map(m => `<div><b>${m.author}</b>: ${m.content}</div>`).join('');
   }
 
-  /**
-   * Populate members list
-   */
-  populateMembers() {
-    const membersContainer = this.tabElement.querySelector('#clan-members-list');
-    if (!membersContainer || !this.currentClan?.members) return;
-
-    membersContainer.innerHTML = this.currentClan.members.map(member => `
-      <div class="member-item ${member.isOnline ? 'online' : 'offline'}">
-        <div class="member-info">
-          <div class="member-name">${member.displayName}</div>
-          <div class="member-stats">
-            <span>🏆 ${member.trophies}</span>
-            <span>🎁 ${member.donationsGiven}</span>
-          </div>
-        </div>
-        <div class="member-role ${member.role}">${member.role}</div>
-      </div>
-    `).join('');
+  addChatMessage(message) {
+    const container = this.tabElement.querySelector('#clan-chat-messages');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.innerHTML = `<b>${message.authorUsername || message.author}</b>: ${message.content}`;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
   }
 
-  /**
-   * Send chat message via API
-   */
-  async sendChatMessage() {
+  sendChatMessage() {
     const input = this.tabElement.querySelector('#clan-chat-input');
     if (!input || !input.value.trim()) return;
 
-    const res = await ClanAPI.sendChatMessage(this.currentClan.clanId, input.value.trim());
-    if (res.success && res.message) {
-      this.addChatMessage(res.message);
-      input.value = '';
+    if (this.clanRoom) {
+      this.clanRoom.send('chat_message', { content: input.value.trim() });
     } else {
-      console.error('❌ Chat failed:', res.error);
+      ClanAPI.sendChatMessage(this.currentClan.clanId, input.value.trim());
     }
+
+    input.value = '';
   }
 
-  /**
-   * Add message to chat
-   */
-  addChatMessage(message) {
-    const messagesContainer = this.tabElement.querySelector('#clan-chat-messages');
-    if (!messagesContainer) return;
+  // ==== MEMBERS ====
 
-    const el = document.createElement('div');
-    el.className = 'chat-message';
-    el.innerHTML = `
-      <div class="message-header">
-        <span class="message-author ${message.role}">${message.author}</span>
-        <span class="message-time">${this.formatTime(message.timestamp)}</span>
-      </div>
-      <div class="message-content">${message.content}</div>
-    `;
-    messagesContainer.appendChild(el);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  populateMembers() {
+    const container = this.tabElement.querySelector('#clan-members-list');
+    if (!container || !this.currentClan.members) return;
+
+    container.innerHTML = this.currentClan.members
+      .map(m => `<div>${m.displayName} (${m.role}) - ${m.trophies}🏆</div>`)
+      .join('');
   }
 
-  /**
-   * Leave clan
-   */
-  async leaveClan() {
-    const res = await ClanAPI.leaveClan();
-    if (res.success) {
-      this.currentClan = null;
-      this.setState('no_clan');
-    } else {
-      console.error('❌ Failed to leave clan:', res.error);
-    }
-  }
-
-  /**
-   * Format timestamp
-   */
-  formatTime(timestamp) {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-
-    if (diff < 60000) return 'now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    
-    return date.toLocaleDateString();
-  }
-
-  // Placeholders for overlays
+  // ==== Overlays / utils ====
   showCreateClanOverlay() { if (this.createOverlay) this.createOverlay.open(); }
-  showJoinByTagOverlay() { console.log('🏰 Show join by tag overlay'); }
-  showSearchClansOverlay() { console.log('🏰 Show search clans overlay'); }
-
-  // Lifecycle
-  activate() { this.show(); }
-  deactivate() { this.hide(); }
-
-  show() {
-    if (this.tabElement) this.tabElement.classList.add('active');
-    this.isActive = true;
-  }
-
-  hide() {
-    if (this.tabElement) this.tabElement.classList.remove('active');
-    this.isActive = false;
-  }
-
-  async cleanup() {
-    console.log('🧹 Cleaning up ClanTab...');
-    if (this.createOverlay) this.createOverlay.cleanup();
-    this.eventListeners.clear();
-    if (this.tabElement?.parentNode) this.tabElement.parentNode.removeChild(this.tabElement);
-    this.tabElement = null;
-    this.container = null;
-    this.currentUser = null;
-    this.currentClan = null;
-    console.log('✅ ClanTab cleaned up');
-  }
+  updatePlayerData(user) { this.currentUser = user; }
 }
 
 export default ClanTab;
