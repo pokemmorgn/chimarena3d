@@ -645,7 +645,6 @@ private performAttackWithSystem(currentTick: number): void {
     console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id} - Réinitialisation cooldown`);
   }
 }
-  
   private onAttackPerformed(result: ICombatResult): void {
     this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
