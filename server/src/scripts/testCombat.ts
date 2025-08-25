@@ -174,32 +174,154 @@ class CombatTestFixed {
   private processTick(): void {
     this.currentTick++;
     this.testStats.totalTicks++;
-
-    // 🔧 CORRECTION MAJEURE: Mettre à jour le targeting à CHAQUE tick
+  
+    // Mettre à jour le targeting
     this.updateTargeting();
-
-    // Mettre à jour le CombatSystem
+  
+    // 🔧 CORRECTION: Mettre à jour le CombatSystem avec debug
     const allCombatants = this.getAllCombatants();
+    
+    // Debug du CombatSystem toutes les 5 secondes
+    if (this.currentTick % 100 === 0) {
+      console.log(`\n🔍 DEBUG COMBAT SYSTEM (Tick ${this.currentTick}):`);
+      this.combatSystem.debugCombatants();
+    }
+    
     this.combatSystem.update(this.currentTick, allCombatants);
-
+  
     // Mettre à jour toutes les unités
     this.updateAllUnits();
-
+  
     // Debug détaillé toutes les 1 seconde
     if (this.currentTick % 20 === 0) {
       this.logDetailedGameState();
     }
-
+  
     // Vérifier fin de combat
     this.checkEndConditions();
-
-    // Test de combat forcé après 5 secondes si pas de combat naturel
-    if (this.currentTick === 100 && this.combatSystem.getPerformanceStats().attacksProcessed === 0) {
-      console.log('\n🧪 PAS DE COMBAT DÉTECTÉ - TEST DE COMBAT FORCÉ:');
+  
+    // 🔧 Test de combat forcé après 3 secondes si 0 attaques
+    if (this.currentTick === 60 && this.combatSystem.getPerformanceStats().attacksProcessed === 0) {
+      console.log('\n🧪 PAS DE COMBAT DÉTECTÉ - DEBUG COMPLET:');
+      this.debugAllCombatStates();
       this.testForcedCombat();
     }
   }
 
+  private debugAllCombatStates(): void {
+  console.log('\n🔍 DEBUG COMPLET DES ÉTATS DE COMBAT:');
+  console.log('═'.repeat(70));
+  
+  // Debug du Knight
+  if (this.knight.isAlive) {
+    console.log('\n🔵 KNIGHT DEBUG:');
+    this.knight.debugCombatState();
+  }
+  
+  // Debug des Goblins
+  this.goblins.forEach((goblin, i) => {
+    if (goblin.isAlive) {
+      console.log(`\n🔴 GOBLIN ${i + 1} DEBUG:`);
+      goblin.debugCombatState();
+    }
+  });
+  
+  console.log('\n═'.repeat(70));
+}
+
+/**
+ * 🔧 Test de combat forcé amélioré avec debug
+ */
+private testForcedCombat(): void {
+  const aliveGoblins = this.goblins.filter(g => g.isAlive);
+  if (aliveGoblins.length > 0 && this.knight.isAlive) {
+    console.log(`\n🧪 TEST DE COMBAT FORCÉ:`);
+    console.log('─'.repeat(50));
+    
+    // Debug du CombatSystem avant le test
+    console.log(`🔍 État du CombatSystem avant test forcé:`);
+    this.combatSystem.debugCombatants();
+    
+    // Test: Knight attaque le premier Goblin
+    console.log(`\n🔵 Test: Knight attaque ${aliveGoblins[0].id}`);
+    const knightResult = this.knight.forceAttack(aliveGoblins[0].id);
+    
+    if (knightResult) {
+      console.log(`   ✅ Knight → Goblin: ${knightResult.damageDealt} dégâts !`);
+    } else {
+      console.log(`   ❌ Knight → Goblin: ÉCHEC`);
+    }
+    
+    // Test: Goblin attaque le Knight  
+    console.log(`\n🔴 Test: ${aliveGoblins[0].id} attaque Knight`);
+    const goblinResult = aliveGoblins[0].forceAttack(this.knight.id);
+    
+    if (goblinResult) {
+      console.log(`   ✅ Goblin → Knight: ${goblinResult.damageDealt} dégâts !`);
+    } else {
+      console.log(`   ❌ Goblin → Knight: ÉCHEC`);
+    }
+    
+    console.log('─'.repeat(50));
+  }
+}
+
+/**
+ * 🔧 Log d'état avec debug du CombatSystem
+ */
+private logDetailedGameState(): void {
+  const seconds = Math.round(this.currentTick / 20);
+  
+  console.log(`\n⏰ T+${seconds}s (Tick ${this.currentTick}):`);
+  console.log('━'.repeat(50));
+  
+  // État détaillé du Knight
+  if (this.knight.isAlive) {
+    const knightInfo = this.knight.getCombatInfo();
+    console.log(`🔵 KNIGHT ${this.knight.id}:`);
+    console.log(`   HP: ${knightInfo.hitpoints}/${knightInfo.maxHitpoints}`);
+    console.log(`   Position: (${knightInfo.position.x.toFixed(1)}, ${knightInfo.position.y.toFixed(1)})`);
+    console.log(`   État: ${knightInfo.state}`);
+    console.log(`   Cible: ${knightInfo.currentTarget?.id || 'aucune'}`);
+    console.log(`   Peut attaquer: ${knightInfo.canAttack}`);
+    console.log(`   Dernière attaque: tick ${knightInfo.lastAttackTick}`);
+  } else {
+    console.log(`🔵 Knight: 💀 MORT`);
+  }
+  
+  // État détaillé des Goblins
+  this.goblins.forEach((goblin, i) => {
+    if (goblin.isAlive) {
+      const goblinInfo = goblin.getCombatInfo();
+      const distanceToKnight = this.knight.isAlive 
+        ? Math.sqrt(Math.pow(goblin.x - this.knight.x, 2) + Math.pow(goblin.y - this.knight.y, 2))
+        : 0;
+        
+      console.log(`🔴 GOBLIN ${i + 1} ${goblin.id}:`);
+      console.log(`   HP: ${goblinInfo.hitpoints}/${goblinInfo.maxHitpoints}`);
+      console.log(`   Position: (${goblinInfo.position.x.toFixed(1)}, ${goblinInfo.position.y.toFixed(1)})`);
+      console.log(`   État: ${goblinInfo.state}`);
+      console.log(`   Distance Knight: ${distanceToKnight.toFixed(2)} tiles`);
+      console.log(`   Cible: ${goblinInfo.currentTarget?.id || 'aucune'}`);
+    } else {
+      console.log(`🔴 Goblin ${i + 1}: 💀 MORT`);
+    }
+  });
+
+  // Stats de combat avec warning si 0 attaques
+  const combatStats = this.combatSystem.getPerformanceStats();
+  console.log(`\n📊 COMBAT STATS:`);
+  console.log(`   Attaques: ${combatStats.attacksProcessed} ${combatStats.attacksProcessed === 0 ? '❌ PROBLÈME !' : '✅'}`);
+  console.log(`   Projectiles: ${combatStats.activeProjectiles}`);
+  console.log(`   Combattants: ${combatStats.activeCombatants}`);
+  console.log(`   Temps moyen: ${combatStats.averageProcessingTime.toFixed(2)}ms`);
+  
+  // 🔧 Warning si combat ne fonctionne pas
+  if (seconds >= 5 && combatStats.attacksProcessed === 0) {
+    console.log(`\n⚠️  WARNING: Aucune attaque après ${seconds}s - Problème dans le CombatSystem !`);
+  }
+}
+  
   private updateAllUnits(): void {
     if (this.knight.isAlive) {
       this.knight.update(this.currentTick, this.TICK_RATE_MS);
