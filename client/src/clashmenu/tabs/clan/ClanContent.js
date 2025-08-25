@@ -51,8 +51,15 @@ class ClanContent {
     const result = await ClanRoomClient.connect(this.currentUser.id, this.currentClan.clanId);
     if (result.success) {
       console.log(`✅ Connected to clan room ${this.currentClan.name}`);
-      // TODO : récupérer liste des membres via REST ou Colyseus et passer à ClanMembers
-      // this.members.setMembers(membersArray);
+
+      // Demande liste des membres initiale
+      result.room.send('get_member_list');
+      result.room.onMessage('member_list', (data) => {
+        if (data.members) {
+          this.members.setMembers(data.members);
+        }
+      });
+
     } else {
       console.error('❌ Failed to connect to clan room:', result.error);
     }
