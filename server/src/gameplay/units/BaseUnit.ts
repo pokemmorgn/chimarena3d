@@ -206,7 +206,17 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   set hitpoints(value: number) { this.currentHitpoints = Math.max(0, value); }
   
   // Propriétés de combat
-  get canAttack(): boolean { return this.isAlive && !this.behavior?.buffs.has('freeze'); }
+  get canAttack(): boolean { 
+    // Vérifications de base
+    if (!this.isAlive) return false;
+    if (this.state === 'spawning' || this.state === 'dying' || this.state === 'dead') return false;
+    
+    // Vérifier les debuffs
+    if (this.behavior?.buffs.has('freeze')) return false;
+    if (this.isStunned) return false;
+    
+    return true;
+  }
   get attackRange(): number { return this.baseStats?.range || 1; }
   get attackDamage(): number { return this.currentDamage; }
   get attackSpeed(): number { return Math.round((this.baseStats?.attackSpeed || 1.5) * 20); }
@@ -334,36 +344,62 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     this.currentDamage = this.baseStats.damage;
   }
   
-  private initializeBehavior(): void {
-    this.behavior = {
-      state: 'spawning',
-      lastStateChange: this.spawnTick,
-      
-      targetAcquisitionRange: this.baseStats.sight,
-      retargetCooldown: 20,
-      lastRetarget: 0,
-      
-      lastAttackTick: 0,
-      nextAttackTick: 0,
-      isAttacking: false,
-      attackWindup: Math.round(this.baseStats.attackSpeed * 0.3 * 20),
-      
-      pathNodes: [],
-      currentPathIndex: 0,
-      lastMoveTick: this.spawnTick,
-      moveSpeed: this.baseStats.walkingSpeed,
-      
-      buffs: new Map(),
-      debuffs: new Map()
-    };
-    
-    const deployTimeTicks = Math.round(this.baseStats.deployTime * 20);
-    setTimeout(() => {
-      if (this.state === 'spawning') {
-        this.setState('idle');
-      }
-    }, deployTimeTicks * 50);
+debugCombatState(): void {
+  console.log(`🔍 DEBUG Combat State ${this.id}:`);
+  console.log(`   State: ${this.state}`);
+  console.log(`   IsAlive: ${this.isAlive}`);
+  console.log(`   CanAttack: ${this.canAttack}`);
+  console.log(`   CurrentTick: ${this.lastUpdateTick}`);
+  console.log(`   LastAttackTick: ${this.behavior?.lastAttackTick || 0}`);
+  console.log(`   NextAttackTick: ${this.behavior?.nextAttackTick || 0}`);
+  console.log(`   AttackSpeed: ${this.attackSpeed}`);
+  console.log(`   AttackRange: ${this.attackRange}`);
+  console.log(`   Owner: ${this.ownerId}`);
+  console.log(`   Position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+  
+  if (this.behavior?.currentTarget) {
+    const distance = this.getDistanceToTarget(this.behavior.currentTarget);
+    console.log(`   Target: ${this.behavior.currentTarget.id}`);
+    console.log(`   Distance to target: ${distance.toFixed(2)}`);
+  } else {
+    console.log(`   Target: none`);
   }
+}
+
+/**
+ * 🔧 CORRECTION: Initialize behavior avec des valeurs cohérentes
+ */
+private initializeBehavior(): void {
+  this.behavior = {
+    state: 'spawning',
+    lastStateChange: this.spawnTick,
+    
+    targetAcquisitionRange: this.baseStats.sight,
+    retargetCooldown: 20,
+    lastRetarget: 0,
+    
+    // 🔧 CORRECTION: Initialiser les ticks d'attaque correctement
+    lastAttackTick: this.spawnTick - 100, // Permet d'attaquer dès le spawn
+    nextAttackTick: this.spawnTick,       // Peut attaquer immédiatement après spawn
+    isAttacking: false,
+    attackWindup: Math.round(this.baseStats.attackSpeed * 0.3 * 20),
+    
+    pathNodes: [],
+    currentPathIndex: 0,
+    lastMoveTick: this.spawnTick,
+    moveSpeed: this.baseStats.walkingSpeed,
+    
+    buffs: new Map(),
+    debuffs: new Map()
+  };
+  
+  const deployTimeTicks = Math.round(this.baseStats.deployTime * 20);
+  setTimeout(() => {
+    if (this.state === 'spawning') {
+      this.setState('idle');
+    }
+  }, deployTimeTicks * 50);
+}
   
   // === MÉTHODES PRINCIPALES CORRIGÉES ===
   
@@ -566,43 +602,49 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     );
   }
   
-  private performAttackWithSystem(currentTick: number): void {
-    if (!this.behavior.currentTarget) return;
+private performAttackWithSystem(currentTick: number): void {
+  if (!this.behavior.currentTarget) return;
+  
+  console.log(`🗡️ ${this.id} prépare l'attaque sur ${this.behavior.currentTarget.id}`);
+  
+  const attackConfig: IAttackConfig = {
+    attackerId: this.id,
+    targetId: this.behavior.currentTarget.id,
+    damage: this.getCurrentDamage(),
+    damageType: this.getDamageType(),
     
-    console.log(`🗡️ ${this.id} prépare l'attaque sur ${this.behavior.currentTarget.id}`);
+    hasSplash: this.baseStats.splashDamage,
+    ...(this.baseStats.splashRadius !== undefined && { splashRadius: this.baseStats.splashRadius }),
+    splashDamagePercent: 100,
     
-    const attackConfig: IAttackConfig = {
-      attackerId: this.id,
-      targetId: this.behavior.currentTarget.id,
-      damage: this.getCurrentDamage(),
-      damageType: this.getDamageType(),
-      
-      hasSplash: this.baseStats.splashDamage,
-      ...(this.baseStats.splashRadius !== undefined && { splashRadius: this.baseStats.splashRadius }),
-      splashDamagePercent: 100,
-      
-      isProjectile: this.isRangedUnit(),
-      ...(this.getProjectileSpeed() !== undefined && { projectileSpeed: this.getProjectileSpeed()! }),
-      
-      ...(this.getStunDuration() !== undefined && { stun: this.getStunDuration()! }),
-      ...(this.getKnockbackForce() !== undefined && { knockback: this.getKnockbackForce()! })
-    };
+    isProjectile: this.isRangedUnit(),
+    ...(this.getProjectileSpeed() !== undefined && { projectileSpeed: this.getProjectileSpeed()! }),
     
-    console.log(`⚔️ Configuration attaque: ${attackConfig.damage} dégâts ${attackConfig.damageType}${attackConfig.isProjectile ? ' (projectile)' : ' (mêlée)'}`);
+    ...(this.getStunDuration() !== undefined && { stun: this.getStunDuration()! }),
+    ...(this.getKnockbackForce() !== undefined && { knockback: this.getKnockbackForce()! })
+  };
+  
+  console.log(`⚔️ Configuration attaque: ${attackConfig.damage} dégâts ${attackConfig.damageType}${attackConfig.isProjectile ? ' (projectile)' : ' (mêlée)'}`);
+  
+  // 🔧 CORRECTION: Mettre à jour lastAttackTick AVANT l'attaque
+  this.behavior.lastAttackTick = currentTick;
+  
+  // Déléguer au CombatSystem
+  const result = this.combatSystem.performAttack(attackConfig);
+  
+  if (result) {
+    // 🔧 CORRECTION: Calculer le prochain tick d'attaque
+    this.behavior.nextAttackTick = currentTick + this.attackSpeed;
     
-    const result = this.combatSystem.performAttack(attackConfig);
+    console.log(`✅ Attaque réussie ! Dégâts: ${result.damageDealt}. Prochaine attaque dans ${this.attackSpeed} ticks`);
     
-    if (result) {
-      this.behavior.nextAttackTick = currentTick + this.attackSpeed;
-      this.behavior.lastAttackTick = currentTick;
-      
-      console.log(`✅ Attaque effectuée ! Prochaine attaque dans ${this.attackSpeed} ticks`);
-      
-      this.onAttackPerformed(result);
-    } else {
-      console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id}`);
-    }
+    this.onAttackPerformed(result);
+  } else {
+    // 🔧 Si l'attaque échoue, réinitialiser lastAttackTick pour permettre une nouvelle tentative
+    this.behavior.lastAttackTick = currentTick - this.attackSpeed; // Permet une nouvelle attaque immédiate
+    console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id} - Réinitialisation cooldown`);
   }
+}
   
   private onAttackPerformed(result: ICombatResult): void {
     this.logger.logBattle('card_played', this.ownerId, {
@@ -1021,39 +1063,55 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     };
   }
   
-  toCombatant(): ICombatant {
-    return {
-      id: this.id,
-      position: this.position,
-      ownerId: this.ownerId,
-      type: this.type,
-      isAlive: this.isAlive,
-      hitpoints: this.hitpoints,
-      maxHitpoints: this.maxHitpoints,
-      isFlying: this.isFlying,
-      isTank: this.isTank,
-      isBuilding: this.isBuilding,
-      mass: this.mass,
-      
-      armor: this.armor || 0,
-      spellResistance: this.spellResistance || 0,
-      shield: this.shield || 0,
-      canAttack: this.canAttack,
-      attackRange: this.attackRange,
-      attackDamage: this.attackDamage,
-      attackSpeed: this.attackSpeed,
-      lastAttackTick: this.lastAttackTick,
-      
-      isStunned: this.isStunned || false,
-      stunEndTick: this.stunEndTick || undefined,
-      isInvulnerable: this.isInvulnerable || false,
-      invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
-      
-      onTakeDamage: this.onTakeDamage,
-      onDeath: this.onDeath,
-      onAttack: this.onAttack
-    };
+toCombatant(): ICombatant {
+  const combatant = {
+    id: this.id,
+    position: { x: this.x, y: this.y }, // Position actuelle
+    ownerId: this.ownerId,
+    type: this.type,
+    isAlive: this.isAlive,
+    hitpoints: this.currentHitpoints, // HP actuels
+    maxHitpoints: this.maxHitpoints,
+    isFlying: this.isFlying,
+    isTank: this.isTank,
+    isBuilding: this.isBuilding,
+    mass: this.mass,
+    
+    // 🔧 CORRECTION: Propriétés de combat avec valeurs réelles
+    armor: this.armor || 0,
+    spellResistance: this.spellResistance || 0,
+    shield: this.shield || 0,
+    canAttack: this.canAttack, // Utilise le getter
+    attackRange: this.attackRange, // Utilise le getter  
+    attackDamage: this.currentDamage, // Damage actuel avec buffs
+    attackSpeed: this.attackSpeed, // En ticks
+    lastAttackTick: this.behavior?.lastAttackTick || 0, // Important !
+    
+    // État de combat
+    isStunned: this.isStunned || false,
+    stunEndTick: this.stunEndTick || undefined,
+    isInvulnerable: this.isInvulnerable || false,
+    invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
+    
+    // Callbacks
+    onTakeDamage: this.onTakeDamage,
+    onDeath: this.onDeath,
+    onAttack: this.onAttack
+  };
+
+  // 🔧 DEBUG: Log des propriétés critiques
+  if (this.lastUpdateTick % 100 === 0) { // Toutes les 5 secondes
+    console.log(`🔄 ${this.id}.toCombatant():`);
+    console.log(`   canAttack: ${combatant.canAttack}`);
+    console.log(`   isAlive: ${combatant.isAlive}`);
+    console.log(`   lastAttackTick: ${combatant.lastAttackTick}`);
+    console.log(`   attackSpeed: ${combatant.attackSpeed}`);
+    console.log(`   ownerId: ${combatant.ownerId}`);
   }
+
+  return combatant;
+}
+
   
   // === FACTORY METHODS POUR CARTES SPÉCIFIQUES ===
   
