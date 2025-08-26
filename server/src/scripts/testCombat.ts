@@ -379,6 +379,31 @@ class CombatTestFixed {
     }
   }
 
+  // Dans testCombat.ts, ajouter après la création des unités :
+private setupTestTowers(): void {
+  // Tours du joueur 1 (même équipe que Knight)
+  const player1Towers: ITower[] = [
+    { id: 'tower_p1_left', position: { x: 6, y: 28 }, ownerId: this.knight.ownerId, 
+      isDestroyed: false, hitpoints: 1400, maxHitpoints: 1400, type: 'left' },
+    { id: 'tower_p1_right', position: { x: 12, y: 28 }, ownerId: this.knight.ownerId, 
+      isDestroyed: false, hitpoints: 1400, maxHitpoints: 1400, type: 'right' },
+  ];
+
+  // Tours du joueur 2 (ennemies du Knight)
+  const player2Towers: ITower[] = [
+    { id: 'tower_p2_left', position: { x: 6, y: 4 }, ownerId: this.goblins[0].ownerId, 
+      isDestroyed: false, hitpoints: 1400, maxHitpoints: 1400, type: 'left' },
+    { id: 'tower_p2_right', position: { x: 12, y: 4 }, ownerId: this.goblins[0].ownerId, 
+      isDestroyed: false, hitpoints: 1400, maxHitpoints: 1400, type: 'right' },
+  ];
+
+  const allTowers = [...player1Towers, ...player2Towers];
+  
+  // Mettre à jour toutes les unités avec les tours
+  this.knight.updateAvailableTowers(allTowers);
+  this.goblins.forEach(goblin => goblin.updateAvailableTowers(allTowers));
+}
+  
   /**
    * Log d'état détaillé avec alertes
    */
