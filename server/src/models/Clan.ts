@@ -548,6 +548,26 @@ ClanSchema.methods.addMember = async function(userId: Types.ObjectId, userInfo: 
   await this.updateStats();
   await this.save();
   
+  // 🔥 CRUCIAL: Mettre à jour le profil utilisateur
+  try {
+    const UserData = (await import('./UserData')).default;
+    const user = await UserData.findById(userId);
+    
+    if (user) {
+      user.clanId = this._id;
+      user.clanRole = newMember.role;
+      user.joinedClanAt = newMember.joinedAt;
+      await user.save();
+      
+      console.log(`✅ Updated user ${user.username} profile with clan membership`);
+    } else {
+      console.warn(`⚠️ Could not find user ${userId} to update clan membership`);
+    }
+  } catch (error) {
+    console.error('Error updating user profile with clan membership:', error);
+    // Ne pas faire échouer l'ajout au clan pour cette erreur
+  }
+  
   return true;
 };
 
@@ -590,6 +610,26 @@ ClanSchema.methods.removeMember = async function(userId: Types.ObjectId, removed
   
   await this.updateStats();
   await this.save();
+  
+  // 🔥 CRUCIAL: Nettoyer le profil utilisateur
+  try {
+    const UserData = (await import('./UserData')).default;
+    const user = await UserData.findById(userId);
+    
+    if (user) {
+      user.clanId = null;
+      user.clanRole = null;
+      user.joinedClanAt = null;
+      await user.save();
+      
+      console.log(`✅ Cleaned clan info from user ${user.username} profile`);
+    } else {
+      console.warn(`⚠️ Could not find user ${userId} to clean clan membership`);
+    }
+  } catch (error) {
+    console.error('Error cleaning user profile clan membership:', error);
+    // Ne pas faire échouer la suppression pour cette erreur
+  }
   
   return true;
 };
