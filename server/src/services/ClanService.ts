@@ -141,271 +141,181 @@ class ClanService extends EventEmitter {
    * Créer un nouveau clan
    */
   async createClan(
-    leaderId: string,
-    clanData: {
-      name: string;
-      description?: string;
-      badge?: string;
-      type?: 'open' | 'invite_only' | 'closed';
-      requiredTrophies?: number;
-      region?: string;
-    }
-  ): Promise<{ success: boolean; clan?: IClan; error?: string }> {
-    try {
-      // Vérifier que l'utilisateur n'est pas déjà dans un clan
-      const existingClan = await Clan.getUserClan(new Types.ObjectId(leaderId));
-      if (existingClan) {
-        return { success: false, error: 'User is already in a clan' };
-      }
-      
-      // Récupérer les données du leader
-      const leader = await UserData.findById(leaderId);
-      if (!leader) {
-        return { success: false, error: 'Leader not found' };
-      }
-      
-      // Vérifier que le nom n'est pas déjà pris
-      const nameExists = await Clan.findOne({ 
-        name: { $regex: new RegExp(`^${clanData.name}$`, 'i') },
-        isActive: true 
-      });
-      if (nameExists) {
-        return { success: false, error: 'Clan name already taken' };
-      }
-      
-      // Créer le clan
-      const clan = await Clan.createClan({
-        _id: leader._id,
-        username: leader.username,
-        displayName: leader.displayName,
-        level: leader.level,
-        trophies: leader.stats.currentTrophies
-      }, {
-        name: clanData.name,
-        description: clanData.description || '',
-        badge: clanData.badge || 'default_badge',
-        type: clanData.type || 'open',
-        requiredTrophies: clanData.requiredTrophies || 0
-      });
-      
-      if (clanData.region) {
-        clan.region = clanData.region;
-        await clan.save();
-      }
-      
-      // 🔥 CRUCIAL: Mettre à jour le profil utilisateur avec les infos du clan
-      leader.clanId = clan._id;
-      leader.clanRole = 'leader';
-      leader.joinedClanAt = new Date();
-      await leader.save();
-      
-      console.log(`✅ Updated user ${leader.username} with clan info:`, {
-        clanId: clan._id,
-        clanRole: 'leader',
-        joinedClanAt: leader.joinedClanAt
-      });
-      
-      // Logger la création
-      await this.logger.logNavigation('clan_joined', leaderId, {
-        clanId: clan.clanId,
-        clanName: clan.name,
-        role: 'leader',
-        action: 'created'
-      });
-      
-      this.emit('clanCreated', { clan, leaderId });
-      
-      console.log(`🏰 Clan "${clan.name}" created by ${leader.username} (${clan.tag})`);
-      
-      return { success: true, clan };
-      
-    } catch (error) {
-      console.error('Error creating clan:', error);
-      return { success: false, error: 'Failed to create clan' };
-    }
+  leaderId: string,
+  clanData: {
+    name: string;
+    description?: string;
+    badge?: string;
+    type?: 'open' | 'invite_only' | 'closed';
+    requiredTrophies?: number;
+    region?: string;
   }
+): Promise<{ success: boolean; clan?: IClan; error?: string }> {
+  try {
+    // Vérifier que l'utilisateur n'est pas déjà dans un clan
+    const existingClan = await Clan.getUserClan(new Types.ObjectId(leaderId));
+    if (existingClan) {
+      return { success: false, error: 'User is already in a clan' };
+    }
+    
+    // Récupérer les données du leader
+    const leader = await UserData.findById(leaderId);
+    if (!leader) {
+      return { success: false, error: 'Leader not found' };
+    }
+    
+    // Vérifier que le nom n'est pas déjà pris
+    const nameExists = await Clan.findOne({ 
+      name: { $regex: new RegExp(`^${clanData.name}$`, 'i') },
+      isActive: true 
+    });
+    if (nameExists) {
+      return { success: false, error: 'Clan name already taken' };
+    }
+    
+    // Créer le clan
+    const clan = await Clan.createClan({
+      _id: leader._id,
+      username: leader.username,
+      displayName: leader.displayName,
+      level: leader.level,
+      trophies: leader.stats.currentTrophies
+    }, {
+      name: clanData.name,
+      description: clanData.description || '',
+      badge: clanData.badge || 'default_badge',
+      type: clanData.type || 'open',
+      requiredTrophies: clanData.requiredTrophies || 0
+    });
+    
+    if (clanData.region) {
+      clan.region = clanData.region;
+      await clan.save();
+    }
+    
+    // 🔥 CRUCIAL: Mettre à jour le profil utilisateur avec les infos du clan - Fix TypeScript
+    leader.clanId = new Types.ObjectId(clan._id as string);
+    leader.clanRole = 'leader';
+    leader.joinedClanAt = new Date();
+    await leader.save();
+    
+    console.log(`✅ Updated user ${leader.username} with clan info:`, {
+      clanId: clan._id,
+      clanRole: 'leader',
+      joinedClanAt: leader.joinedClanAt
+    });
+    
+    // Logger la création
+    await this.logger.logNavigation('clan_joined', leaderId, {
+      clanId: clan.clanId,
+      clanName: clan.name,
+      role: 'leader',
+      action: 'created'
+    });
+    
+    this.emit('clanCreated', { clan, leaderId });
+    
+    console.log(`🏰 Clan "${clan.name}" created by ${leader.username} (${clan.tag})`);
+    
+    return { success: true, clan };
+    
+  } catch (error) {
+    console.error('Error creating clan:', error);
+    return { success: false, error: 'Failed to create clan' };
+  }
+}
 
-  /**
-   * Rejoindre un clan
-   */
 /**
-   * Créer un nouveau clan - AVEC MISE À JOUR DU PROFIL UTILISATEUR
-   */
-  async createClan(
-    leaderId: string,
-    clanData: {
-      name: string;
-      description?: string;
-      badge?: string;
-      type?: 'open' | 'invite_only' | 'closed';
-      requiredTrophies?: number;
-      region?: string;
+ * Rejoindre un clan - VERSION CORRIGÉE
+ */
+async joinClan(
+  userId: string,
+  clanTag: string,
+  inviteCode?: string
+): Promise<{ success: boolean; clan?: IClan; error?: string }> {
+  try {
+    // Vérifier que l'utilisateur n'est pas déjà dans un clan
+    const existingClan = await Clan.getUserClan(new Types.ObjectId(userId));
+    if (existingClan) {
+      return { success: false, error: 'User is already in a clan' };
     }
-  ): Promise<{ success: boolean; clan?: IClan; error?: string }> {
-    try {
-      // Vérifier que l'utilisateur n'est pas déjà dans un clan
-      const existingClan = await Clan.getUserClan(new Types.ObjectId(leaderId));
-      if (existingClan) {
-        return { success: false, error: 'User is already in a clan' };
-      }
-      
-      // Récupérer les données du leader
-      const leader = await UserData.findById(leaderId);
-      if (!leader) {
-        return { success: false, error: 'Leader not found' };
-      }
-      
-      // Vérifier que le nom n'est pas déjà pris
-      const nameExists = await Clan.findOne({ 
-        name: { $regex: new RegExp(`^${clanData.name}$`, 'i') },
-        isActive: true 
-      });
-      if (nameExists) {
-        return { success: false, error: 'Clan name already taken' };
-      }
-      
-      // Créer le clan
-      const clan = await Clan.createClan({
-        _id: leader._id,
-        username: leader.username,
-        displayName: leader.displayName,
-        level: leader.level,
-        trophies: leader.stats.currentTrophies
-      }, {
-        name: clanData.name,
-        description: clanData.description || '',
-        badge: clanData.badge || 'default_badge',
-        type: clanData.type || 'open',
-        requiredTrophies: clanData.requiredTrophies || 0
-      });
-      
-      if (clanData.region) {
-        clan.region = clanData.region;
-        await clan.save();
-      }
-      
-      // 🔥 CRUCIAL: Mettre à jour le profil utilisateur avec les infos du clan
-      leader.clanId = clan._id;
-      leader.clanRole = 'leader';
-      leader.joinedClanAt = new Date();
-      await leader.save();
-      
-      console.log(`✅ Updated user ${leader.username} with clan info:`, {
-        clanId: clan._id,
-        clanRole: 'leader',
-        joinedClanAt: leader.joinedClanAt
-      });
-      
-      // Logger la création
-      await this.logger.logNavigation('clan_joined', leaderId, {
-        clanId: clan.clanId,
-        clanName: clan.name,
-        role: 'leader',
-        action: 'created'
-      });
-      
-      this.emit('clanCreated', { clan, leaderId });
-      
-      console.log(`🏰 Clan "${clan.name}" created by ${leader.username} (${clan.tag})`);
-      
-      return { success: true, clan };
-      
-    } catch (error) {
-      console.error('Error creating clan:', error);
-      return { success: false, error: 'Failed to create clan' };
+    
+    // Trouver le clan
+    const clan = await Clan.findByTag(clanTag);
+    if (!clan) {
+      return { success: false, error: 'Clan not found' };
     }
-  }
-
-  /**
-   * Rejoindre un clan - AVEC MISE À JOUR DU PROFIL UTILISATEUR
-   */
-  async joinClan(
-    userId: string,
-    clanTag: string,
-    inviteCode?: string
-  ): Promise<{ success: boolean; clan?: IClan; error?: string }> {
-    try {
-      // Vérifier que l'utilisateur n'est pas déjà dans un clan
-      const existingClan = await Clan.getUserClan(new Types.ObjectId(userId));
-      if (existingClan) {
-        return { success: false, error: 'User is already in a clan' };
+    
+    // Récupérer les données de l'utilisateur
+    const user = await UserData.findById(userId);
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+    
+    // Vérifier si l'utilisateur peut rejoindre
+    if (!clan.canJoin(user.stats.currentTrophies)) {
+      if (clan.memberCount >= clan.maxMembers) {
+        return { success: false, error: 'Clan is full' };
       }
-      
-      // Trouver le clan
-      const clan = await Clan.findByTag(clanTag);
-      if (!clan) {
-        return { success: false, error: 'Clan not found' };
+      if (user.stats.currentTrophies < clan.settings.requiredTrophies) {
+        return { success: false, error: `Need ${clan.settings.requiredTrophies} trophies to join` };
       }
-      
-      // Récupérer les données de l'utilisateur
-      const user = await UserData.findById(userId);
-      if (!user) {
-        return { success: false, error: 'User not found' };
+      if (clan.settings.type === 'closed') {
+        return { success: false, error: 'Clan is closed' };
       }
-      
-      // Vérifier si l'utilisateur peut rejoindre
-      if (!clan.canJoin(user.stats.currentTrophies)) {
-        if (clan.memberCount >= clan.maxMembers) {
-          return { success: false, error: 'Clan is full' };
-        }
-        if (user.stats.currentTrophies < clan.settings.requiredTrophies) {
-          return { success: false, error: `Need ${clan.settings.requiredTrophies} trophies to join` };
-        }
-        if (clan.settings.type === 'closed') {
-          return { success: false, error: 'Clan is closed' };
-        }
-      }
-      
-      // Vérifier le code d'invitation si nécessaire
-      if (clan.settings.type === 'invite_only' && !inviteCode) {
-        return { success: false, error: 'Invitation required' };
-      }
-      
-      // Ajouter le membre au clan
-      const success = await clan.addMember(new Types.ObjectId(userId), {
-        username: user.username,
-        displayName: user.displayName,
-        level: user.level,
-        trophies: user.stats.currentTrophies
-      });
-      
-      if (!success) {
-        return { success: false, error: 'Failed to join clan' };
-      }
-      
-      // 🔥 CRUCIAL: Mettre à jour le profil utilisateur avec les infos du clan
-      user.clanId = clan._id;
-      user.clanRole = 'member';
-      user.joinedClanAt = new Date();
-      await user.save();
-      
-      console.log(`✅ Updated user ${user.username} with clan info:`, {
-        clanId: clan._id,
-        clanRole: 'member',
-        joinedClanAt: user.joinedClanAt
-      });
-      
-      // Logger l'adhésion
-      await this.logger.logNavigation('clan_joined', userId, {
-        clanId: clan.clanId,
-        clanName: clan.name,
-        clanTag: clan.tag,
-        role: 'member',
-        userTrophies: user.stats.currentTrophies,
-        clanTrophies: clan.stats.totalTrophies
-      });
-      
-      this.emit('memberJoined', { clan, userId, user });
-      
-      console.log(`👤 ${user.username} joined clan "${clan.name}" (${clan.tag})`);
-      
-      return { success: true, clan };
-      
-    } catch (error) {
-      console.error('Error joining clan:', error);
+    }
+    
+    // Vérifier le code d'invitation si nécessaire
+    if (clan.settings.type === 'invite_only' && !inviteCode) {
+      return { success: false, error: 'Invitation required' };
+    }
+    
+    // Ajouter le membre au clan
+    const success = await clan.addMember(new Types.ObjectId(userId), {
+      username: user.username,
+      displayName: user.displayName,
+      level: user.level,
+      trophies: user.stats.currentTrophies
+    });
+    
+    if (!success) {
       return { success: false, error: 'Failed to join clan' };
     }
+    
+    // 🔥 CRUCIAL: Mettre à jour le profil utilisateur avec les infos du clan - Fix TypeScript
+    user.clanId = new Types.ObjectId(clan._id as string);
+    user.clanRole = 'member';
+    user.joinedClanAt = new Date();
+    await user.save();
+    
+    console.log(`✅ Updated user ${user.username} with clan info:`, {
+      clanId: clan._id,
+      clanRole: 'member',
+      joinedClanAt: user.joinedClanAt
+    });
+    
+    // Logger l'adhésion
+    await this.logger.logNavigation('clan_joined', userId, {
+      clanId: clan.clanId,
+      clanName: clan.name,
+      clanTag: clan.tag,
+      role: 'member',
+      userTrophies: user.stats.currentTrophies,
+      clanTrophies: clan.stats.totalTrophies
+    });
+    
+    this.emit('memberJoined', { clan, userId, user });
+    
+    console.log(`👤 ${user.username} joined clan "${clan.name}" (${clan.tag})`);
+    
+    return { success: true, clan };
+    
+  } catch (error) {
+    console.error('Error joining clan:', error);
+    return { success: false, error: 'Failed to join clan' };
   }
+}
+
 
   /**
    * Quitter un clan
