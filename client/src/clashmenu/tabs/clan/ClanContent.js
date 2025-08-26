@@ -288,113 +288,209 @@ class ClanContent {
     ClanRoomClient.on('system:sync', (data) => this.handleSystemSync(data));
   }
 
+/**
+ * FIX pour ClanContent.js - Correction de la gestion du currentUser.id
+ * REMPLACER la méthode connectToClan (autour de la ligne 290)
+ */
+
 async connectToClan() {
-    try {
-      console.log('🔄 Connecting to clan room...');
-      
-      // Debug: vérifier les données disponibles
-      console.log('🔍 Clan data available:', {
-        clan: this.clan,
-        clanId: this.clan?.clanId,
-        _id: this.clan?._id,
-        id: this.clan?.id,
-        currentUser: this.currentUser
-      });
+  try {
+    console.log('🔄 Connecting to clan room...');
+    
+    // 🔥 CORRECTION : Gestion robuste du currentUser avec multiples fallbacks
+    let userId = null;
+    let userInfo = null;
 
-      // Extraire le bon clanId
-      let clanId = null;
-      
-      if (this.clan) {
-        // Essayer différents champs possibles
-        clanId = this.clan.clanId || this.clan._id || this.clan.id;
-        
-        // Convertir ObjectId en string si nécessaire
-        if (clanId && typeof clanId === 'object' && clanId.toString) {
-          clanId = clanId.toString();
-        }
-      }
+    // Méthode 1: currentUser direct
+    if (this.currentUser?.id) {
+      userId = this.currentUser.id;
+      userInfo = this.currentUser;
+      console.log('✅ Using currentUser.id:', userId);
+    }
+    // Méthode 2: GameState
+    else if (window.ClashRoyaleApp?.gameState?.getUser()?.id) {
+      const gameStateUser = window.ClashRoyaleApp.gameState.getUser();
+      userId = gameStateUser.id;
+      userInfo = gameStateUser;
+      this.currentUser = gameStateUser; // Mettre à jour
+      console.log('✅ Using GameState user:', userId);
+    }
+    // Méthode 3: NetworkManager
+    else if (window.ClashRoyaleApp?.networkManager?.getUserData()?.id) {
+      const networkUser = window.ClashRoyaleApp.networkManager.getUserData();
+      userId = networkUser.id;
+      userInfo = networkUser;
+      this.currentUser = networkUser; // Mettre à jour
+      console.log('✅ Using NetworkManager user:', userId);
+    }
+    // Méthode 4: Colyseus
+    else if (window.ClashRoyaleApp?.networkManager?.getColyseusManager()?.getCurrentUser()?.id) {
+      const colyseusUser = window.ClashRoyaleApp.networkManager.getColyseusManager().getCurrentUser();
+      userId = colyseusUser.id;
+      userInfo = colyseusUser;
+      this.currentUser = colyseusUser; // Mettre à jour
+      console.log('✅ Using Colyseus user:', userId);
+    }
+    
+    // Vérification finale
+    if (!userId) {
+      throw new Error('Current user ID is missing from all sources');
+    }
 
-      // Validation des paramètres
-      if (!this.currentUser?.id) {
-        throw new Error('Current user ID is missing');
-      }
+    // Debug: vérifier les données disponibles du clan
+    console.log('🔍 Clan data available:', {
+      clan: this.clan,
+      clanId: this.clan?.clanId,
+      _id: this.clan?._id,
+      id: this.clan?.id,
+      currentUser: userInfo
+    });
 
-      if (!clanId) {
-        throw new Error('Clan ID is missing or invalid');
-      }
-
-      console.log('🔗 Connecting with parameters:', {
-        userId: this.currentUser.id,
-        clanId: clanId,
-        userType: typeof this.currentUser.id,
-        clanType: typeof clanId
-      });
-
-      // Tenter la connexion
-      const result = await ClanRoomClient.connect(
-        this.currentUser.id,
-        clanId
-      );
+    // Extraire le bon clanId avec validation
+    let clanId = null;
+    
+    if (this.clan) {
+      // Essayer différents champs possibles
+      clanId = this.clan.clanId || this.clan._id || this.clan.id;
       
-      if (result.success) {
-        this.isConnected = true;
-        console.log('✅ Connected to clan room successfully');
-        this.showConnectionStatus(true);
-        
-        // Demander les données initiales après connexion réussie
-        setTimeout(() => {
-          if (this.isConnected) {
-            this.loadInitialData();
-          }
-        }, 1000);
-        
-      } else {
-        throw new Error(result.error || 'Connection failed');
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to connect to clan:', error);
-      this.isConnected = false;
-      this.showConnectionStatus(false);
-      
-      // Diagnostic de l'erreur
-      let errorMessage = 'Failed to connect to clan.';
-      let canRetry = true;
-      
-      if (error.message?.includes('missing') || error.message?.includes('invalid')) {
-        errorMessage = 'Invalid clan or user data. Please try reloading the page.';
-        canRetry = false;
-      } else if (error.message?.includes('not properly initialized')) {
-        errorMessage = 'Server connection not available. Please try again later.';
-      } else if (error.message?.includes('timeout')) {
-        errorMessage = 'Connection timeout. Please check your internet connection.';
-      } else if (error.message?.includes('unauthorized') || error.message?.includes('not a member')) {
-        errorMessage = 'You are not authorized to join this clan chat.';
-        canRetry = false;
-      } else if (error.message?.includes('not found')) {
-        errorMessage = 'Clan not found. It may have been deleted.';
-        canRetry = false;
-      }
-      
-      this.showError(errorMessage);
-      
-      // Proposer une reconnexion après 5 secondes si applicable
-      if (canRetry) {
-        setTimeout(() => {
-          if (!this.isConnected) {
-            this.showReconnectOption();
-          }
-        }, 5000);
-      } else {
-        // Si erreur critique, suggérer de recharger la page
-        setTimeout(() => {
-          if (!this.isConnected) {
-            this.showReloadOption();
-          }
-        }, 3000);
+      // Convertir ObjectId en string si nécessaire
+      if (clanId && typeof clanId === 'object' && clanId.toString) {
+        clanId = clanId.toString();
       }
     }
+
+    // Validation des paramètres
+    if (!clanId) {
+      throw new Error('Clan ID is missing or invalid');
+    }
+
+    console.log('🔗 Connecting with parameters:', {
+      userId: userId,
+      clanId: clanId,
+      userType: typeof userId,
+      clanType: typeof clanId
+    });
+
+    // Tenter la connexion
+    const result = await ClanRoomClient.connect(userId, clanId);
+    
+    if (result.success) {
+      this.isConnected = true;
+      console.log('✅ Connected to clan room successfully');
+      this.showConnectionStatus(true);
+      
+      // Demander les données initiales après connexion réussie
+      setTimeout(() => {
+        if (this.isConnected) {
+          this.loadInitialData();
+        }
+      }, 1000);
+      
+    } else {
+      throw new Error(result.error || 'Connection failed');
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to connect to clan:', error);
+    this.isConnected = false;
+    this.showConnectionStatus(false);
+    
+    // Diagnostic de l'erreur avec plus de détails
+    let errorMessage = 'Failed to connect to clan.';
+    let canRetry = true;
+    
+    if (error.message?.includes('Current user ID is missing')) {
+      errorMessage = 'User data not loaded yet. Please try refreshing the page.';
+      canRetry = true;
+      
+      // Essayer de recharger les données utilisateur
+      setTimeout(async () => {
+        console.log('🔄 Attempting to reload user data...');
+        try {
+          // Vérifier si l'authentification est toujours valide
+          const isAuth = await window.ClashRoyaleApp?.networkManager?.verifyToken();
+          if (isAuth) {
+            const freshUser = window.ClashRoyaleApp.networkManager.getUserData();
+            if (freshUser?.id) {
+              console.log('✅ User data reloaded, retrying connection...');
+              this.currentUser = freshUser;
+              this.connectToClan(); // Réessayer
+              return;
+            }
+          }
+          console.warn('⚠️ Could not reload user data');
+        } catch (reloadError) {
+          console.error('❌ Error reloading user data:', reloadError);
+        }
+      }, 2000);
+      
+    } else if (error.message?.includes('missing') || error.message?.includes('invalid')) {
+      errorMessage = 'Invalid clan or user data. Please try reloading the page.';
+      canRetry = false;
+    } else if (error.message?.includes('not properly initialized')) {
+      errorMessage = 'Server connection not available. Please try again later.';
+    } else if (error.message?.includes('timeout')) {
+      errorMessage = 'Connection timeout. Please check your internet connection.';
+    } else if (error.message?.includes('unauthorized') || error.message?.includes('not a member')) {
+      errorMessage = 'You are not authorized to join this clan chat.';
+      canRetry = false;
+    } else if (error.message?.includes('not found')) {
+      errorMessage = 'Clan not found. It may have been deleted.';
+      canRetry = false;
+    }
+    
+    this.showError(errorMessage);
+    
+    // Proposer une reconnexion après 5 secondes si applicable
+    if (canRetry) {
+      setTimeout(() => {
+        if (!this.isConnected) {
+          this.showReconnectOption();
+        }
+      }, 5000);
+    } else {
+      // Si erreur critique, suggérer de recharger la page
+      setTimeout(() => {
+        if (!this.isConnected) {
+          this.showReloadOption();
+        }
+      }, 3000);
+    }
   }
+}
+
+/**
+ * 🔥 NOUVELLE MÉTHODE : Mettre à jour les données utilisateur
+ * Ajouter cette méthode dans ClanContent.js
+ */
+updatePlayer(user) {
+  console.log('👤 ClanContent.updatePlayer called:', user);
+  
+  // Mise à jour robuste avec validation
+  if (user) {
+    this.currentUser = {
+      id: user._id || user.id,
+      username: user.username,
+      displayName: user.displayName,
+      level: user.level,
+      trophies: user.stats?.currentTrophies || user.trophies || 0,
+      clanId: user.clanId || null,
+      clanRole: user.clanRole || null
+    };
+    
+    console.log('✅ ClanContent currentUser updated:', this.currentUser);
+    
+    // Si on était en erreur de connexion, réessayer
+    if (!this.isConnected && this.currentUser.id) {
+      console.log('🔄 Retrying connection with updated user data...');
+      setTimeout(() => {
+        this.connectToClan();
+      }, 1000);
+    }
+  } else {
+    console.warn('⚠️ ClanContent.updatePlayer called with null/undefined user');
+  }
+}
 
   showReloadOption() {
     const header = this.container.querySelector('.clan-header');
