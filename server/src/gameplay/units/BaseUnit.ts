@@ -1062,51 +1062,70 @@ private performAttackWithSystem(currentTick: number): void {
     };
   }
   
+/**
+ * Mettre à jour les HP directement depuis le CombatSystem
+ */
+updateHitpoints(newHitpoints: number): void {
+  const oldHp = this.currentHitpoints;
+  this.currentHitpoints = Math.max(0, newHitpoints);
+  
+  console.log(`🔄 BaseUnit.updateHitpoints: ${this.id} ${oldHp} → ${this.currentHitpoints}`);
+  
+  // Vérifier la mort
+  if (this.currentHitpoints <= 0 && this.state !== 'dying' && this.state !== 'dead') {
+    this.setState('dying');
+    console.log(`💀 BaseUnit ${this.id} passe en état 'dying'`);
+  }
+}
+
+/**
+ * Marquer comme mort (appelé par CombatSystem)
+ */
+markAsDead(): void {
+  console.log(`💀 BaseUnit.markAsDead: ${this.id}`);
+  this.currentHitpoints = 0;
+  this.setState('dying');
+}
+
+/**
+ * 🔧 CORRECTION: Modifier toCombatant pour inclure une référence vers cette BaseUnit
+ */
 toCombatant(): ICombatant {
   const combatant = {
     id: this.id,
-    position: { x: this.x, y: this.y }, // Position actuelle
+    position: { x: this.x, y: this.y },
     ownerId: this.ownerId,
     type: this.type,
     isAlive: this.isAlive,
-    hitpoints: this.currentHitpoints, // HP actuels
+    hitpoints: this.currentHitpoints,
     maxHitpoints: this.maxHitpoints,
     isFlying: this.isFlying,
     isTank: this.isTank,
     isBuilding: this.isBuilding,
     mass: this.mass,
     
-    // 🔧 CORRECTION: Propriétés de combat avec valeurs réelles
     armor: this.armor || 0,
     spellResistance: this.spellResistance || 0,
     shield: this.shield || 0,
-    canAttack: this.canAttack, // Utilise le getter
-    attackRange: this.attackRange, // Utilise le getter  
-    attackDamage: this.currentDamage, // Damage actuel avec buffs
-    attackSpeed: this.attackSpeed, // En ticks
-    lastAttackTick: this.behavior?.lastAttackTick || 0, // Important !
+    canAttack: this.canAttack,
+    attackRange: this.attackRange,
+    attackDamage: this.currentDamage,
+    attackSpeed: this.attackSpeed,
+    lastAttackTick: this.behavior?.lastAttackTick || 0,
     
-    // État de combat
     isStunned: this.isStunned || false,
     stunEndTick: this.stunEndTick || undefined,
     isInvulnerable: this.isInvulnerable || false,
     invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
     
-    // Callbacks
+    // 🔧 CORRECTION: Ajouter les méthodes de synchronisation
+    updateHitpoints: this.updateHitpoints.bind(this),
+    markAsDead: this.markAsDead.bind(this),
+    
     onTakeDamage: this.onTakeDamage,
     onDeath: this.onDeath,
     onAttack: this.onAttack
   };
-
-  // 🔧 DEBUG: Log des propriétés critiques
-  if (this.lastUpdateTick % 100 === 0) { // Toutes les 5 secondes
-    console.log(`🔄 ${this.id}.toCombatant():`);
-    console.log(`   canAttack: ${combatant.canAttack}`);
-    console.log(`   isAlive: ${combatant.isAlive}`);
-    console.log(`   lastAttackTick: ${combatant.lastAttackTick}`);
-    console.log(`   attackSpeed: ${combatant.attackSpeed}`);
-    console.log(`   ownerId: ${combatant.ownerId}`);
-  }
 
   return combatant;
 }
