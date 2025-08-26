@@ -3,6 +3,9 @@ import Joi from 'joi';
 import rateLimit from 'express-rate-limit';
 import { getClanService } from '../services/ClanService';
 import { authenticateToken } from '../middleware/AuthData';
+const { default: Clan } = await import('../models/Clan');
+const { default: UserData } = await import('../models/UserData');
+const { Types } = await import('mongoose');
 
 const router = Router();
 const clanService = getClanService();
@@ -758,10 +761,7 @@ router.get('/chat', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Import Clan here to avoid circular dependency
-    const { default: Clan } = await import('../models/Clan');
-    const { Types } = await import('mongoose');
-    
+    // Import Clan here to avoid circular dependency    
     const clan = await Clan.getUserClan(new Types.ObjectId(req.userId!));
     
     if (!clan) {
