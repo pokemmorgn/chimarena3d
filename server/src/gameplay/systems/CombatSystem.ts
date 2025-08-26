@@ -907,8 +907,24 @@ unregisterCombatant(combatantId: string): void {
   }
 }
 
+
 // Export d'une instance singleton pour utilisation globale
 let combatSystemInstance: CombatSystem | null = null;
+
+/**
+ * 🔧 NOUVEAU: Enregistrer une tour dans le système de combat
+ */
+registerTower(tower: ICombatant): void {
+  console.log(`🏰 CombatSystem: Enregistrement tour ${tower.id} (${tower.type})`);
+  console.log(`   🏰 Owner: ${tower.ownerId}`);
+  console.log(`   🏰 HP: ${tower.hitpoints}/${tower.maxHitpoints}`);
+  console.log(`   🏰 Position: (${tower.position.x.toFixed(1)}, ${tower.position.y.toFixed(1)})`);
+  console.log(`   🏰 CanAttack: ${tower.canAttack}`);
+  console.log(`   🏰 Range: ${tower.attackRange}`);
+  
+  this.combatants.set(tower.id, tower);
+  console.log(`✅ Tour ${tower.id} enregistrée avec succès`);
+}
 
 export function getCombatSystem(config?: Partial<ICombatSystemConfig>): CombatSystem {
   if (!combatSystemInstance) {
@@ -916,5 +932,6 @@ export function getCombatSystem(config?: Partial<ICombatSystemConfig>): CombatSy
   }
   return combatSystemInstance;
 }
+
 
 export { CombatSystem };
