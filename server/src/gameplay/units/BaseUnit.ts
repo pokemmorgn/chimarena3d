@@ -1200,6 +1200,12 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     
     if (this.lastUpdateTick % 60 === 0) {
       console.log(`🏰 ${this.id} reçoit ${availableTowers.length} tours disponibles`);
+      
+      // 🔧 DEBUG: Détails des tours reçues
+      availableTowers.forEach((tower, i) => {
+        const distance = this.calculateDistance(this.getPosition(), tower.position);
+        console.log(`   Tour ${i}: ${tower.type} (${tower.ownerId}) - ${distance.toFixed(1)} tiles - ${tower.isDestroyed ? '💀' : '✅'}`);
+      });
     }
   }
   
