@@ -50,6 +50,17 @@ export interface ITarget {
   priority: number;
 }
 
+// 🔧 NOUVEAU: Interface pour les tours
+export interface ITower {
+  id: string;
+  position: IPosition;
+  ownerId: string;
+  isDestroyed: boolean;
+  hitpoints: number;
+  maxHitpoints: number;
+  type: 'left' | 'right' | 'king';
+}
+
 export interface IUnitBehavior {
   // État actuel
   state: UnitState;
@@ -73,6 +84,11 @@ export interface IUnitBehavior {
   currentPathIndex: number;
   lastMoveTick: number;
   moveSpeed: number;
+  
+  // 🔧 NOUVEAU: Pathfinding vers tours
+  targetTower?: ITower;
+  isMovingToTower: boolean;
+  lastTowerCheck: number;
   
   // Buffs/Debuffs
   buffs: Map<string, IUnitBuff>;
@@ -187,8 +203,9 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   private combatSystem = getCombatSystem();
   private targetingSystem = getTargetingSystem();
   
-  // 🔧 CORRECTION CRITIQUE: Stockage des cibles disponibles
+  // 🔧 NOUVEAU: Stockage des cibles et tours disponibles
   private availableTargets: ITargetableEntity[] = [];
+  private availableTowers: ITower[] = [];
   
   // Cache des vitesses
   private static readonly SPEED_VALUES: Record<string, number> = {
@@ -207,14 +224,10 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   
   // Propriétés de combat
   get canAttack(): boolean { 
-    // Vérifications de base
     if (!this.isAlive) return false;
     if (this.state === 'spawning' || this.state === 'dying' || this.state === 'dead') return false;
-    
-    // Vérifier les debuffs
     if (this.behavior?.buffs.has('freeze')) return false;
     if (this.isStunned) return false;
-    
     return true;
   }
   get attackRange(): number { return this.baseStats?.range || 1; }
@@ -344,64 +357,45 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     this.currentDamage = this.baseStats.damage;
   }
   
-debugCombatState(): void {
-  console.log(`🔍 DEBUG Combat State ${this.id}:`);
-  console.log(`   State: ${this.state}`);
-  console.log(`   IsAlive: ${this.isAlive}`);
-  console.log(`   CanAttack: ${this.canAttack}`);
-  console.log(`   CurrentTick: ${this.lastUpdateTick}`);
-  console.log(`   LastAttackTick: ${this.behavior?.lastAttackTick || 0}`);
-  console.log(`   NextAttackTick: ${this.behavior?.nextAttackTick || 0}`);
-  console.log(`   AttackSpeed: ${this.attackSpeed}`);
-  console.log(`   AttackRange: ${this.attackRange}`);
-  console.log(`   Owner: ${this.ownerId}`);
-  console.log(`   Position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
-  
-  if (this.behavior?.currentTarget) {
-    const distance = this.getDistanceToTarget(this.behavior.currentTarget);
-    console.log(`   Target: ${this.behavior.currentTarget.id}`);
-    console.log(`   Distance to target: ${distance.toFixed(2)}`);
-  } else {
-    console.log(`   Target: none`);
+  /**
+   * 🔧 CORRECTION: Initialize behavior avec pathfinding
+   */
+  private initializeBehavior(): void {
+    this.behavior = {
+      state: 'spawning',
+      lastStateChange: this.spawnTick,
+      
+      targetAcquisitionRange: this.baseStats.sight,
+      retargetCooldown: 20,
+      lastRetarget: 0,
+      
+      lastAttackTick: this.spawnTick - 100,
+      nextAttackTick: this.spawnTick,
+      isAttacking: false,
+      attackWindup: Math.round(this.baseStats.attackSpeed * 0.3 * 20),
+      
+      pathNodes: [],
+      currentPathIndex: 0,
+      lastMoveTick: this.spawnTick,
+      moveSpeed: this.baseStats.walkingSpeed,
+      
+      // 🔧 NOUVEAU: Pathfinding vers tours
+      isMovingToTower: false,
+      lastTowerCheck: this.spawnTick,
+      
+      buffs: new Map(),
+      debuffs: new Map()
+    };
+    
+    const deployTimeTicks = Math.round(this.baseStats.deployTime * 20);
+    setTimeout(() => {
+      if (this.state === 'spawning') {
+        this.setState('idle');
+      }
+    }, deployTimeTicks * 50);
   }
-}
-
-/**
- * 🔧 CORRECTION: Initialize behavior avec des valeurs cohérentes
- */
-private initializeBehavior(): void {
-  this.behavior = {
-    state: 'spawning',
-    lastStateChange: this.spawnTick,
-    
-    targetAcquisitionRange: this.baseStats.sight,
-    retargetCooldown: 20,
-    lastRetarget: 0,
-    
-    // 🔧 CORRECTION: Initialiser les ticks d'attaque correctement
-    lastAttackTick: this.spawnTick - 100, // Permet d'attaquer dès le spawn
-    nextAttackTick: this.spawnTick,       // Peut attaquer immédiatement après spawn
-    isAttacking: false,
-    attackWindup: Math.round(this.baseStats.attackSpeed * 0.3 * 20),
-    
-    pathNodes: [],
-    currentPathIndex: 0,
-    lastMoveTick: this.spawnTick,
-    moveSpeed: this.baseStats.walkingSpeed,
-    
-    buffs: new Map(),
-    debuffs: new Map()
-  };
   
-  const deployTimeTicks = Math.round(this.baseStats.deployTime * 20);
-  setTimeout(() => {
-    if (this.state === 'spawning') {
-      this.setState('idle');
-    }
-  }, deployTimeTicks * 50);
-}
-  
-  // === MÉTHODES PRINCIPALES CORRIGÉES ===
+  // === MÉTHODES PRINCIPALES AVEC PATHFINDING ===
   
   update(currentTick: number, deltaTime: number): void {
     this.lastUpdateTick = currentTick;
@@ -438,317 +432,411 @@ private initializeBehavior(): void {
   }
   
   /**
-   * 🔧 CORRIGÉ: Logique état idle avec targeting fonctionnel
+   * 🔧 CORRIGÉ: Logique idle avec pathfinding vers tours (VRAI CLASH ROYALE)
    */
-private updateIdle(currentTick: number): void {
-  // Chercher des ennemis seulement
-  const shouldRetarget = !this.behavior.currentTarget || 
-                        currentTick >= this.behavior.lastRetarget + this.behavior.retargetCooldown;
-  
-  if (shouldRetarget) {
-    // 🔧 CORRECTION: Filtrer explicitement les ennemis
-    const availableEnemies = this.availableTargets.filter(t => 
-      t.ownerId !== this.ownerId && t.isAlive
-    );
+  private updateIdle(currentTick: number): void {
+    // 1. PRIORITÉ: Chercher des unités ennemies d'abord
+    const shouldRetarget = !this.behavior.currentTarget || 
+                          currentTick >= this.behavior.lastRetarget + Math.min(this.behavior.retargetCooldown, 20);
     
-    if (availableEnemies.length === 0) {
-      // Pas d'ennemis - rester en idle silencieusement
-      if (currentTick % 100 === 0) { // Log très peu fréquent
-        console.log(`😴 ${this.id} en attente - plus d'ennemis`);
-      }
-      this.behavior.lastRetarget = currentTick;
-      return;
-    }
-    
-    const targetingResult = this.findTargetWithSystem(currentTick);
-    
-    if (targetingResult.target) {
-      console.log(`🎯 ${this.id} trouve un ennemi: ${targetingResult.target.id}`);
-      this.setTarget(targetingResult.target);
-      this.setState('moving');
-    }
-    
-    this.behavior.lastRetarget = currentTick;
-  }
-}
-  
-  /**
-   * 🔧 CORRIGÉ: Logique mouvement avec marge d'hysteresis
-   */
-  private updateMovement(currentTick: number, deltaTime: number): void {
-    if (!this.behavior.destination || !this.behavior.currentTarget) {
-      console.log(`❌ ${this.id} en mouvement mais pas de destination/cible`);
-      this.setState('idle');
-      return;
-    }
-
-    // Vérifier si la cible existe toujours
-    const targetExists = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
-    if (!targetExists || !targetExists.isAlive) {
-      console.log(`💀 ${this.id} cible morte ou disparue, retour idle`);
-      this.behavior.currentTarget = undefined;
-      this.setState('idle');
-      return;
-    }
-
-    // Mettre à jour la position cible en temps réel
-    this.behavior.currentTarget.position = targetExists.position;
-
-    // Calculer la distance vers la CIBLE
-    const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
-    
-    // Marge pour éviter l'oscillation
-    const attackRange = this.baseStats.range;
-    const rangeMargin = 0.1;
-    
-    // Vérifier si en range d'attaque
-    if (targetDistance <= attackRange + rangeMargin) {
-      console.log(`⚔️ ${this.id} EN RANGE ! Distance: ${targetDistance.toFixed(2)} <= Range: ${attackRange}`);
-      this.setState('attacking');
-      return;
-    }
-
-    // Mouvement corrigé avec deltaTime propre
-    const targetPos = this.behavior.currentTarget.position;
-    const dx = targetPos.x - this.x;
-    const dy = targetPos.y - this.y;
-    const distanceToTarget = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distanceToTarget > 0.05) { // Éviter division par 0
-      const moveSpeedTilesPerSec = this.behavior.moveSpeed;
-      const moveDistanceThisFrame = moveSpeedTilesPerSec * (deltaTime / 1000);
-      
-      // Normaliser la direction
-      const dirX = dx / distanceToTarget;
-      const dirY = dy / distanceToTarget;
-      
-      // Se déplacer vers la cible (mais pas au-delà)
-      const actualMoveDistance = Math.min(moveDistanceThisFrame, distanceToTarget - attackRange);
-      
-      if (actualMoveDistance > 0) {
-        this.x += dirX * actualMoveDistance;
-        this.y += dirY * actualMoveDistance;
-        
-        this.behavior.lastMoveTick = currentTick;
-        
-        // Debug de mouvement
-        if (currentTick % 10 === 0) {
-          console.log(`🏃 ${this.id}: (${this.x.toFixed(1)}, ${this.y.toFixed(1)}) → (${targetPos.x.toFixed(1)}, ${targetPos.y.toFixed(1)}) Dist: ${distanceToTarget.toFixed(2)}`);
-        }
-      } else {
-        console.log(`🎯 ${this.id} arrivé à destination ! Distance: ${distanceToTarget.toFixed(2)}`);
-        this.setState('attacking');
-      }
-    } else {
-      console.log(`⚔️ ${this.id} déjà sur la cible !`);
-      this.setState('attacking');
-    }
-  }
-  
-  /**
-   * 🔧 CORRIGÉ: Logique d'attaque avec marge d'hysteresis
-   */
-private updateAttacking(currentTick: number): void {
-  if (!this.behavior.currentTarget) {
-    console.log(`❌ ${this.id} en mode attaque mais pas de cible !`);
-    this.setState('idle');
-    return;
-  }
-
-  // Vérifier que la cible existe toujours ET est vivante
-  const targetExists = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
-  if (!targetExists || !targetExists.isAlive) {
-    console.log(`💀 ${this.id} cible morte/disparue, recherche nouvelle cible...`);
-    
-    // 🔧 CORRECTION: Filtrer seulement les ennemis vivants
-    const availableEnemies = this.availableTargets.filter(t => 
-      t.ownerId !== this.ownerId && t.isAlive
-    );
-    
-    if (availableEnemies.length === 0) {
-      console.log(`🏁 ${this.id} plus d'ennemis disponibles, passage en idle`);
-      this.behavior.currentTarget = undefined;
-      this.setState('idle');
-      return;
-    }
-    
-    // Chercher une nouvelle cible parmi les ennemis disponibles
-    const targetingResult = this.findTargetWithSystem(currentTick);
-    
-    if (targetingResult.target) {
-      console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
-      this.setTarget(targetingResult.target);
-      this.setState('moving');
-      return;
-    } else {
-      console.log(`❌ ${this.id} aucune nouvelle cible valide, retour idle`);
-      this.behavior.currentTarget = undefined;
-      this.setState('idle');
-      return;
-    }
-  }
-
-  // Mettre à jour la position cible
-  this.behavior.currentTarget.position = targetExists.position;
-
-  // Vérifier si la cible est encore en range
-  const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
-  const attackRange = this.baseStats.range;
-  const hysteresisMargin = 0.3;
-  
-  if (targetDistance > attackRange + hysteresisMargin) {
-    console.log(`🏃 ${this.id} cible trop loin, retour mouvement`);
-    this.setState('moving');
-    return;
-  }
-
-  // Attaquer si cooldown fini
-  const canAttackNow = currentTick >= this.behavior.nextAttackTick;
-  
-  if (canAttackNow) {
-    console.log(`⚔️ ${this.id} ATTAQUE ${this.behavior.currentTarget.id} !`);
-    this.performAttackWithSystem(currentTick);
-  } else {
-    // Cooldown en cours
-    const ticksRemaining = this.behavior.nextAttackTick - currentTick;
-    if (ticksRemaining > 0 && currentTick % 40 === 0) { // Log moins fréquent
-      console.log(`⏱️ ${this.id} cooldown: ${(ticksRemaining / 20).toFixed(1)}s`);
-    }
-  }
-}
-  
-  /**
-   * 🔧 CORRIGÉ: Trouver une cible avec validation
-   */
-private findTargetWithSystem(currentTick: number): ITargetingResult {
-  if (!this.availableTargets || this.availableTargets.length === 0) {
-    console.warn(`⚠️ ${this.id} pas de cibles disponibles pour le targeting !`);
-    return {
-      target: null,
-      confidence: 0,
-      reason: 'no_available_targets',
-      alternativeTargets: []
-    };
-  }
-
-  // 🔧 CORRECTION: Filtrer explicitement les ennemis vivants avant le targeting
-  const aliveEnemies = this.availableTargets.filter(t => 
-    t.ownerId !== this.ownerId && t.isAlive === true
-  );
-
-  console.log(`🎯 ${this.id} targeting: ${this.availableTargets.length} total, ${aliveEnemies.length} ennemis vivants`);
-
-  if (aliveEnemies.length === 0) {
-    return {
-      target: null,
-      confidence: 0,
-      reason: 'no_alive_enemies',
-      alternativeTargets: []
-    };
-  }
-
-  return this.targetingSystem.findBestTarget(
-    this.toTargetableEntity(),
-    aliveEnemies, // 🔧 Passer seulement les ennemis vivants
-    this.behavior.currentTarget || null,
-    currentTick
-  );
-}
-  
-private performAttackWithSystem(currentTick: number): void {
-  if (!this.behavior.currentTarget) return;
-  
-  console.log(`🗡️ ${this.id} prépare l'attaque sur ${this.behavior.currentTarget.id}`);
-  
-  const attackConfig: IAttackConfig = {
-    attackerId: this.id,
-    targetId: this.behavior.currentTarget.id,
-    damage: this.getCurrentDamage(),
-    damageType: this.getDamageType(),
-    
-    hasSplash: this.baseStats.splashDamage,
-    ...(this.baseStats.splashRadius !== undefined && { splashRadius: this.baseStats.splashRadius }),
-    splashDamagePercent: 100,
-    
-    isProjectile: this.isRangedUnit(),
-    ...(this.getProjectileSpeed() !== undefined && { projectileSpeed: this.getProjectileSpeed()! }),
-    
-    ...(this.getStunDuration() !== undefined && { stun: this.getStunDuration()! }),
-    ...(this.getKnockbackForce() !== undefined && { knockback: this.getKnockbackForce()! })
-  };
-  
-  console.log(`⚔️ Configuration attaque: ${attackConfig.damage} dégâts ${attackConfig.damageType}${attackConfig.isProjectile ? ' (projectile)' : ' (mêlée)'}`);
-  
-  // Mettre à jour lastAttackTick AVANT l'attaque
-  this.behavior.lastAttackTick = currentTick;
-  
-  // Déléguer au CombatSystem
-  const result = this.combatSystem.performAttack(attackConfig);
-  
-  if (result) {
-    // ✅ Attaque réussie
-    this.behavior.nextAttackTick = currentTick + this.attackSpeed;
-    console.log(`✅ Attaque réussie ! Dégâts: ${result.damageDealt}. Prochaine attaque dans ${this.attackSpeed} ticks`);
-    this.onAttackPerformed(result);
-    
-  } else {
-    // ❌ Attaque échouée - GESTION INTELLIGENTE
-    console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id}`);
-    
-    // 🔧 CORRECTION CRITIQUE: Vérifier si la cible est VIVANTE et existe
-    const targetStillAlive = this.availableTargets.find(t => 
-      t.id === this.behavior.currentTarget!.id && t.isAlive === true
-    );
-    
-    if (!targetStillAlive) {
-      // 🔧 La cible est morte ou disparue - chercher nouvelle cible
-      console.log(`💀 ${this.id} cible morte/disparue, recherche nouvelle cible...`);
-      
+    if (shouldRetarget) {
+      // Chercher des ennemis en priorité
       const availableEnemies = this.availableTargets.filter(t => 
         t.ownerId !== this.ownerId && t.isAlive === true
       );
       
-      if (availableEnemies.length === 0) {
-        console.log(`🏁 ${this.id} plus d'ennemis vivants - passage en idle`);
-        this.behavior.currentTarget = undefined;
-        this.setState('idle');
-        return;
+      if (availableEnemies.length > 0) {
+        // ✅ Des ennemis trouvés - logique de combat
+        const targetingResult = this.findTargetWithSystem(currentTick);
+        
+        if (targetingResult.target) {
+          console.log(`🎯 ${this.id} trouve un ennemi: ${targetingResult.target.id}`);
+          this.setTarget(targetingResult.target);
+          this.behavior.isMovingToTower = false; // Arrêter le pathfinding vers tour
+          this.setState('moving');
+          this.behavior.lastRetarget = currentTick;
+          return;
+        }
       }
       
-      // Chercher une nouvelle cible parmi les ennemis vivants
-      console.log(`🔍 ${this.id} cherche parmi ${availableEnemies.length} ennemis vivants`);
+      // 2. AUCUN ENNEMI → PATHFINDING VERS TOUR (logique Clash Royale)
+      const shouldCheckTowers = currentTick >= this.behavior.lastTowerCheck + 40; // Vérifier toutes les 2 secondes
+      
+      if (shouldCheckTowers) {
+        const targetTower = this.findBestTargetTower();
+        
+        if (targetTower) {
+          console.log(`🏰 ${this.id} aucun ennemi - avance vers tour ${targetTower.type} (${targetTower.position.x}, ${targetTower.position.y})`);
+          this.behavior.targetTower = targetTower;
+          this.behavior.isMovingToTower = true;
+          this.behavior.destination = { ...targetTower.position };
+          this.setState('moving');
+        } else {
+          // Debug moins fréquent si pas de tours
+          if (currentTick % 100 === 0) {
+            console.log(`😴 ${this.id} aucune cible disponible (${this.availableTargets.length} targets, ${this.availableTowers.length} towers)`);
+          }
+        }
+        
+        this.behavior.lastTowerCheck = currentTick;
+      }
+      
+      this.behavior.lastRetarget = currentTick;
+    }
+  }
+  
+  /**
+   * 🔧 CORRIGÉ: Mouvement avec pathfinding vers tours
+   */
+  private updateMovement(currentTick: number, deltaTime: number): void {
+    // Toujours chercher des ennemis en priorité même en mouvement
+    const availableEnemies = this.availableTargets.filter(t => 
+      t.ownerId !== this.ownerId && t.isAlive === true
+    );
+    
+    // Si des ennemis apparaissent, les cibler en priorité
+    if (availableEnemies.length > 0 && !this.behavior.currentTarget) {
       const targetingResult = this.findTargetWithSystem(currentTick);
-      
       if (targetingResult.target) {
-        console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
+        console.log(`🎯 ${this.id} ennemi détecté pendant le mouvement: ${targetingResult.target.id}`);
         this.setTarget(targetingResult.target);
-        this.setState('moving');
-        return;
-      } else {
-        console.log(`❌ ${this.id} aucune nouvelle cible trouvée - idle`);
+        this.behavior.isMovingToTower = false;
+        // Continuer en mode moving vers la nouvelle cible
+      }
+    }
+    
+    if (!this.behavior.destination) {
+      console.log(`❌ ${this.id} en mouvement mais pas de destination`);
+      this.setState('idle');
+      return;
+    }
+
+    // MOUVEMENT VERS UNITÉ ENNEMIE
+    if (this.behavior.currentTarget && !this.behavior.isMovingToTower) {
+      // Vérifier si la cible existe toujours
+      const targetExists = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
+      if (!targetExists || !targetExists.isAlive) {
+        console.log(`💀 ${this.id} cible disparue pendant mouvement, retour idle`);
         this.behavior.currentTarget = undefined;
         this.setState('idle');
         return;
       }
+
+      // Mettre à jour la position cible en temps réel
+      this.behavior.currentTarget.position = targetExists.position;
+      this.behavior.destination = { ...targetExists.position };
+
+      const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
+      const attackRange = this.baseStats.range;
+      const rangeMargin = 0.1;
       
-    } else {
-      // 🔧 La cible est encore vivante - problème de range/cooldown
-      console.log(`🔄 ${this.id} cible encore vivante - vérification range/cooldown`);
-      
-      const distance = this.getDistanceToTarget(this.behavior.currentTarget);
+      if (targetDistance <= attackRange + rangeMargin) {
+        console.log(`⚔️ ${this.id} EN RANGE ENNEMI ! Distance: ${targetDistance.toFixed(2)} <= Range: ${attackRange}`);
+        this.setState('attacking');
+        return;
+      }
+    }
+    
+    // MOUVEMENT VERS TOUR
+    else if (this.behavior.isMovingToTower && this.behavior.targetTower) {
+      const towerDistance = this.calculateDistance(this.getPosition(), this.behavior.targetTower.position);
       const attackRange = this.baseStats.range;
       
-      if (distance > attackRange + 0.2) {
-        console.log(`🏃 ${this.id} trop loin (${distance.toFixed(2)} > ${attackRange + 0.2}) - retour mouvement`);
-        this.setState('moving');
+      if (towerDistance <= attackRange + 0.1) {
+        console.log(`🏰 ${this.id} EN RANGE TOUR ! Distance: ${towerDistance.toFixed(2)}`);
+        // Créer une cible pour la tour
+        this.setTargetTower(this.behavior.targetTower);
+        this.behavior.isMovingToTower = false;
+        this.setState('attacking');
+        return;
+      }
+    }
+
+    // MOUVEMENT PHYSIQUE
+    const targetPos = this.behavior.destination;
+    const dx = targetPos.x - this.x;
+    const dy = targetPos.y - this.y;
+    const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distanceToDestination > 0.05) {
+      const moveSpeedTilesPerSec = this.behavior.moveSpeed;
+      const moveDistanceThisFrame = moveSpeedTilesPerSec * (deltaTime / 1000);
+      
+      const dirX = dx / distanceToDestination;
+      const dirY = dy / distanceToDestination;
+      
+      const actualMoveDistance = Math.min(moveDistanceThisFrame, distanceToDestination);
+      
+      if (actualMoveDistance > 0) {
+        this.x += dirX * actualMoveDistance;
+        this.y += dirY * actualMoveDistance;
+        this.behavior.lastMoveTick = currentTick;
+        
+        // Debug de mouvement moins verbeux
+        if (currentTick % 20 === 0) {
+          const moveType = this.behavior.isMovingToTower ? '🏰 vers tour' : '⚔️ vers ennemi';
+          console.log(`🏃 ${this.id} ${moveType}: (${this.x.toFixed(1)}, ${this.y.toFixed(1)}) Dist: ${distanceToDestination.toFixed(2)}`);
+        }
+      }
+    } else {
+      console.log(`🎯 ${this.id} arrivé à destination !`);
+      if (this.behavior.isMovingToTower) {
+        this.setState('attacking'); // Attaquer la tour
       } else {
-        console.log(`⏱️ ${this.id} problème de cooldown - réinitialisation`);
-        // Réinitialiser pour permettre une nouvelle tentative
-        this.behavior.lastAttackTick = currentTick - Math.floor(this.attackSpeed / 2);
+        this.setState('attacking'); // Attaquer l'ennemi
       }
     }
   }
-}
+  
+  /**
+   * 🔧 CORRIGÉ: Logique d'attaque avec retargeting intelligent
+   */
+  private updateAttacking(currentTick: number): void {
+    if (!this.behavior.currentTarget) {
+      console.log(`❌ ${this.id} en mode attaque mais pas de cible !`);
+      this.setState('idle');
+      return;
+    }
+
+    // Vérifier que la cible existe toujours (unité ou tour)
+    let targetExists: any = null;
+    
+    if (this.behavior.currentTarget.type === 'tower') {
+      // Vérifier si la tour existe encore
+      targetExists = this.availableTowers.find(t => 
+        t.id === this.behavior.currentTarget!.id && !t.isDestroyed
+      );
+    } else {
+      // Vérifier si l'unité existe encore
+      targetExists = this.availableTargets.find(t => 
+        t.id === this.behavior.currentTarget!.id && t.isAlive
+      );
+    }
+    
+    if (!targetExists) {
+      console.log(`💀 ${this.id} cible disparue, recherche nouvelle cible...`);
+      
+      // Prioriser les unités ennemies
+      const availableEnemies = this.availableTargets.filter(t => 
+        t.ownerId !== this.ownerId && t.isAlive === true
+      );
+      
+      if (availableEnemies.length > 0) {
+        const targetingResult = this.findTargetWithSystem(currentTick);
+        if (targetingResult.target) {
+          console.log(`🎯 ${this.id} nouvelle cible ennemi: ${targetingResult.target.id}`);
+          this.setTarget(targetingResult.target);
+          this.setState('moving');
+          return;
+        }
+      }
+      
+      // Sinon, retour vers une tour
+      const targetTower = this.findBestTargetTower();
+      if (targetTower) {
+        console.log(`🏰 ${this.id} retour vers tour ${targetTower.type}`);
+        this.behavior.targetTower = targetTower;
+        this.behavior.isMovingToTower = true;
+        this.behavior.destination = { ...targetTower.position };
+        this.behavior.currentTarget = undefined;
+        this.setState('moving');
+        return;
+      }
+      
+      console.log(`❌ ${this.id} plus de cibles disponibles, retour idle`);
+      this.behavior.currentTarget = undefined;
+      this.setState('idle');
+      return;
+    }
+
+    // Mettre à jour la position cible
+    this.behavior.currentTarget.position = targetExists.position;
+
+    // Vérifier range d'attaque
+    const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
+    const attackRange = this.baseStats.range;
+    const hysteresisMargin = 0.3;
+    
+    if (targetDistance > attackRange + hysteresisMargin) {
+      console.log(`🏃 ${this.id} cible trop loin, retour mouvement`);
+      this.setState('moving');
+      return;
+    }
+
+    // Attaquer si cooldown fini
+    const canAttackNow = currentTick >= this.behavior.nextAttackTick;
+    
+    if (canAttackNow) {
+      console.log(`⚔️ ${this.id} ATTAQUE ${this.behavior.currentTarget.id} !`);
+      this.performAttackWithSystem(currentTick);
+    } else {
+      const ticksRemaining = this.behavior.nextAttackTick - currentTick;
+      if (ticksRemaining > 0 && currentTick % 40 === 0) {
+        console.log(`⏱️ ${this.id} cooldown: ${(ticksRemaining / 20).toFixed(1)}s`);
+      }
+    }
+  }
+  
+  /**
+   * 🔧 NOUVEAU: Trouver la meilleure tour à attaquer
+   */
+  private findBestTargetTower(): ITower | null {
+    if (!this.availableTowers || this.availableTowers.length === 0) {
+      return null;
+    }
+    
+    // Filtrer les tours ennemies non détruites
+    const enemyTowers = this.availableTowers.filter(tower => 
+      tower.ownerId !== this.ownerId && !tower.isDestroyed
+    );
+    
+    if (enemyTowers.length === 0) {
+      return null;
+    }
+    
+    // Logique Clash Royale: Prioriser les tours principales, puis la tour du roi
+    const leftTower = enemyTowers.find(t => t.type === 'left');
+    const rightTower = enemyTowers.find(t => t.type === 'right');
+    const kingTower = enemyTowers.find(t => t.type === 'king');
+    
+    // Si les deux tours principales existent, prendre la plus proche
+    if (leftTower && rightTower) {
+      const distanceLeft = this.calculateDistance(this.getPosition(), leftTower.position);
+      const distanceRight = this.calculateDistance(this.getPosition(), rightTower.position);
+      return distanceLeft <= distanceRight ? leftTower : rightTower;
+    }
+    
+    // Sinon prendre celle qui existe
+    if (leftTower) return leftTower;
+    if (rightTower) return rightTower;
+    
+    // En dernier recours, la tour du roi
+    return kingTower || null;
+  }
+  
+  /**
+   * 🔧 NOUVEAU: Définir une tour comme cible
+   */
+  private setTargetTower(tower: ITower): void {
+    this.behavior.currentTarget = {
+      type: 'tower',
+      id: tower.id,
+      position: { ...tower.position },
+      priority: tower.type === 'king' ? 20 : 15 // Haute priorité pour les tours
+    };
+    this.behavior.destination = { ...tower.position };
+  }
+  
+  /**
+   * 🔧 CORRIGÉ: Attaque avec gestion des échecs
+   */
+  private performAttackWithSystem(currentTick: number): void {
+    if (!this.behavior.currentTarget) return;
+    
+    console.log(`🗡️ ${this.id} prépare l'attaque sur ${this.behavior.currentTarget.id}`);
+    
+    const attackConfig: IAttackConfig = {
+      attackerId: this.id,
+      targetId: this.behavior.currentTarget.id,
+      damage: this.getCurrentDamage(),
+      damageType: this.getDamageType(),
+      
+      hasSplash: this.baseStats.splashDamage,
+      ...(this.baseStats.splashRadius !== undefined && { splashRadius: this.baseStats.splashRadius }),
+      splashDamagePercent: 100,
+      
+      isProjectile: this.isRangedUnit(),
+      ...(this.getProjectileSpeed() !== undefined && { projectileSpeed: this.getProjectileSpeed()! }),
+      
+      ...(this.getStunDuration() !== undefined && { stun: this.getStunDuration()! }),
+      ...(this.getKnockbackForce() !== undefined && { knockback: this.getKnockbackForce()! })
+    };
+    
+    console.log(`⚔️ Configuration attaque: ${attackConfig.damage} dégâts ${attackConfig.damageType}${attackConfig.isProjectile ? ' (projectile)' : ' (mêlée)'}`);
+    
+    // Mettre à jour lastAttackTick AVANT l'attaque
+    this.behavior.lastAttackTick = currentTick;
+    
+    // Déléguer au CombatSystem
+    const result = this.combatSystem.performAttack(attackConfig);
+    
+    if (result) {
+      // ✅ Attaque réussie
+      this.behavior.nextAttackTick = currentTick + this.attackSpeed;
+      console.log(`✅ Attaque réussie ! Dégâts: ${result.damageDealt}. Prochaine attaque dans ${this.attackSpeed} ticks`);
+      this.onAttackPerformed(result);
+      
+    } else {
+      // ❌ Attaque échouée - Gestion intelligente
+      console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id}`);
+      
+      // Vérifier si la cible est encore vivante
+      let targetStillAlive = false;
+      
+      if (this.behavior.currentTarget.type === 'tower') {
+        targetStillAlive = this.availableTowers.some(t => 
+          t.id === this.behavior.currentTarget!.id && !t.isDestroyed
+        );
+      } else {
+        targetStillAlive = this.availableTargets.some(t => 
+          t.id === this.behavior.currentTarget!.id && t.isAlive === true
+        );
+      }
+      
+      if (!targetStillAlive) {
+        console.log(`💀 ${this.id} cible morte/détruite, recherche nouvelle cible...`);
+        
+        // Chercher des ennemis d'abord
+        const availableEnemies = this.availableTargets.filter(t => 
+          t.ownerId !== this.ownerId && t.isAlive === true
+        );
+        
+        if (availableEnemies.length > 0) {
+          console.log(`🔍 ${this.id} cherche parmi ${availableEnemies.length} ennemis vivants`);
+          const targetingResult = this.findTargetWithSystem(currentTick);
+          
+          if (targetingResult.target) {
+            console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
+            this.setTarget(targetingResult.target);
+            this.setState('moving');
+            return;
+          }
+        }
+        
+        // Sinon chercher une tour
+        const targetTower = this.findBestTargetTower();
+        if (targetTower) {
+          console.log(`🏰 ${this.id} retour vers tour ${targetTower.type}`);
+          this.behavior.targetTower = targetTower;
+          this.behavior.isMovingToTower = true;
+          this.behavior.destination = { ...targetTower.position };
+          this.behavior.currentTarget = undefined;
+          this.setState('moving');
+          return;
+        }
+        
+        console.log(`🏁 ${this.id} plus de cibles - idle`);
+        this.behavior.currentTarget = undefined;
+        this.setState('idle');
+        return;
+        
+      } else {
+        // La cible existe encore - problème de range/cooldown
+        console.log(`🔄 ${this.id} cible encore vivante - vérification range/cooldown`);
+        
+        const distance = this.getDistanceToTarget(this.behavior.currentTarget);
+        const attackRange = this.baseStats.range;
+        
+        if (distance > attackRange + 0.2) {
+          console.log(`🏃 ${this.id} trop loin (${distance.toFixed(2)} > ${attackRange + 0.2}) - retour mouvement`);
+          this.setState('moving');
+        } else {
+          console.log(`⏱️ ${this.id} problème de cooldown - réinitialisation`);
+          this.behavior.lastAttackTick = currentTick - Math.floor(this.attackSpeed / 2);
+        }
+      }
+    }
+  }
   
   private onAttackPerformed(result: ICombatResult): void {
     this.logger.logBattle('card_played', this.ownerId, {
@@ -823,7 +911,7 @@ private performAttackWithSystem(currentTick: number): void {
   onTakeDamage = (damage: number, attacker: ICombatant, damageType: string): void => {
     console.log(`${this.id} took ${damage} ${damageType} damage from ${attacker.id}`);
     
-    // 🔧 NOUVEAU: Si on n'a pas de cible, cibler notre attaquant
+    // 🔧 Contre-attaque si pas de cible actuelle
     if (!this.behavior.currentTarget && this.isAlive && this.canAttack) {
       const attackerTarget = this.availableTargets.find(t => t.id === attacker.id);
       if (attackerTarget && attackerTarget.isAlive) {
@@ -832,8 +920,9 @@ private performAttackWithSystem(currentTick: number): void {
           type: attackerTarget.type,
           id: attackerTarget.id,
           position: attackerTarget.position,
-          priority: 10 // Haute priorité pour contre-attaque
+          priority: 10
         });
+        this.behavior.isMovingToTower = false;
         this.setState('moving');
       }
     }
@@ -845,9 +934,6 @@ private performAttackWithSystem(currentTick: number): void {
   
   onDeath = (killer: ICombatant): void => {
     console.log(`${this.id} killed by ${killer.id}`);
-    
-    // 🔧 NOUVEAU: Notifier toutes les unités que cette cible n'est plus disponible
-    // Ceci devrait être géré par le BattleRoom qui met à jour les availableTargets
     
     this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
@@ -924,6 +1010,44 @@ private performAttackWithSystem(currentTick: number): void {
     return Math.sqrt(dx * dx + dy * dy);
   }
   
+  /**
+   * 🔧 CORRIGÉ: Trouver une cible avec validation des ennemis vivants
+   */
+  private findTargetWithSystem(currentTick: number): ITargetingResult {
+    if (!this.availableTargets || this.availableTargets.length === 0) {
+      console.warn(`⚠️ ${this.id} pas de cibles disponibles pour le targeting !`);
+      return {
+        target: null,
+        confidence: 0,
+        reason: 'no_available_targets',
+        alternativeTargets: []
+      };
+    }
+
+    // Filtrer explicitement les ennemis vivants avant le targeting
+    const aliveEnemies = this.availableTargets.filter(t => 
+      t.ownerId !== this.ownerId && t.isAlive === true
+    );
+
+    console.log(`🎯 ${this.id} targeting: ${this.availableTargets.length} total, ${aliveEnemies.length} ennemis vivants`);
+
+    if (aliveEnemies.length === 0) {
+      return {
+        target: null,
+        confidence: 0,
+        reason: 'no_alive_enemies',
+        alternativeTargets: []
+      };
+    }
+
+    return this.targetingSystem.findBestTarget(
+      this.toTargetableEntity(),
+      aliveEnemies,
+      this.behavior.currentTarget || null,
+      currentTick
+    );
+  }
+  
   // === MÉTHODES DE BUFF/DEBUFF ===
   
   applyBuff(buff: IUnitBuff): void {
@@ -983,6 +1107,32 @@ private performAttackWithSystem(currentTick: number): void {
     this.isStunned = this.behavior.debuffs.has('freeze');
   }
   
+  // === MÉTHODES DE SYNCHRONISATION HP ===
+  
+  /**
+   * Mettre à jour les HP directement depuis le CombatSystem
+   */
+  updateHitpoints(newHitpoints: number): void {
+    const oldHp = this.currentHitpoints;
+    this.currentHitpoints = Math.max(0, newHitpoints);
+    
+    console.log(`🔄 BaseUnit.updateHitpoints: ${this.id} ${oldHp} → ${this.currentHitpoints}`);
+    
+    if (this.currentHitpoints <= 0 && this.state !== 'dying' && this.state !== 'dead') {
+      this.setState('dying');
+      console.log(`💀 BaseUnit ${this.id} passe en état 'dying'`);
+    }
+  }
+
+  /**
+   * Marquer comme mort (appelé par CombatSystem)
+   */
+  markAsDead(): void {
+    console.log(`💀 BaseUnit.markAsDead: ${this.id}`);
+    this.currentHitpoints = 0;
+    this.setState('dying');
+  }
+  
   // === MÉTHODES UTILITAIRES ===
   
   private setState(newState: UnitState): void {
@@ -1032,14 +1182,24 @@ private performAttackWithSystem(currentTick: number): void {
   // === MÉTHODES PUBLIQUES POUR BATTLEROOM ===
   
   /**
-   * 🔧 CORRECTION MAJEURE: Mise à jour des cibles disponibles
+   * 🔧 NOUVEAU: Mise à jour des cibles ET tours disponibles
    */
   updateAvailableTargets(availableTargets: ITargetableEntity[]): void {
     this.availableTargets = availableTargets;
     
-    // Debug périodique
-    if (this.lastUpdateTick % 60 === 0) { // Toutes les 3 secondes
+    if (this.lastUpdateTick % 60 === 0) {
       console.log(`🎯 ${this.id} reçoit ${availableTargets.length} cibles disponibles`);
+    }
+  }
+  
+  /**
+   * 🔧 NOUVEAU: Mise à jour des tours disponibles
+   */
+  updateAvailableTowers(availableTowers: ITower[]): void {
+    this.availableTowers = availableTowers;
+    
+    if (this.lastUpdateTick % 60 === 0) {
+      console.log(`🏰 ${this.id} reçoit ${availableTowers.length} tours disponibles`);
     }
   }
   
@@ -1057,7 +1217,9 @@ private performAttackWithSystem(currentTick: number): void {
       currentTarget: this.behavior.currentTarget,
       state: this.state,
       isStunned: this.isStunned,
-      lastAttackTick: this.behavior.lastAttackTick
+      lastAttackTick: this.behavior.lastAttackTick,
+      isMovingToTower: this.behavior.isMovingToTower,
+      targetTower: this.behavior.targetTower?.type
     };
   }
   
@@ -1078,23 +1240,95 @@ private performAttackWithSystem(currentTick: number): void {
   }
   
   /**
-   * 🔧 NOUVELLE MÉTHODE: Debug du targeting
+   * 🔧 NOUVEAU: Debug avec pathfinding
    */
   debugTargeting(): void {
     console.log(`🔍 Debug ${this.id}:`);
     console.log(`  Position: (${this.x.toFixed(1)}, ${this.y.toFixed(1)})`);
     console.log(`  État: ${this.state}`);
     console.log(`  Cibles disponibles: ${this.availableTargets?.length || 0}`);
+    console.log(`  Tours disponibles: ${this.availableTowers?.length || 0}`);
     console.log(`  Cible actuelle: ${this.behavior.currentTarget?.id || 'aucune'}`);
+    console.log(`  Mouvement vers tour: ${this.behavior.isMovingToTower}`);
+    console.log(`  Tour cible: ${this.behavior.targetTower?.type || 'aucune'}`);
     console.log(`  Range d'attaque: ${this.baseStats.range}`);
     console.log(`  Prochaine attaque: tick ${this.behavior.nextAttackTick} (actuel: ${this.lastUpdateTick})`);
     
     if (this.availableTargets) {
-      this.availableTargets.forEach((target, i) => {
+      const enemies = this.availableTargets.filter(t => t.ownerId !== this.ownerId && t.isAlive);
+      console.log(`  Ennemis vivants: ${enemies.length}`);
+      enemies.forEach((target, i) => {
         const distance = this.calculateDistance(this.getPosition(), target.position);
-        console.log(`    Cible ${i}: ${target.id} (${target.position.x.toFixed(1)}, ${target.position.y.toFixed(1)}) - ${distance.toFixed(2)} tiles`);
+        console.log(`    Ennemi ${i}: ${target.id} (${target.position.x.toFixed(1)}, ${target.position.y.toFixed(1)}) - ${distance.toFixed(2)} tiles`);
       });
     }
+    
+    if (this.availableTowers) {
+      const enemyTowers = this.availableTowers.filter(t => t.ownerId !== this.ownerId && !t.isDestroyed);
+      console.log(`  Tours ennemies: ${enemyTowers.length}`);
+      enemyTowers.forEach(tower => {
+        const distance = this.calculateDistance(this.getPosition(), tower.position);
+        console.log(`    Tour ${tower.type}: (${tower.position.x.toFixed(1)}, ${tower.position.y.toFixed(1)}) - ${distance.toFixed(2)} tiles`);
+      });
+    }
+  }
+  
+  // === MÉTHODES DE CONVERSION ===
+  
+  toTargetableEntity(): ITargetableEntity {
+    return {
+      id: this.id,
+      position: this.getPosition(),
+      ownerId: this.ownerId,
+      type: this.type,
+      isAlive: this.isAlive,
+      hitpoints: this.currentHitpoints,
+      maxHitpoints: this.maxHitpoints,
+      isFlying: this.isFlying,
+      isTank: this.isTank,
+      isBuilding: this.isBuilding,
+      mass: this.mass
+    };
+  }
+  
+  toCombatant(): ICombatant {
+    const combatant = {
+      id: this.id,
+      position: { x: this.x, y: this.y },
+      ownerId: this.ownerId,
+      type: this.type,
+      isAlive: this.isAlive,
+      hitpoints: this.currentHitpoints,
+      maxHitpoints: this.maxHitpoints,
+      isFlying: this.isFlying,
+      isTank: this.isTank,
+      isBuilding: this.isBuilding,
+      mass: this.mass,
+      
+      armor: this.armor || 0,
+      spellResistance: this.spellResistance || 0,
+      shield: this.shield || 0,
+      canAttack: this.canAttack,
+      attackRange: this.attackRange,
+      attackDamage: this.currentDamage,
+      attackSpeed: this.attackSpeed,
+      lastAttackTick: this.behavior?.lastAttackTick || 0,
+      
+      isStunned: this.isStunned || false,
+      stunEndTick: this.stunEndTick || undefined,
+      isInvulnerable: this.isInvulnerable || false,
+      invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
+      
+      // Méthodes de synchronisation
+      updateHitpoints: this.updateHitpoints.bind(this),
+      markAsDead: this.markAsDead.bind(this),
+      
+      onTakeDamage: this.onTakeDamage,
+      onDeath: this.onDeath,
+      onAttack: this.onAttack
+    };
+
+    return combatant;
   }
   
   // === MÉTHODES STATIQUES ===
@@ -1166,93 +1400,6 @@ private performAttackWithSystem(currentTick: number): void {
       return null;
     }
   }
-  
-  // === MÉTHODES DE CONVERSION ===
-  
-  toTargetableEntity(): ITargetableEntity {
-    return {
-      id: this.id,
-      position: this.getPosition(),
-      ownerId: this.ownerId,
-      type: this.type,
-      isAlive: this.isAlive,
-      hitpoints: this.currentHitpoints,
-      maxHitpoints: this.maxHitpoints,
-      isFlying: this.isFlying,
-      isTank: this.isTank,
-      isBuilding: this.isBuilding,
-      mass: this.mass
-    };
-  }
-  
-/**
- * Mettre à jour les HP directement depuis le CombatSystem
- */
-updateHitpoints(newHitpoints: number): void {
-  const oldHp = this.currentHitpoints;
-  this.currentHitpoints = Math.max(0, newHitpoints);
-  
-  console.log(`🔄 BaseUnit.updateHitpoints: ${this.id} ${oldHp} → ${this.currentHitpoints}`);
-  
-  // Vérifier la mort
-  if (this.currentHitpoints <= 0 && this.state !== 'dying' && this.state !== 'dead') {
-    this.setState('dying');
-    console.log(`💀 BaseUnit ${this.id} passe en état 'dying'`);
-  }
-}
-
-/**
- * Marquer comme mort (appelé par CombatSystem)
- */
-markAsDead(): void {
-  console.log(`💀 BaseUnit.markAsDead: ${this.id}`);
-  this.currentHitpoints = 0;
-  this.setState('dying');
-}
-
-/**
- * 🔧 CORRECTION: Modifier toCombatant pour inclure une référence vers cette BaseUnit
- */
-toCombatant(): ICombatant {
-  const combatant = {
-    id: this.id,
-    position: { x: this.x, y: this.y },
-    ownerId: this.ownerId,
-    type: this.type,
-    isAlive: this.isAlive,
-    hitpoints: this.currentHitpoints,
-    maxHitpoints: this.maxHitpoints,
-    isFlying: this.isFlying,
-    isTank: this.isTank,
-    isBuilding: this.isBuilding,
-    mass: this.mass,
-    
-    armor: this.armor || 0,
-    spellResistance: this.spellResistance || 0,
-    shield: this.shield || 0,
-    canAttack: this.canAttack,
-    attackRange: this.attackRange,
-    attackDamage: this.currentDamage,
-    attackSpeed: this.attackSpeed,
-    lastAttackTick: this.behavior?.lastAttackTick || 0,
-    
-    isStunned: this.isStunned || false,
-    stunEndTick: this.stunEndTick || undefined,
-    isInvulnerable: this.isInvulnerable || false,
-    invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
-    
-    // 🔧 CORRECTION: Ajouter les méthodes de synchronisation
-    updateHitpoints: this.updateHitpoints.bind(this),
-    markAsDead: this.markAsDead.bind(this),
-    
-    onTakeDamage: this.onTakeDamage,
-    onDeath: this.onDeath,
-    onAttack: this.onAttack
-  };
-
-  return combatant;
-}
-
   
   // === FACTORY METHODS POUR CARTES SPÉCIFIQUES ===
   
