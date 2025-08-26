@@ -665,25 +665,74 @@ private performAttackWithSystem(currentTick: number): void {
   
   console.log(`⚔️ Configuration attaque: ${attackConfig.damage} dégâts ${attackConfig.damageType}${attackConfig.isProjectile ? ' (projectile)' : ' (mêlée)'}`);
   
-  // 🔧 CORRECTION: Mettre à jour lastAttackTick AVANT l'attaque
+  // Mettre à jour lastAttackTick AVANT l'attaque
   this.behavior.lastAttackTick = currentTick;
   
   // Déléguer au CombatSystem
   const result = this.combatSystem.performAttack(attackConfig);
   
   if (result) {
-    // 🔧 CORRECTION: Calculer le prochain tick d'attaque
+    // ✅ Attaque réussie
     this.behavior.nextAttackTick = currentTick + this.attackSpeed;
-    
     console.log(`✅ Attaque réussie ! Dégâts: ${result.damageDealt}. Prochaine attaque dans ${this.attackSpeed} ticks`);
-    
     this.onAttackPerformed(result);
+    
   } else {
-    // 🔧 Si l'attaque échoue, réinitialiser lastAttackTick pour permettre une nouvelle tentative
-    this.behavior.lastAttackTick = currentTick - this.attackSpeed; // Permet une nouvelle attaque immédiate
-    console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id} - Réinitialisation cooldown`);
+    // ❌ Attaque échouée - NOUVEAU: Gestion intelligente
+    console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id}`);
+    
+    // 🔧 CORRECTION: Vérifier si la cible existe encore
+    const targetStillExists = this.availableTargets.find(t => 
+      t.id === this.behavior.currentTarget!.id && t.isAlive
+    );
+    
+    if (!targetStillExists) {
+      // 🔧 La cible est morte/disparue - chercher une nouvelle cible ou idle
+      console.log(`💀 ${this.id} cible disparue, recherche nouvelle cible...`);
+      
+      const availableEnemies = this.availableTargets.filter(t => 
+        t.ownerId !== this.ownerId && t.isAlive
+      );
+      
+      if (availableEnemies.length === 0) {
+        console.log(`🏁 ${this.id} plus d'ennemis - passage en idle`);
+        this.behavior.currentTarget = undefined;
+        this.setState('idle');
+        return;
+      }
+      
+      // Chercher une nouvelle cible
+      const targetingResult = this.findTargetWithSystem(currentTick);
+      if (targetingResult.target) {
+        console.log(`🎯 ${this.id} nouvelle cible: ${targetingResult.target.id}`);
+        this.setTarget(targetingResult.target);
+        this.setState('moving');
+        return;
+      } else {
+        console.log(`❌ ${this.id} aucune nouvelle cible - idle`);
+        this.behavior.currentTarget = undefined;
+        this.setState('idle');
+        return;
+      }
+    } else {
+      // 🔧 La cible existe encore - problème de range/cooldown
+      console.log(`🔄 ${this.id} cible existe encore - vérification range/cooldown`);
+      
+      const distance = this.getDistanceToTarget(this.behavior.currentTarget);
+      const attackRange = this.baseStats.range;
+      
+      if (distance > attackRange + 0.2) {
+        console.log(`🏃 ${this.id} trop loin (${distance.toFixed(2)} > ${attackRange + 0.2}) - retour mouvement`);
+        this.setState('moving');
+      } else {
+        console.log(`⏱️ ${this.id} problème de cooldown - réinitialisation`);
+        // Réinitialiser pour permettre une nouvelle tentative plus tôt
+        this.behavior.lastAttackTick = currentTick - Math.floor(this.attackSpeed / 2);
+      }
+    }
   }
 }
+  
   private onAttackPerformed(result: ICombatResult): void {
     this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
