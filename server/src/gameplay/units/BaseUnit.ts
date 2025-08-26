@@ -677,22 +677,26 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
     }
   }
   
-  /**
-   * 🔧 NOUVEAU: Trouver la meilleure tour à attaquer
-   */
-  private findBestTargetTower(): ITower | null {
-    if (!this.availableTowers || this.availableTowers.length === 0) {
-      return null;
-    }
-    
-    // Filtrer les tours ennemies non détruites
-    const enemyTowers = this.availableTowers.filter(tower => 
-      tower.ownerId !== this.ownerId && !tower.isDestroyed
-    );
-    
-    if (enemyTowers.length === 0) {
-      return null;
-    }
+/**
+ * 🔧 NOUVEAU: Trouver la meilleure tour à attaquer
+ */
+private findBestTargetTower(): ITower | null {
+  if (!this.availableTowers || this.availableTowers.length === 0) {
+    console.log(`🏰 ${this.id} findBestTargetTower: Aucune tour disponible`);
+    return null;
+  }
+  
+  // Filtrer les tours ennemies non détruites
+  const enemyTowers = this.availableTowers.filter(tower => 
+    tower.ownerId !== this.ownerId && !tower.isDestroyed
+  );
+  
+  console.log(`🏰 ${this.id} findBestTargetTower: ${this.availableTowers.length} tours total, ${enemyTowers.length} ennemies`);
+  
+  if (enemyTowers.length === 0) {
+    console.log(`🏰 ${this.id} findBestTargetTower: Aucune tour ennemie disponible`);
+    return null;
+  }
     
     // Logique Clash Royale: Prioriser les tours principales, puis la tour du roi
     const leftTower = enemyTowers.find(t => t.type === 'left');
