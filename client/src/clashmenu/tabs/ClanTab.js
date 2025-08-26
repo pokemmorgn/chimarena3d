@@ -26,6 +26,11 @@ class ClanTab {
     this.createOverlay = new ClanCreateOverlay();
     this.createOverlay.initialize(this.container);
     this.createOverlay.on('clan:created', (clanData) => {
+      console.log('🎉 ClanTab received clan:created event:', clanData);
+      
+      // Debug: vérifier les données reçues
+      console.log('🔍 ClanData structure:', JSON.stringify(clanData, null, 2));
+      
       this.currentClan = clanData;
       this.setState('has_clan');
     });
@@ -34,17 +39,44 @@ class ClanTab {
   }
 
   async checkClanStatus() {
+    console.log('🔄 ClanTab.checkClanStatus() called');
     this.setState('loading');
-    const res = await ClanAPI.getMyClan();
-    if (res.success && res.data) {
-      this.currentClan = res.data;
-      this.setState('has_clan');
-    } else {
+    
+    try {
+      const res = await ClanAPI.getMyClan();
+      
+      // Debug complet de la réponse API
+      console.log('🔍 ClanAPI.getMyClan() full response:', res);
+      console.log('🔍 Response success:', res.success);
+      console.log('🔍 Response data:', res.data);
+      
+      if (res.success && res.data) {
+        console.log('🔍 Clan data structure:', JSON.stringify(res.data, null, 2));
+        console.log('🔍 Clan data keys:', Object.keys(res.data));
+        
+        // Vérifier les différents champs ID possibles
+        console.log('🔍 ID fields check:', {
+          clanId: res.data.clanId,
+          _id: res.data._id,
+          id: res.data.id,
+          name: res.data.name,
+          tag: res.data.tag
+        });
+        
+        this.currentClan = res.data;
+        this.setState('has_clan');
+      } else {
+        console.log('🔍 No clan found or API error:', res.error);
+        this.setState('no_clan');
+      }
+    } catch (error) {
+      console.error('❌ Error in checkClanStatus:', error);
       this.setState('no_clan');
     }
   }
 
   setState(newState) {
+    console.log(`🔄 ClanTab setState: ${this.state} -> ${newState}`);
     this.state = newState;
     this.render();
   }
@@ -100,7 +132,25 @@ class ClanTab {
 
       this.tabElement.querySelector('#btn-join-clan')
         .addEventListener('click', () => alert('Find Clan coming soon!'));
+        
     } else if (this.state === 'has_clan') {
+      console.log('🏰 Rendering ClanContent with clan:', this.currentClan);
+      
+      // Vérifier que nous avons bien les données du clan
+      if (!this.currentClan) {
+        console.error('❌ No clan data available for ClanContent');
+        this.setState('no_clan');
+        return;
+      }
+      
+      // Debug: vérifier les IDs avant de passer à ClanContent
+      console.log('🔍 About to pass clan to ClanContent:', {
+        clanId: this.currentClan.clanId,
+        _id: this.currentClan._id,
+        id: this.currentClan.id,
+        name: this.currentClan.name
+      });
+      
       // déléguer à ClanContent
       this.clanContent = new ClanContent(this.tabElement, this.currentUser, this.currentClan);
       this.clanContent.render();
@@ -108,6 +158,7 @@ class ClanTab {
   }
 
   updatePlayerData(player) {
+    console.log('👤 ClanTab.updatePlayerData called:', player);
     this.currentUser = {
       id: player._id || player.id,
       username: player.username,
