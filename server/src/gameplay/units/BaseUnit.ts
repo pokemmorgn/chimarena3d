@@ -441,22 +441,31 @@ private initializeBehavior(): void {
    * 🔧 CORRIGÉ: Logique état idle avec targeting fonctionnel
    */
 private updateIdle(currentTick: number): void {
-  // 🔧 CORRECTION: Chercher des cibles plus fréquemment si pas de cible actuelle
+  // Chercher des ennemis seulement
   const shouldRetarget = !this.behavior.currentTarget || 
-                        currentTick >= this.behavior.lastRetarget + Math.min(this.behavior.retargetCooldown, 10);
+                        currentTick >= this.behavior.lastRetarget + this.behavior.retargetCooldown;
   
   if (shouldRetarget) {
+    // 🔧 CORRECTION: Filtrer explicitement les ennemis
+    const availableEnemies = this.availableTargets.filter(t => 
+      t.ownerId !== this.ownerId && t.isAlive
+    );
+    
+    if (availableEnemies.length === 0) {
+      // Pas d'ennemis - rester en idle silencieusement
+      if (currentTick % 100 === 0) { // Log très peu fréquent
+        console.log(`😴 ${this.id} en attente - plus d'ennemis`);
+      }
+      this.behavior.lastRetarget = currentTick;
+      return;
+    }
+    
     const targetingResult = this.findTargetWithSystem(currentTick);
     
     if (targetingResult.target) {
-      console.log(`🎯 ${this.id} trouve une cible: ${targetingResult.target.id} - ${targetingResult.reason}`);
+      console.log(`🎯 ${this.id} trouve un ennemi: ${targetingResult.target.id}`);
       this.setTarget(targetingResult.target);
       this.setState('moving');
-    } else {
-      // Debug moins verbeux quand pas de cibles
-      if (currentTick % 60 === 0) { // Une fois toutes les 3 secondes seulement
-        console.log(`❌ ${this.id} ne trouve pas de cible (${this.availableTargets.length} disponibles)`);
-      }
     }
     
     this.behavior.lastRetarget = currentTick;
@@ -539,62 +548,74 @@ private updateIdle(currentTick: number): void {
   /**
    * 🔧 CORRIGÉ: Logique d'attaque avec marge d'hysteresis
    */
-  private updateAttacking(currentTick: number): void {
-    if (!this.behavior.currentTarget) {
-      console.log(`❌ ${this.id} en mode attaque mais pas de cible !`);
+private updateAttacking(currentTick: number): void {
+  if (!this.behavior.currentTarget) {
+    console.log(`❌ ${this.id} en mode attaque mais pas de cible !`);
+    this.setState('idle');
+    return;
+  }
+
+  // Vérifier que la cible existe toujours ET est vivante
+  const targetExists = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
+  if (!targetExists || !targetExists.isAlive) {
+    console.log(`💀 ${this.id} cible morte/disparue, recherche nouvelle cible...`);
+    
+    // 🔧 CORRECTION: Filtrer seulement les ennemis vivants
+    const availableEnemies = this.availableTargets.filter(t => 
+      t.ownerId !== this.ownerId && t.isAlive
+    );
+    
+    if (availableEnemies.length === 0) {
+      console.log(`🏁 ${this.id} plus d'ennemis disponibles, passage en idle`);
+      this.behavior.currentTarget = undefined;
       this.setState('idle');
       return;
     }
-  
-    // 🔧 CORRECTION: Vérifier que la cible existe toujours ET est vivante
-    const targetExists = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
-    if (!targetExists || !targetExists.isAlive) {
-      console.log(`💀 ${this.id} cible morte/disparue, recherche nouvelle cible...`);
-      
-      // 🔧 NOUVEAU: Chercher immédiatement une nouvelle cible
-      const targetingResult = this.findTargetWithSystem(currentTick);
-      
-      if (targetingResult.target) {
-        console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
-        this.setTarget(targetingResult.target);
-        this.setState('moving'); // Aller vers la nouvelle cible
-        return;
-      } else {
-        console.log(`❌ ${this.id} aucune nouvelle cible, retour idle`);
-        this.behavior.currentTarget = undefined;
-        this.setState('idle');
-        return;
-      }
-    }
-  
-    // Mettre à jour la position cible
-    this.behavior.currentTarget.position = targetExists.position;
-  
-    // Vérifier si la cible est encore en range avec marge d'hysteresis
-    const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
-    const attackRange = this.baseStats.range;
-    const hysteresisMargin = 0.3;
     
-    if (targetDistance > attackRange + hysteresisMargin) {
-      console.log(`🏃 ${this.id} cible trop loin (${targetDistance.toFixed(2)} > ${attackRange + hysteresisMargin}), retour mouvement`);
+    // Chercher une nouvelle cible parmi les ennemis disponibles
+    const targetingResult = this.findTargetWithSystem(currentTick);
+    
+    if (targetingResult.target) {
+      console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
+      this.setTarget(targetingResult.target);
       this.setState('moving');
       return;
-    }
-  
-    // Cooldown d'attaque
-    const canAttackNow = currentTick >= this.behavior.nextAttackTick;
-    
-    if (canAttackNow) {
-      console.log(`⚔️ ${this.id} ATTAQUE ${this.behavior.currentTarget.id} ! (Distance: ${targetDistance.toFixed(2)})`);
-      this.performAttackWithSystem(currentTick);
     } else {
-      // Debug du cooldown moins verbeux
-      const ticksRemaining = this.behavior.nextAttackTick - currentTick;
-      if (ticksRemaining > 0 && currentTick % 20 === 0) {
-        console.log(`⏱️ ${this.id} cooldown: ${(ticksRemaining / 20).toFixed(1)}s`);
-      }
+      console.log(`❌ ${this.id} aucune nouvelle cible valide, retour idle`);
+      this.behavior.currentTarget = undefined;
+      this.setState('idle');
+      return;
     }
   }
+
+  // Mettre à jour la position cible
+  this.behavior.currentTarget.position = targetExists.position;
+
+  // Vérifier si la cible est encore en range
+  const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
+  const attackRange = this.baseStats.range;
+  const hysteresisMargin = 0.3;
+  
+  if (targetDistance > attackRange + hysteresisMargin) {
+    console.log(`🏃 ${this.id} cible trop loin, retour mouvement`);
+    this.setState('moving');
+    return;
+  }
+
+  // Attaquer si cooldown fini
+  const canAttackNow = currentTick >= this.behavior.nextAttackTick;
+  
+  if (canAttackNow) {
+    console.log(`⚔️ ${this.id} ATTAQUE ${this.behavior.currentTarget.id} !`);
+    this.performAttackWithSystem(currentTick);
+  } else {
+    // Cooldown en cours
+    const ticksRemaining = this.behavior.nextAttackTick - currentTick;
+    if (ticksRemaining > 0 && currentTick % 40 === 0) { // Log moins fréquent
+      console.log(`⏱️ ${this.id} cooldown: ${(ticksRemaining / 20).toFixed(1)}s`);
+    }
+  }
+}
   
   /**
    * 🔧 CORRIGÉ: Trouver une cible avec validation
@@ -758,6 +779,9 @@ private performAttackWithSystem(currentTick: number): void {
   
   onDeath = (killer: ICombatant): void => {
     console.log(`${this.id} killed by ${killer.id}`);
+    
+    // 🔧 NOUVEAU: Notifier toutes les unités que cette cible n'est plus disponible
+    // Ceci devrait être géré par le BattleRoom qui met à jour les availableTargets
     
     this.logger.logBattle('card_played', this.ownerId, {
       unitId: this.id,
