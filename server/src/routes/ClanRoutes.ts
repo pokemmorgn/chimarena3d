@@ -310,7 +310,8 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
     // Import Clan here to avoid circular dependency
     const { default: Clan } = await import('../models/Clan');
     const { default: UserData } = await import('../models/UserData');
-    const { Types } = await import('mongoose');
+    const mongoose = await import('mongoose');
+    const { Types } = mongoose;
     
     console.log('🔍 Getting clan for user:', req.userId);
     
@@ -349,7 +350,7 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
       if (clan && !user.clanId) {
         const member = clan.getMember(new Types.ObjectId(req.userId!));
         if (member) {
-          user.clanId = clan._id as Types.ObjectId;
+          user.clanId = clan._id as mongoose.Types.ObjectId;
           user.clanRole = member.role;
           user.joinedClanAt = member.joinedAt;
           await user.save();
