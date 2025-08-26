@@ -502,7 +502,7 @@ class ClashRoyaleCombatTest {
     console.log('\n⚔️ STATISTIQUES DE COMBAT:');
     console.log(`   Attaques totales: ${combatStats.attacksProcessed}`);
     console.log(`   Temps de traitement moyen: ${combatStats.averageProcessingTime.toFixed(2)}ms`);
-    console.log(`   Pics de lag: ${combatStats.lagSpikes || 0}`);
+    console.log(`   Projectiles actifs: ${combatStats.activeProjectiles}`);
 
     this.cleanup();
     console.log('\n✅ Test de bataille Clash Royale terminé !');
