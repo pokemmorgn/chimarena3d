@@ -11,9 +11,17 @@ class ClanTab {
     this.tabElement = null;
     this.createOverlay = null;
     this.clanContent = null;
+    
+    // 🔥 AJOUT : Flag pour éviter les initialisations multiples
+    this.isInitialized = false;
   }
 
   async initialize(container, currentUser) {
+    if (this.isInitialized) {
+      console.log('⚠️ ClanTab already initialized');
+      return;
+    }
+    
     this.container = container;
     this.currentUser = currentUser;
 
@@ -35,7 +43,64 @@ class ClanTab {
       this.setState('has_clan');
     });
 
+    // 🔥 CORRECTION : Attendre que les données utilisateur soient disponibles
+    await this.waitForUserData();
     await this.checkClanStatus();
+    
+    this.isInitialized = true;
+  }
+
+  /**
+   * 🔥 NOUVELLE MÉTHODE : Attendre que les données utilisateur soient disponibles
+   */
+  async waitForUserData() {
+    console.log('⏳ Waiting for user data...');
+    
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      // Essayer de récupérer les données utilisateur depuis plusieurs sources
+      let user = this.currentUser;
+      
+      if (!user?.id) {
+        // Source 1: GameState
+        user = window.ClashRoyaleApp?.gameState?.getUser();
+      }
+      
+      if (!user?.id) {
+        // Source 2: NetworkManager
+        user = window.ClashRoyaleApp?.networkManager?.getUserData();
+      }
+      
+      if (!user?.id) {
+        // Source 3: Colyseus
+        user = window.ClashRoyaleApp?.networkManager?.getColyseusManager()?.getCurrentUser();
+      }
+      
+      if (user?.id) {
+        this.currentUser = {
+          id: user._id || user.id,
+          username: user.username,
+          displayName: user.displayName,
+          level: user.level,
+          trophies: user.stats?.currentTrophies || user.trophies || 0,
+          clanId: user.clanId || null,
+          clanRole: user.clanRole || null
+        };
+        
+        console.log('✅ User data loaded:', this.currentUser);
+        return;
+      }
+      
+      attempts++;
+      console.log(`⏳ Attempt ${attempts}/${maxAttempts} - User data not ready yet...`);
+      
+      // Attendre 500ms avant le prochain essai
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.warn('⚠️ Could not load user data after max attempts');
   }
 
   async checkClanStatus() {
@@ -43,6 +108,16 @@ class ClanTab {
     this.setState('loading');
     
     try {
+      // 🔥 VALIDATION : S'assurer qu'on a les données utilisateur
+      if (!this.currentUser?.id) {
+        console.warn('⚠️ No user data available, retrying...');
+        await this.waitForUserData();
+        
+        if (!this.currentUser?.id) {
+          throw new Error('User data not available after retry');
+        }
+      }
+      
       const res = await ClanAPI.getMyClan();
       
       // Debug complet de la réponse API
@@ -71,8 +146,97 @@ class ClanTab {
       }
     } catch (error) {
       console.error('❌ Error in checkClanStatus:', error);
+      
+      // Si l'erreur est liée à l'authentification, proposer une solution
+      if (error.message?.includes('Authentication') || error.message?.includes('token')) {
+        console.log('🔄 Authentication issue detected, checking auth status...');
+        
+        try {
+          const isAuth = await window.ClashRoyaleApp?.networkManager?.verifyToken();
+          if (!isAuth) {
+            console.warn('⚠️ User not authenticated, redirecting to login...');
+            // Rediriger vers le login ou afficher un message
+            this.showAuthError();
+            return;
+          }
+        } catch (authError) {
+          console.error('❌ Error checking auth status:', authError);
+        }
+      }
+      
       this.setState('no_clan');
     }
+  }
+
+  /**
+   * 🔥 CORRECTION : updatePlayerData plus robuste
+   */
+  updatePlayerData(player) {
+    console.log('👤 ClanTab.updatePlayerData called:', player);
+    
+    if (player) {
+      this.currentUser = {
+        id: player._id || player.id,
+        username: player.username,
+        displayName: player.displayName,
+        level: player.level,
+        trophies: player.stats?.currentTrophies || player.trophies || 0,
+        clanId: player.clanId || null,
+        clanRole: player.clanRole || null
+      };
+
+      console.log('✅ ClanTab currentUser updated:', this.currentUser);
+
+      // Mettre à jour ClanContent s'il existe
+      if (this.clanContent) {
+        this.clanContent.updatePlayer(this.currentUser);
+      }
+      
+      // Si on était en état de chargement et qu'on n'a pas encore vérifié le clan,
+      // relancer la vérification
+      if (this.state === 'loading' || (!this.currentClan && this.currentUser.clanId)) {
+        console.log('🔄 User data updated, rechecking clan status...');
+        setTimeout(() => {
+          this.checkClanStatus();
+        }, 500);
+      }
+    } else {
+      console.warn('⚠️ ClanTab.updatePlayerData called with null/undefined player');
+    }
+  }
+
+  /**
+   * 🔥 NOUVELLE MÉTHODE : Gérer les erreurs d'authentification
+   */
+  showAuthError() {
+    this.tabElement.innerHTML = `
+      <div class="clan-auth-error">
+        <div class="auth-error-header">
+          <div class="error-icon">🔐</div>
+          <h2>Authentication Required</h2>
+          <p>Please log in to access clan features.</p>
+        </div>
+        <div class="clan-actions">
+          <button class="clan-action-btn primary" id="btn-login">
+            <span class="btn-icon">🔑</span>
+            <span class="btn-text">Go to Login</span>
+          </button>
+          <button class="clan-action-btn secondary" id="btn-retry-auth">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">Retry</span>
+          </button>
+        </div>
+      </div>`;
+
+    // Events pour les boutons
+    this.tabElement.querySelector('#btn-login')?.addEventListener('click', () => {
+      // Rediriger vers le login
+      window.ClashRoyaleApp?.sceneManager?.switchToScene('login');
+    });
+
+    this.tabElement.querySelector('#btn-retry-auth')?.addEventListener('click', () => {
+      this.checkClanStatus();
+    });
   }
 
   setState(newState) {
@@ -151,26 +315,12 @@ class ClanTab {
         name: this.currentClan.name
       });
       
-      // déléguer à ClanContent
-      this.clanContent = new ClanContent(this.tabElement, this.currentUser, this.currentClan);
+      // déléguer à ClanContent avec validation
+      if (!this.clanContent) {
+        this.clanContent = new ClanContent(this.tabElement, this.currentUser, this.currentClan);
+      }
+      
       this.clanContent.render();
-    }
-  }
-
-  updatePlayerData(player) {
-    console.log('👤 ClanTab.updatePlayerData called:', player);
-    this.currentUser = {
-      id: player._id || player.id,
-      username: player.username,
-      displayName: player.displayName,
-      level: player.level,
-      trophies: player.stats?.currentTrophies || 0,
-      clanId: player.clanId || null,
-      clanRole: player.clanRole || null
-    };
-
-    if (this.clanContent) {
-      this.clanContent.updatePlayer(this.currentUser);
     }
   }
 
