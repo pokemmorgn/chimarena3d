@@ -228,6 +228,13 @@ performAttack(config: IAttackConfig): ICombatResult | null {
   console.log(`   Attacker trouvé: ${attacker ? 'OUI' : 'NON'}`);
   console.log(`   Target trouvé: ${target ? 'OUI' : 'NON'}`);
   
+  // 🔧 NOUVEAU: Debug spécial pour attaques sur tours
+  if (target && target.type === 'building') {
+    console.log(`   🏰 ATTAQUE SUR TOUR DÉTECTÉE !`);
+    console.log(`   🏰 Tour: ${target.id} (${target.hitpoints}/${target.maxHitpoints} HP)`);
+    console.log(`   🏰 Attaquant: ${attacker?.id} (type: ${attacker?.type})`);
+  }
+  
   if (!attacker) {
     console.error(`❌ ATTACKER NOT FOUND: ${config.attackerId}`);
     console.log(`🔍 Combattants disponibles: ${Array.from(this.combatants.keys()).join(', ')}`);
