@@ -1,5 +1,5 @@
-import { getCombatSystem } from './gameplay/systems/CombatSystem';
-import Tower from './gameplay/units/buildings/Tower';
+import { getCombatSystem } from '../gameplay/systems/CombatSystem';
+import Tower from '../gameplay/units/buildings/Tower';
 
 console.log('🧪 TEST D\'INTÉGRATION TOWER + COMBATSYSTEM');
 console.log('===========================================');
