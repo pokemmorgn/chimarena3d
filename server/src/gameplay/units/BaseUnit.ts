@@ -719,18 +719,24 @@ private findBestTargetTower(): ITower | null {
     return kingTower || null;
   }
   
-  /**
-   * 🔧 NOUVEAU: Définir une tour comme cible
-   */
-  private setTargetTower(tower: ITower): void {
-    this.behavior.currentTarget = {
-      type: 'tower',
-      id: tower.id,
-      position: { ...tower.position },
-      priority: tower.type === 'king' ? 20 : 15 // Haute priorité pour les tours
-    };
-    this.behavior.destination = { ...tower.position };
-  }
+    /**
+     * 🔧 NOUVEAU: Définir une tour comme cible
+     */
+    private setTargetTower(tower: ITower): void {
+      console.log(`🏰 ${this.id} setTargetTower: Ciblage tour ${tower.type} (${tower.id})`);
+      console.log(`   🏰 Position tour: (${tower.position.x}, ${tower.position.y})`);
+      console.log(`   🏰 HP tour: ${tower.hitpoints}/${tower.maxHitpoints}`);
+      
+      this.behavior.currentTarget = {
+        type: 'tower',
+        id: tower.id,
+        position: { ...tower.position },
+        priority: tower.type === 'king' ? 20 : 15 // Haute priorité pour les tours
+      };
+      this.behavior.destination = { ...tower.position };
+      
+      console.log(`   ✅ Tour définie comme cible avec priorité ${this.behavior.currentTarget.priority}`);
+    }
   
   /**
    * 🔧 CORRIGÉ: Attaque avec gestion des échecs
