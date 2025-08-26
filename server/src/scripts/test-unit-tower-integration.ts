@@ -1,62 +1,73 @@
 import { getCombatSystem } from '../gameplay/systems/CombatSystem';
 import Tower from '../gameplay/units/buildings/Tower';
-import BaseUnit from '../gameplay/units/BaseUnit';
 
-console.log('🧪 TEST D\'INTÉGRATION UNIT + TOWER');
+console.log('🧪 TEST SIMPLIFIÉ TOWER INTEGRATION');
 console.log('===================================');
 
-async function runTest() {
-  // 1. Créer le système de combat
-  const combatSystem = getCombatSystem();
-  console.log('✅ CombatSystem créé');
+// 1. Créer le système de combat
+const combatSystem = getCombatSystem();
+console.log('✅ CombatSystem créé');
 
-  // 2. Créer une tour ennemie
-  console.log('\n🏰 Création d\'une tour ennemie...');
-  const enemyTower = Tower.create(
-    'enemy_tower_1',
-    'left',
-    'player2', // Ennemi
-    { x: 6, y: 4 },
-    13
-  );
+// 2. Créer deux tours (une par joueur)
+console.log('\n🏰 Création des tours...');
 
-  // 3. Créer une unité
-  console.log('\n🤖 Création d\'une unité...');
-  const knight = await BaseUnit.create(
-    'knight',
-    1,
-    'player1', // Allié
-    { x: 9, y: 16 }, // Milieu du terrain
-    0 // tick 0
-  );
+const player1Tower = Tower.create(
+  'tower_player1',
+  'left',
+  'player1',
+  { x: 6, y: 28 },
+  13
+);
 
-  // 4. Enregistrer dans le système de combat
-  console.log('\n📝 Enregistrement dans CombatSystem...');
-  combatSystem.registerTower(enemyTower.toCombatant());
-  combatSystem.registerCombatant(knight.toCombatant());
+const player2Tower = Tower.create(
+  'tower_player2', 
+  'left',
+  'player2',
+  { x: 6, y: 4 },
+  13
+);
 
-  // 5. Donner la tour à l'unité
-  console.log('\n🎯 Attribution de la tour à l\'unité...');
-  knight.updateAvailableTowers([{
-    id: enemyTower.id,
-    position: enemyTower.position,
-    ownerId: enemyTower.ownerId,
-    isDestroyed: enemyTower.isDestroyed,
-    hitpoints: enemyTower.hitpoints,
-    maxHitpoints: enemyTower.maxHitpoints,
-    type: enemyTower.towerType
-  }]);
+console.log('✅ Tours créées');
+console.log('Player1 Tower:', player1Tower.getTowerInfo());
+console.log('Player2 Tower:', player2Tower.getTowerInfo());
 
-  // 6. Simuler quelques ticks
-  console.log('\n⏰ Simulation de 5 ticks...');
-  for (let tick = 1; tick <= 5; tick++) {
-    console.log(`\n--- TICK ${tick} ---`);
-    knight.update(tick, 50); // 50ms par tick
+// 3. Enregistrer dans le CombatSystem
+console.log('\n📝 Enregistrement dans CombatSystem...');
+combatSystem.registerTower(player1Tower.toCombatant());
+combatSystem.registerTower(player2Tower.toCombatant());
+
+// 4. Créer des cibles factices pour tester le targeting des tours
+console.log('\n🎯 Test du targeting des tours...');
+
+// Simuler des unités ennemies pour la tour player1
+const fakeEnemyUnits = [
+  {
+    id: 'enemy_unit_1',
+    position: { x: 7, y: 26 }, // Proche de player1Tower
+    ownerId: 'player2',
+    type: 'unit' as const,
+    isAlive: true,
+    hitpoints: 100,
+    maxHitpoints: 100,
+    isFlying: false,
+    isTank: false,
+    isBuilding: false,
+    mass: 1
   }
+];
 
-  console.log('\n✅ Test terminé !');
-  console.log('Info finale unité:', knight.getCombatInfo());
-  console.log('Info finale tour:', enemyTower.getTowerInfo());
+player1Tower.updateAvailableTargets(fakeEnemyUnits);
+
+// 5. Simuler quelques ticks
+console.log('\n⏰ Simulation de 3 ticks...');
+for (let tick = 1; tick <= 3; tick++) {
+  console.log(`\n--- TICK ${tick} ---`);
+  player1Tower.update(tick, 50);
+  player2Tower.update(tick, 50);
 }
 
-runTest().catch(console.error);
+console.log('\n✅ Test terminé !');
+console.log('\n📊 État final:');
+console.log('CombatSystem stats:', combatSystem.getPerformanceStats());
+console.log('Tower1 info:', player1Tower.getTowerInfo());
+console.log('Tower2 info:', player2Tower.getTowerInfo());
