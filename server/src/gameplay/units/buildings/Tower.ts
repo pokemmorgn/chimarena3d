@@ -4,46 +4,31 @@ import { getCombatSystem, ICombatant, IAttackConfig, ICombatResult } from '../..
 import { ITargetableEntity, ITargetingResult } from '../../systems/TargetingSystem';
 import { IPosition, TargetType, ITarget } from '../BaseUnit';
 
-// === INTERFACES TOWER ===
-
 export type TowerType = 'left' | 'right' | 'king';
 
 export interface ITowerStats {
-  // Stats de combat
   hitpoints: number;
   damage: number;
   range: number;
   attackSpeed: number;
-  
-  // Stats spécifiques aux tours
   targets: 'air' | 'ground' | 'both';
-  damageReduction: number; // Réduction dégâts reçus (spells, etc.)
-  
-  // Propriétés spéciales
+  damageReduction: number;
   hasBlastRadius?: boolean;
   blastRadius?: number;
-  crownTowerBonus?: number; // Bonus dégâts sur Crown Towers
 }
 
 export interface ITowerBehavior {
-  // État actuel
   isActive: boolean;
-  lastStateChange: number;
-  
-  // Targeting CR authentique
   currentTarget?: ITarget | undefined;
   autoTargetRange: number;
-  blindSpotRadius: number; // Zone morte autour de la tour
+  blindSpotRadius: number;
   retargetCooldown: number;
   lastRetarget: number;
-  lastTargetCheck: number;
-  targetLockDuration: number; // Durée pendant laquelle on garde la cible
+  targetLockDuration: number;
   
-  // Combat avec windup CR
   lastAttackTick: number;
   nextAttackTick: number;
-  isAttacking: boolean;
-  attackWindupTicks: number; // Délai avant dégâts (comme CR)
+  attackWindupTicks: number;
   attackCooldownTicks: number;
   pendingAttack?: {
     targetId: string;
@@ -51,45 +36,32 @@ export interface ITowerBehavior {
     willHitTick: number;
   };
   
-  // Historique des cibles (pour first-in-range)
-  targetEntryHistory: Map<string, number>; // targetId -> tick d'entrée en range
+  targetEntryHistory: Map<string, number>;
 }
 
-// === CLASSE TOWER PRINCIPALE ===
-
 export class Tower extends Schema implements ICombatant, ITargetableEntity {
-  // === IDENTIFIANTS ===
   @type("string") id: string = "";
   @type("string") ownerId: string = "";
   @type("string") towerType: TowerType = 'left';
   
-  // === POSITION ===
   @type("number") x: number = 0;
   @type("number") y: number = 0;
   
-  // === STATS ACTUELLES ===
   @type("number") currentHitpoints: number = 1400;
   @type("number") maxHitpoints: number = 1400;
   @type("number") currentDamage: number = 90;
   
-  // === ÉTAT ===
   @type("boolean") isDestroyed: boolean = false;
   @type("boolean") isActive: boolean = true;
   @type("number") lastUpdateTick: number = 0;
-  @type("number") level: number = 13; // Niveau tour standard
+  @type("number") level: number = 13;
   
-  // === DONNÉES NON-SYNCHRONISÉES ===
   private baseStats!: ITowerStats;
   private behavior!: ITowerBehavior;
   private logger = getActionLogger();
-  
-  // Combat System Integration
   private combatSystem = getCombatSystem();
-  
-  // Stockage des cibles disponibles
   private availableTargets: ITargetableEntity[] = [];
   
-  // === ICombatant IMPLEMENTATION ===
   get position(): IPosition { return { x: this.x, y: this.y }; }
   get type(): TargetType { return 'building'; }
   get isAlive(): boolean { return !this.isDestroyed && this.currentHitpoints > 0; }
@@ -101,9 +73,8 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     }
   }
   
-  // Propriétés de combat
   get canAttack(): boolean { 
-    return this.isAlive && this.isActive && this.behavior?.isActive !== false;
+    return this.isAlive && this.isActive;
   }
   get attackRange(): number { return this.baseStats?.range || 7; }
   get attackDamage(): number { return this.currentDamage; }
@@ -113,13 +84,11 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     if (this.behavior) this.behavior.lastAttackTick = value; 
   }
   
-  // Propriétés ITargetableEntity
   get isFlying(): boolean { return false; }
   get isTank(): boolean { return false; }
   get isBuilding(): boolean { return true; }
-  get mass(): number { return 10; } // Les tours sont très lourdes
+  get mass(): number { return 10; }
   
-  // État de combat (tours ne peuvent pas être stun normalement)
   isStunned?: boolean = false;
   stunEndTick?: number | undefined;
   isInvulnerable?: boolean = false;
@@ -128,27 +97,13 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   spellResistance?: number = 0;
   shield?: number = 0;
 
-  // === FACTORY METHOD ===
-  
-  static create(
-    id: string,
-    towerType: TowerType,
-    ownerId: string,
-    position: IPosition,
-    level: number = 13
-  ): Tower {
+  static create(id: string, towerType: TowerType, ownerId: string, position: IPosition, level: number = 13): Tower {
     const tower = new Tower();
     tower.initialize(id, towerType, ownerId, position, level);
     return tower;
   }
   
-  private initialize(
-    id: string,
-    towerType: TowerType,
-    ownerId: string,
-    position: IPosition,
-    level: number
-  ): void {
+  private initialize(id: string, towerType: TowerType, ownerId: string, position: IPosition, level: number): void {
     this.id = id;
     this.towerType = towerType;
     this.ownerId = ownerId;
@@ -157,14 +112,9 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     this.level = level;
     this.lastUpdateTick = 0;
     
-    // Charger les stats selon le type de tour
     this.loadStatsForType(towerType, level);
     this.initializeBehavior();
-    
-    // Enregistrer dans le système de combat
     this.combatSystem.registerCombatant(this.toCombatant());
-    
-    console.log(`🏰 Tour ${towerType} créée: ${id} à (${this.x}, ${this.y}) - ${this.currentHitpoints} HP`);
     
     this.logger.logBattle('card_played', ownerId, {
       towerId: this.id,
@@ -178,16 +128,14 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   }
 
   private loadStatsForType(towerType: TowerType, level: number): void {
-    // Stats de base selon le type de tour (comme dans CR)
     const baseStats: Record<TowerType, ITowerStats> = {
       'left': {
         hitpoints: 1400,
         damage: 90,
         range: 7.0,
-        attackSpeed: 0.8, // 0.8s entre attaques
+        attackSpeed: 0.8,
         targets: 'both',
-        damageReduction: 0.35, // 65% des dégâts normaux
-        crownTowerBonus: 1.0
+        damageReduction: 0.35
       },
       'right': {
         hitpoints: 1400,
@@ -195,14 +143,13 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
         range: 7.0,
         attackSpeed: 0.8,
         targets: 'both',
-        damageReduction: 0.35,
-        crownTowerBonus: 1.0
+        damageReduction: 0.35
       },
       'king': {
         hitpoints: 2600,
         damage: 109,
         range: 7.0,
-        attackSpeed: 1.0, // Plus lent mais plus de dégâts
+        attackSpeed: 1.0,
         targets: 'both',
         damageReduction: 0.35,
         hasBlastRadius: true,
@@ -211,9 +158,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     };
     
     const base = baseStats[towerType];
-    
-    // Scaling avec le niveau (comme dans CR)
-    const levelMultiplier = 1 + (level - 13) * 0.10; // 10% par niveau au-dessus de 13
+    const levelMultiplier = 1 + (level - 13) * 0.10;
     
     this.baseStats = {
       ...base,
@@ -221,41 +166,29 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       damage: Math.round(base.damage * levelMultiplier)
     };
     
-    // Appliquer les stats
     this.maxHitpoints = this.baseStats.hitpoints;
     this.currentHitpoints = this.baseStats.hitpoints;
     this.currentDamage = this.baseStats.damage;
-    
-    console.log(`🏰 Stats ${towerType} L${level}: ${this.currentHitpoints} HP, ${this.currentDamage} DMG, ${this.baseStats.range} range`);
   }
   
   private initializeBehavior(): void {
     this.behavior = {
       isActive: true,
-      lastStateChange: 0,
-      
-      // CR Authentic targeting
       autoTargetRange: this.baseStats.range,
-      blindSpotRadius: 1.5, // Zone morte de 1.5 tiles comme CR
-      retargetCooldown: 5, // Très rapide, mais avec target lock
+      blindSpotRadius: 1.5,
+      retargetCooldown: 5,
       lastRetarget: 0,
-      lastTargetCheck: 0,
-      targetLockDuration: 60, // 3 secondes de lock sur la cible (comme CR)
+      targetLockDuration: 60,
       
-      // CR Authentic combat avec windup
       lastAttackTick: -100,
       nextAttackTick: 0,
-      isAttacking: false,
-      attackWindupTicks: 3, // ~0.15s windup avant les dégâts (comme CR)
+      attackWindupTicks: 3,
       attackCooldownTicks: this.attackSpeed,
       
-      // Historique pour first-in-range
       targetEntryHistory: new Map()
     };
   }
 
-  // === MÉTHODE PRINCIPALE UPDATE ===
-  
   update(currentTick: number, _deltaTime: number): void {
     this.lastUpdateTick = currentTick;
     
@@ -263,207 +196,170 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       return;
     }
     
-    // 🔧 CLASH ROYALE AUTHENTIC: Gestion windup attack en premier
     this.processAttackWindup(currentTick);
     
-    // 🔧 CLASH ROYALE AUTHENTIC: First-In-Range targeting (plus conservateur)
-    const shouldRetarget = this.shouldRetargetLikeCR(currentTick);
-    
-    if (shouldRetarget) {
-      this.updateTargetingCR(currentTick);
+    if (this.shouldRetarget(currentTick)) {
+      this.updateTargeting(currentTick);
     }
     
-    // 🔧 CLASH ROYALE AUTHENTIC: Démarrer attaque avec windup
     if (this.behavior.currentTarget && !this.behavior.pendingAttack) {
       this.initiateAttackSequence(currentTick);
     }
+  }
+  
+  private processAttackWindup(currentTick: number): void {
+    if (!this.behavior.pendingAttack) return;
     
-    // Debug périodique
-    if (currentTick % 200 === 0 && this.behavior.currentTarget) { // Toutes les 10 secondes
-      console.log(`🏰 ${this.id} cible: ${this.behavior.currentTarget.id} (${this.availableTargets.length} disponibles)`);
+    const attack = this.behavior.pendingAttack;
+    const target = this.availableTargets.find(t => t.id === attack.targetId);
+    
+    if (!target || !target.isAlive || !this.isValidTarget(target)) {
+      this.behavior.pendingAttack = undefined;
+      this.behavior.currentTarget = undefined;
+      return;
+    }
+    
+    if (currentTick >= attack.willHitTick) {
+      this.executeTowerAttack(attack.targetId, currentTick);
+      this.behavior.pendingAttack = undefined;
+      this.behavior.nextAttackTick = currentTick + this.behavior.attackCooldownTicks;
     }
   }
   
-  /**
-   * 🔧 SYSTÈME DE TARGETING AUTOMATIQUE POUR TOURS
-   */
-  private updateTargeting(currentTick: number): void {
-    // Filtrer uniquement les unités ennemies vivantes dans la range
-    const enemyUnitsInRange = this.availableTargets.filter(target => {
-      if (target.ownerId === this.ownerId) return false; // Pas ally
-      if (!target.isAlive) return false; // Pas mortes
-      if (target.isBuilding) return false; // Tours n'attaquent pas autres tours
-      
-      const distance = this.calculateDistance(this.position, target.position);
-      return distance <= this.behavior.autoTargetRange;
-    });
+  private shouldRetarget(currentTick: number): boolean {
+    if (!this.behavior.currentTarget) return true;
     
-    if (enemyUnitsInRange.length === 0) {
-      // Aucune cible en range
+    if (currentTick < this.behavior.lastRetarget + this.behavior.retargetCooldown) {
+      return false;
+    }
+    
+    const targetAge = currentTick - (this.behavior.targetEntryHistory.get(this.behavior.currentTarget.id) || 0);
+    if (targetAge < this.behavior.targetLockDuration) {
+      const target = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
+      if (target && target.isAlive && this.isValidTarget(target)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  private updateTargeting(currentTick: number): void {
+    this.cleanupTargetHistory(currentTick);
+    
+    const validEnemies = this.findValidEnemiesInRange();
+    
+    if (validEnemies.length === 0) {
       if (this.behavior.currentTarget) {
-        console.log(`🏰 ${this.id} plus de cibles en range, stop targeting`);
         this.behavior.currentTarget = undefined;
+        this.behavior.pendingAttack = undefined;
       }
       this.behavior.lastRetarget = currentTick;
       return;
     }
     
-    // Utiliser le système de targeting avec priorités tour
-    const targetingResult = this.findBestTargetForTower(enemyUnitsInRange, currentTick);
+    const newTarget = this.selectFirstInRange(validEnemies, currentTick);
     
-    if (targetingResult.target) {
-      const oldTarget = this.behavior.currentTarget?.id;
-      const newTarget = targetingResult.target.id;
+    if (!this.behavior.currentTarget || this.behavior.currentTarget.id !== newTarget.id) {
+      this.behavior.currentTarget = this.entityToTarget(newTarget);
+      this.behavior.pendingAttack = undefined;
       
-      if (oldTarget !== newTarget) {
-        console.log(`🎯 ${this.id} nouvelle cible: ${newTarget} (raison: ${targetingResult.reason})`);
+      if (!this.behavior.targetEntryHistory.has(newTarget.id)) {
+        this.behavior.targetEntryHistory.set(newTarget.id, currentTick);
       }
-      
-      this.behavior.currentTarget = targetingResult.target;
     }
     
     this.behavior.lastRetarget = currentTick;
   }
   
-  /**
-   * 🔧 SYSTÈME DE TARGETING SPÉCIFIQUE AUX TOURS
-   */
-  private findBestTargetForTower(availableTargets: ITargetableEntity[], _currentTick: number): ITargetingResult {
-    if (availableTargets.length === 0) {
-      return {
-        target: null,
-        confidence: 0,
-        reason: 'no_targets_in_range',
-        alternativeTargets: []
-      };
-    }
-    
-    // Évaluer chaque cible avec les priorités tour
-    const evaluatedTargets = availableTargets.map(target => {
-      const score = this.evaluateTargetForTower(target);
-      return {
-        target: this.entityToTarget(target),
-        score: score,
-        entity: target
-      };
-    }).sort((a, b) => b.score - a.score);
-    
-    const bestTarget = evaluatedTargets[0];
-    const confidence = evaluatedTargets.length > 1 ? 
-      Math.min(1.0, (bestTarget.score - evaluatedTargets[1].score) / 10) : 1.0;
-    
-    return {
-      target: bestTarget.target,
-      confidence,
-      reason: this.getTargetingReason(bestTarget.entity, bestTarget.score),
-      alternativeTargets: evaluatedTargets.slice(1, 4).map(t => t.target)
-    };
-  }
-  
-  /**
-   * 🔧 ÉVALUATION SPÉCIALE POUR TOURS
-   */
-  private evaluateTargetForTower(target: ITargetableEntity): number {
-    let score = 0;
-    
-    // 1. Distance (le plus important pour les tours)
+  private isValidTarget(target: ITargetableEntity): boolean {
     const distance = this.calculateDistance(this.position, target.position);
-    const distanceScore = Math.max(0, 15 - distance) * this.behavior.targetPriorities.closest;
-    score += distanceScore;
-    
-    // 2. HP bas (finir les unités blessées)
-    const hpPercent = target.hitpoints / target.maxHitpoints;
-    if (hpPercent < 0.5) {
-      score += this.behavior.targetPriorities.lowHP * (1 - hpPercent);
-    }
-    
-    // 3. Type d'unité
-    if (target.isTank) {
-      score += this.behavior.targetPriorities.tanks;
-    } else {
-      score += this.behavior.targetPriorities.units;
-    }
-    
-    // 4. Bonus pour cibles aériennes si tour peut les cibler
-    if (target.isFlying && this.baseStats.targets === 'both') {
-      score += 5; // Bonus pour air units
-    }
-    
-    // 5. Malus pour cibles très éloignées de la range max
-    if (distance > this.behavior.autoTargetRange * 0.8) {
-      score -= 3; // Légère pénalité pour cibles en bordure
-    }
-    
-    return Math.max(0, score);
+    return distance >= this.behavior.blindSpotRadius && distance <= this.behavior.autoTargetRange;
   }
   
-  /**
-   * 🔧 LOGIQUE D'ATTAQUE AUTOMATIQUE
-   */
-  private updateAttacking(currentTick: number): void {
-    if (!this.behavior.currentTarget) return;
+  private findValidEnemiesInRange(): ITargetableEntity[] {
+    return this.availableTargets.filter(target => {
+      if (target.ownerId === this.ownerId) return false;
+      if (!target.isAlive) return false;
+      if (target.isBuilding) return false;
+      return this.isValidTarget(target);
+    });
+  }
+  
+  private selectFirstInRange(validEnemies: ITargetableEntity[], currentTick: number): ITargetableEntity {
+    let firstInRange: ITargetableEntity | null = null;
+    let earliestEntryTick = Infinity;
     
-    // Vérifier que la cible existe encore et est en range
+    for (const enemy of validEnemies) {
+      if (!this.behavior.targetEntryHistory.has(enemy.id)) {
+        this.behavior.targetEntryHistory.set(enemy.id, currentTick);
+      }
+      
+      const entryTick = this.behavior.targetEntryHistory.get(enemy.id)!;
+      
+      if (entryTick < earliestEntryTick) {
+        earliestEntryTick = entryTick;
+        firstInRange = enemy;
+      } else if (entryTick === earliestEntryTick && firstInRange) {
+        const distanceToFirst = this.calculateDistance(this.position, firstInRange.position);
+        const distanceToThis = this.calculateDistance(this.position, enemy.position);
+        
+        if (distanceToThis < distanceToFirst) {
+          firstInRange = enemy;
+        }
+      }
+    }
+    
+    return firstInRange || validEnemies[0];
+  }
+  
+  private cleanupTargetHistory(currentTick: number): void {
+    const validEnemyIds = new Set(this.findValidEnemiesInRange().map(enemy => enemy.id));
+    
+    for (const [targetId, entryTick] of this.behavior.targetEntryHistory) {
+      if (!validEnemyIds.has(targetId) && currentTick - entryTick > 100) {
+        this.behavior.targetEntryHistory.delete(targetId);
+      }
+    }
+  }
+  
+  private initiateAttackSequence(currentTick: number): void {
+    if (!this.behavior.currentTarget || currentTick < this.behavior.nextAttackTick) return;
+    
     const target = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
-    
-    if (!target || !target.isAlive) {
-      console.log(`💀 ${this.id} cible disparue: ${this.behavior.currentTarget.id}`);
+    if (!target || !target.isAlive || !this.isValidTarget(target)) {
       this.behavior.currentTarget = undefined;
       return;
     }
     
-    // Vérifier range
-    const distance = this.calculateDistance(this.position, target.position);
-    if (distance > this.behavior.autoTargetRange + 0.2) { // Petite tolérance
-      console.log(`🏃 ${this.id} cible trop loin: ${distance.toFixed(2)} > ${this.behavior.autoTargetRange}`);
-      this.behavior.currentTarget = undefined;
-      return;
-    }
+    this.behavior.pendingAttack = {
+      targetId: this.behavior.currentTarget.id,
+      startTick: currentTick,
+      willHitTick: currentTick + this.behavior.attackWindupTicks
+    };
     
-    // Mettre à jour position cible
-    this.behavior.currentTarget.position = target.position;
-    
-    // Vérifier si on peut attaquer (cooldown)
-    if (currentTick >= this.behavior.nextAttackTick) {
-      console.log(`🏰⚔️ ${this.id} ATTAQUE ${this.behavior.currentTarget.id}!`);
-      this.performTowerAttack(currentTick);
-    }
+    this.behavior.lastAttackTick = currentTick;
   }
   
-  /**
-   * 🔧 ATTAQUE DE TOUR AUTOMATIQUE
-   */
-  private performTowerAttack(currentTick: number): void {
-    if (!this.behavior.currentTarget) return;
-    
+  private executeTowerAttack(targetId: string, currentTick: number): void {
     const attackConfig: IAttackConfig = {
       attackerId: this.id,
-      targetId: this.behavior.currentTarget.id,
+      targetId: targetId,
       damage: this.getCurrentDamage(),
       damageType: this.getDamageType(),
       
-      // Tours King ont explosion
       hasSplash: this.baseStats.hasBlastRadius || false,
       ...(this.baseStats.blastRadius && { splashRadius: this.baseStats.blastRadius }),
       splashDamagePercent: 100,
       
-      // Tours attaquent instantanément (pas de projectile)
       isProjectile: false
     };
     
-    // Mettre à jour les timestamps d'attaque
-    this.behavior.lastAttackTick = currentTick;
-    this.behavior.nextAttackTick = currentTick + this.behavior.attackCooldownTicks;
-    
-    // Déléguer au CombatSystem
     const result = this.combatSystem.performAttack(attackConfig);
     
     if (result) {
-      console.log(`✅ ${this.id} attaque réussie: ${result.damageDealt} dégâts`);
       this.onAttackPerformed(result);
     } else {
-      console.log(`❌ ${this.id} échec attaque sur ${this.behavior.currentTarget.id}`);
-      // Problème avec la cible - la supprimer
       this.behavior.currentTarget = undefined;
     }
   }
@@ -480,23 +376,17 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     });
   }
 
-  // === MÉTHODES DE DÉGÂTS ===
-  
   takeDamage(damage: number, attackerId?: string, damageType: string = 'normal'): boolean {
     if (!this.isAlive) return false;
     
-    // Appliquer réduction de dégâts des tours
     let actualDamage = damage;
     
     if (damageType === 'spell' || damageType === 'crown_tower') {
       actualDamage = Math.round(damage * this.baseStats.damageReduction);
-      console.log(`🏰 ${this.id} réduction dégâts: ${damage} → ${actualDamage} (${this.baseStats.damageReduction * 100}%)`);
     }
     
     const oldHp = this.currentHitpoints;
     this.currentHitpoints = Math.max(0, this.currentHitpoints - actualDamage);
-    
-    console.log(`🏰💥 ${this.id} prend ${actualDamage} dégâts: ${oldHp} → ${this.currentHitpoints} HP`);
     
     this.logger.logBattle('card_played', this.ownerId, {
       towerId: this.id,
@@ -509,10 +399,9 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       actionType: 'tower_damaged'
     });
     
-    // Vérifier destruction
     if (this.currentHitpoints <= 0) {
       this.markAsDestroyed();
-      return true; // Tour détruite
+      return true;
     }
     
     return false;
@@ -521,14 +410,11 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   private markAsDestroyed(): void {
     if (this.isDestroyed) return;
     
-    console.log(`💥 TOUR DÉTRUITE: ${this.id} (${this.towerType})`);
-    
     this.isDestroyed = true;
     this.isActive = false;
     this.behavior.isActive = false;
     this.behavior.currentTarget = undefined;
     
-    // Désinscrire du système de combat
     this.combatSystem.unregisterCombatant(this.id);
     
     this.logger.logBattle('card_played', this.ownerId, {
@@ -540,35 +426,24 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     });
   }
 
-  // === ICombatant CALLBACKS ===
-  
   onTakeDamage = (damage: number, attacker: ICombatant, damageType: string): void => {
-    console.log(`🏰 ${this.id} prend ${damage} dégâts ${damageType} de ${attacker.id}`);
-    
-    // Tours ne contre-attaquent pas automatiquement - elles attaquent selon leur logique
-    // Mais on peut prioriser l'attaquant s'il entre en range
     if (!this.behavior.currentTarget && this.canTargetAttacker(attacker)) {
       const attackerTarget = this.availableTargets.find(t => t.id === attacker.id);
-      if (attackerTarget && this.isInRange(attackerTarget)) {
-        console.log(`🏰🎯 ${this.id} priorise l'attaquant ${attacker.id}!`);
+      if (attackerTarget && this.isValidTarget(attackerTarget)) {
         this.behavior.currentTarget = this.entityToTarget(attackerTarget);
       }
     }
   };
   
   onDeath = (killer: ICombatant): void => {
-    console.log(`🏰💀 ${this.id} détruite par ${killer.id}`);
     this.markAsDestroyed();
   };
   
   onAttack = (target: ICombatant): void => {
-    console.log(`🏰⚔️ ${this.id} attaque ${target.id}`);
+    // Empty implementation
   };
 
-  // === MÉTHODES UTILITAIRES ===
-  
   private getDamageType(): 'physical' | 'spell' | 'crown_tower' {
-    // Tours font des dégâts crown_tower sur les autres tours (réduits)
     return 'crown_tower';
   }
   
@@ -577,13 +452,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   }
   
   private canTargetAttacker(attacker: ICombatant): boolean {
-    // Tours attaquent toutes les unités ennemies
     return attacker.ownerId !== this.ownerId && attacker.type !== 'building';
-  }
-  
-  private isInRange(target: ITargetableEntity): boolean {
-    const distance = this.calculateDistance(this.position, target.position);
-    return distance <= this.behavior.autoTargetRange;
   }
   
   private calculateDistance(pos1: IPosition, pos2: IPosition): number {
@@ -600,56 +469,24 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       priority: entity.isBuilding ? 1 : (entity.isTank ? 5 : 10)
     };
   }
-  
-  private getTargetingReason(target: ITargetableEntity, score: number): string {
-    const distance = this.calculateDistance(this.position, target.position);
-    if (target.hitpoints < target.maxHitpoints * 0.3) return `low_hp_${score.toFixed(1)}`;
-    if (distance <= 3) return `very_close_${score.toFixed(1)}`;
-    if (target.isTank) return `tank_threat_${score.toFixed(1)}`;
-    return `closest_unit_${score.toFixed(1)}`;
-  }
 
-  // === MÉTHODES PUBLIQUES POUR BATTLEROOM ===
-  
-  /**
-   * Mise à jour des cibles disponibles (appelée par BattleRoom)
-   */
   updateAvailableTargets(availableTargets: ITargetableEntity[]): void {
     this.availableTargets = availableTargets;
-    
-    // Debug occasionnel
-    if (this.lastUpdateTick % 100 === 0) {
-      const enemyUnits = availableTargets.filter(t => 
-        t.ownerId !== this.ownerId && t.isAlive && !t.isBuilding
-      );
-      console.log(`🏰🎯 ${this.id} voit ${enemyUnits.length} unités ennemies`);
-    }
   }
   
-  /**
-   * Synchronisation HP depuis le système de combat
-   */
   updateHitpoints(newHitpoints: number): void {
     const oldHp = this.currentHitpoints;
     this.currentHitpoints = Math.max(0, newHitpoints);
-    
-    console.log(`🔄 ${this.id} sync HP: ${oldHp} → ${this.currentHitpoints}`);
     
     if (this.currentHitpoints <= 0 && !this.isDestroyed) {
       this.markAsDestroyed();
     }
   }
   
-  /**
-   * Marquer comme détruite (appelé par CombatSystem)
-   */
   markAsDead(): void {
     this.markAsDestroyed();
   }
   
-  /**
-   * Forcer une attaque sur une cible spécifique
-   */
   forceAttack(targetId: string): ICombatResult | null {
     const attackConfig: IAttackConfig = {
       attackerId: this.id,
@@ -665,70 +502,21 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     return this.combatSystem.performAttack(attackConfig);
   }
   
-  /**
-   * Debug de l'état de combat CR authentique
-   */
-  debugCombatState(): void {
-    console.log(`🔍 DEBUG Tower Combat CR ${this.id}:`);
-    console.log(`   Type: ${this.towerType}`);
-    console.log(`   IsAlive: ${this.isAlive}`);
-    console.log(`   IsDestroyed: ${this.isDestroyed}`);
-    console.log(`   CanAttack: ${this.canAttack}`);
-    console.log(`   HP: ${this.currentHitpoints}/${this.maxHitpoints}`);
-    console.log(`   Damage: ${this.currentDamage}`);
-    console.log(`   Range: ${this.attackRange} (blind spot: ${this.behavior.blindSpotRadius})`);
-    console.log(`   Owner: ${this.ownerId}`);
-    console.log(`   Position: (${this.x.toFixed(1)}, ${this.y.toFixed(1)})`);
-    console.log(`   LastAttack: ${this.behavior?.lastAttackTick || 0}`);
-    console.log(`   NextAttack: ${this.behavior?.nextAttackTick || 0}`);
-    console.log(`   AttackSpeed: ${this.attackSpeed} ticks (windup: ${this.behavior.attackWindupTicks})`);
+  cleanup(): void {
+    this.combatSystem.unregisterCombatant(this.id);
+    this.behavior.currentTarget = undefined;
+    this.availableTargets = [];
     
-    if (this.behavior?.pendingAttack) {
-      const remaining = this.behavior.pendingAttack.willHitTick - this.lastUpdateTick;
-      console.log(`   ⚡ WINDUP EN COURS: ${this.behavior.pendingAttack.targetId} (${remaining} ticks restants)`);
-    }
-    
-    if (this.behavior?.currentTarget) {
-      const distance = this.calculateDistance(this.position, this.behavior.currentTarget.position);
-      const entryTick = this.behavior.targetEntryHistory.get(this.behavior.currentTarget.id);
-      const lockAge = entryTick ? this.lastUpdateTick - entryTick : 0;
-      
-      console.log(`   Target: ${this.behavior.currentTarget.id}`);
-      console.log(`   Distance to target: ${distance.toFixed(2)}`);
-      console.log(`   Target lock age: ${lockAge} ticks (max: ${this.behavior.targetLockDuration})`);
-      console.log(`   Entry tick: ${entryTick}`);
-    } else {
-      console.log(`   Target: none`);
-    }
-    
-    const enemies = this.availableTargets?.filter(t => 
-      t.ownerId !== this.ownerId && t.isAlive && !t.isBuilding
-    ) || [];
-    console.log(`   Available enemies: ${enemies.length}`);
-    console.log(`   Target history: ${this.behavior.targetEntryHistory.size} entries`);
-    
-    if (enemies.length > 0) {
-      console.log(`   Enemies analysis:`);
-      enemies.forEach((enemy, i) => {
-        const distance = this.calculateDistance(this.position, enemy.position);
-        const inBlindSpot = distance < this.behavior.blindSpotRadius;
-        const inRange = distance <= this.behavior.autoTargetRange && !inBlindSpot;
-        const entryTick = this.behavior.targetEntryHistory.get(enemy.id);
-        
-        console.log(`     ${i}: ${enemy.id}`);
-        console.log(`        Distance: ${distance.toFixed(2)} tiles`);
-        console.log(`        Status: ${inBlindSpot ? '🚫 BLIND SPOT' : (inRange ? '✅ IN RANGE' : '❌ OUT RANGE')}`);
-        console.log(`        Entry tick: ${entryTick || 'not recorded'}`);
-      });
-    }
+    this.logger.logBattle('card_played', this.ownerId, {
+      towerId: this.id,
+      towerType: this.towerType,
+      wasDestroyed: this.isDestroyed,
+      finalHP: this.currentHitpoints,
+      actionType: 'tower_cleanup'
+    });
   }
   
-  /**
-   * Reset comportement CR authentique
-   */
   reset(): void {
-    console.log(`🔄 Reset tour CR ${this.id}`);
-    
     this.currentHitpoints = this.maxHitpoints;
     this.isDestroyed = false;
     this.isActive = true;
@@ -741,155 +529,30 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     this.behavior.pendingAttack = undefined;
     this.behavior.targetEntryHistory.clear();
     
-    // Ré-enregistrer dans le système de combat
     this.combatSystem.registerCombatant(this.toCombatant());
   }
 
-  // === MÉTHODES DE CONFIGURATION CR ===
-  
-  /**
-   * Modifier la zone morte (blind spot) - CRUCIAL pour authenticity CR
-   */
-  updateBlindSpotRadius(newRadius: number): void {
-    this.behavior.blindSpotRadius = Math.max(0, Math.min(3, newRadius));
-    console.log(`🏰⚙️ ${this.id} blind spot mis à jour: ${this.behavior.blindSpotRadius}`);
-  }
-  
-  /**
-   * Modifier le target lock duration - CRUCIAL pour authenticity CR
-   */
-  updateTargetLockDuration(newDuration: number): void {
-    this.behavior.targetLockDuration = Math.max(20, Math.min(200, newDuration)); // 1-10s
-    console.log(`🏰⚙️ ${this.id} target lock mis à jour: ${this.behavior.targetLockDuration} ticks`);
-  }
-  
-  /**
-   * Modifier le windup d'attaque
-   */
-  updateAttackWindup(newWindupTicks: number): void {
-    this.behavior.attackWindupTicks = Math.max(1, Math.min(10, newWindupTicks));
-    console.log(`🏰⚙️ ${this.id} windup mis à jour: ${this.behavior.attackWindupTicks} ticks`);
-  }
-
-  // === MÉTHODES STATIQUES CR AUTHENTIQUE ===
-  
-  /**
-   * Créer une configuration CR parfaite pour les tours
-   */
-  static createCRAuthenticConfig(): {
-    crownTowerStats: ITowerStats;
-    kingTowerStats: ITowerStats;
-    behaviorConfig: Partial<ITowerBehavior>;
-  } {
+  getTowerInfo() {
     return {
-      crownTowerStats: {
-        hitpoints: 1400,
-        damage: 90,
-        range: 7.0,
-        attackSpeed: 0.8,
-        targets: 'both',
-        damageReduction: 0.35, // 65% des dégâts
-        crownTowerBonus: 1.0
-      },
-      kingTowerStats: {
-        hitpoints: 2600,
-        damage: 109,
-        range: 7.0,
-        attackSpeed: 1.0,
-        targets: 'both',
-        damageReduction: 0.35,
-        hasBlastRadius: true,
-        blastRadius: 1.0
-      },
-      behaviorConfig: {
-        blindSpotRadius: 1.5, // Zone morte authentique CR
-        retargetCooldown: 5, // Très rapide mais avec lock
-        targetLockDuration: 60, // 3s de lock comme CR
-        attackWindupTicks: 3 // ~0.15s windup
-      }
+      id: this.id,
+      type: this.towerType,
+      position: this.position,
+      ownerId: this.ownerId,
+      hitpoints: this.currentHitpoints,
+      maxHitpoints: this.maxHitpoints,
+      damage: this.currentDamage,
+      range: this.attackRange,
+      attackSpeed: this.attackSpeed,
+      isAlive: this.isAlive,
+      isDestroyed: this.isDestroyed,
+      canAttack: this.canAttack,
+      currentTarget: this.behavior?.currentTarget?.id,
+      availableEnemies: this.availableTargets?.filter(t => 
+        t.ownerId !== this.ownerId && t.isAlive && !t.isBuilding
+      ).length || 0,
+      level: this.level
     };
   }
-  
-  /**
-   * Vérifier si une position respecte les blind spots CR
-   */
-  static isInBlindSpot(towerPos: IPosition, targetPos: IPosition, blindSpotRadius: number = 1.5): boolean {
-    const dx = targetPos.x - towerPos.x;
-    const dy = targetPos.y - towerPos.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    return distance < blindSpotRadius;
-  }
-  
-  /**
-   * Calculer le temps exact d'une attaque CR (avec windup)
-   */
-  static calculateCRAttackTiming(attackSpeed: number, windupTicks: number = 3): {
-    totalAttackDuration: number;
-    windupDuration: number;
-    cooldownDuration: number;
-  } {
-    const cooldownTicks = Math.round(attackSpeed * 20); // Conversion en ticks
-    
-    return {
-      totalAttackDuration: windupTicks + cooldownTicks,
-      windupDuration: windupTicks,
-      cooldownDuration: cooldownTicks
-    };
-  }
-
-  // === GETTERS CR AUTHENTIQUE ===
-  
-  getCRInfo() {
-    return {
-      ...this.getTowerInfo(),
-      crSpecific: {
-        blindSpotRadius: this.behavior.blindSpotRadius,
-        targetLockDuration: this.behavior.targetLockDuration,
-        attackWindupTicks: this.behavior.attackWindupTicks,
-        currentTargetLockAge: this.behavior.currentTarget ? 
-          this.lastUpdateTick - (this.behavior.targetEntryHistory.get(this.behavior.currentTarget.id) || 0) : 0,
-        pendingAttack: this.behavior.pendingAttack ? {
-          targetId: this.behavior.pendingAttack.targetId,
-          remainingWindupTicks: this.behavior.pendingAttack.willHitTick - this.lastUpdateTick
-        } : null,
-        targetHistorySize: this.behavior.targetEntryHistory.size,
-        isFirstInRangeActive: true
-      }
-    };
-  }
-}log(`   Damage: ${this.currentDamage}`);
-    console.log(`   Range: ${this.attackRange}`);
-    console.log(`   Owner: ${this.ownerId}`);
-    console.log(`   Position: (${this.x.toFixed(1)}, ${this.y.toFixed(1)})`);
-    console.log(`   LastAttack: ${this.behavior?.lastAttackTick || 0}`);
-    console.log(`   NextAttack: ${this.behavior?.nextAttackTick || 0}`);
-    console.log(`   AttackSpeed: ${this.attackSpeed} ticks`);
-    
-    if (this.behavior?.currentTarget) {
-      const distance = this.calculateDistance(this.position, this.behavior.currentTarget.position);
-      console.log(`   Target: ${this.behavior.currentTarget.id}`);
-      console.log(`   Distance to target: ${distance.toFixed(2)}`);
-    } else {
-      console.log(`   Target: none`);
-    }
-    
-    const enemies = this.availableTargets?.filter(t => 
-      t.ownerId !== this.ownerId && t.isAlive && !t.isBuilding
-    ) || [];
-    console.log(`   Available enemies: ${enemies.length}`);
-    
-    if (enemies.length > 0) {
-      console.log(`   Enemies in range:`);
-      enemies.forEach((enemy, i) => {
-        const distance = this.calculateDistance(this.position, enemy.position);
-        const inRange = distance <= this.behavior.autoTargetRange;
-        console.log(`     ${i}: ${enemy.id} - ${distance.toFixed(2)} tiles ${inRange ? '✅' : '❌'}`);
-      });
-    }
-  }
-  
-  // === MÉTHODES DE CONVERSION ===
   
   toTargetableEntity(): ITargetableEntity {
     return {
@@ -941,224 +604,13 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     };
   }
 
-  // === MÉTHODES STATIQUES ===
-  
-  /**
-   * Créer une tour Crown (gauche ou droite)
-   */
-  static createCrownTower(
-    id: string,
-    side: 'left' | 'right',
-    ownerId: string,
-    position: IPosition,
-    level: number = 13
-  ): Tower {
+  static createCrownTower(id: string, side: 'left' | 'right', ownerId: string, position: IPosition, level: number = 13): Tower {
     return Tower.create(id, side, ownerId, position, level);
   }
   
-  /**
-   * Créer une tour King
-   */
-  static createKingTower(
-    id: string,
-    ownerId: string,
-    position: IPosition,
-    level: number = 13
-  ): Tower {
+  static createKingTower(id: string, ownerId: string, position: IPosition, level: number = 13): Tower {
     return Tower.create(id, 'king', ownerId, position, level);
-  }
-  
-  /**
-   * Obtenir les stats par défaut d'une tour
-   */
-  static getDefaultStats(towerType: TowerType, level: number = 13): ITowerStats {
-    const baseStats: Record<TowerType, ITowerStats> = {
-      'left': {
-        hitpoints: 1400,
-        damage: 90,
-        range: 7.0,
-        attackSpeed: 0.8,
-        targets: 'both',
-        damageReduction: 0.35,
-        crownTowerBonus: 1.0
-      },
-      'right': {
-        hitpoints: 1400,
-        damage: 90,
-        range: 7.0,
-        attackSpeed: 0.8,
-        targets: 'both',
-        damageReduction: 0.35,
-        crownTowerBonus: 1.0
-      },
-      'king': {
-        hitpoints: 2600,
-        damage: 109,
-        range: 7.0,
-        attackSpeed: 1.0,
-        targets: 'both',
-        damageReduction: 0.35,
-        hasBlastRadius: true,
-        blastRadius: 1.0
-      }
-    };
-    
-    const base = baseStats[towerType];
-    const levelMultiplier = 1 + (level - 13) * 0.10;
-    
-    return {
-      ...base,
-      hitpoints: Math.round(base.hitpoints * levelMultiplier),
-      damage: Math.round(base.damage * levelMultiplier)
-    };
-  }
-  
-  /**
-   * Vérifier si une position est valide pour placer une tour
-   */
-  static isValidTowerPosition(position: IPosition, towerType: TowerType, side: 'player1' | 'player2'): boolean {
-    const { x, y } = position;
-    
-    // Vérifications de base
-    if (x < 0 || x >= 18 || y < 0 || y >= 32) return false;
-    
-    // Positions spécifiques selon le côté
-    if (side === 'player1') {
-      // Côté bas (joueur 1)
-      switch (towerType) {
-        case 'left':
-          return x >= 4 && x <= 8 && y >= 26 && y <= 30;
-        case 'right':
-          return x >= 10 && x <= 14 && y >= 26 && y <= 30;
-        case 'king':
-          return x >= 7 && x <= 11 && y >= 28 && y <= 32;
-        default:
-          return false;
-      }
-    } else {
-      // Côté haut (joueur 2)
-      switch (towerType) {
-        case 'left':
-          return x >= 4 && x <= 8 && y >= 2 && y <= 6;
-        case 'right':
-          return x >= 10 && x <= 14 && y >= 2 && y <= 6;
-        case 'king':
-          return x >= 7 && x <= 11 && y >= 0 && y <= 4;
-        default:
-          return false;
-      }
-    }
-  }
-
-  // === MÉTHODES DE NETTOYAGE ===
-  
-  /**
-   * Nettoyer la tour (appelé à la destruction)
-   */
-  cleanup(): void {
-    console.log(`🧹 Nettoyage tour ${this.id}`);
-    
-    this.combatSystem.unregisterCombatant(this.id);
-    this.behavior.currentTarget = undefined;
-    this.availableTargets = [];
-    
-    this.logger.logBattle('card_played', this.ownerId, {
-      towerId: this.id,
-      towerType: this.towerType,
-      wasDestroyed: this.isDestroyed,
-      finalHP: this.currentHitpoints,
-      actionType: 'tower_cleanup'
-    });
-  }
-  
-  /**
-   * Réinitialiser la tour (pour tests ou redémarrage)
-   */
-  reset(): void {
-    console.log(`🔄 Reset tour ${this.id}`);
-    
-    this.currentHitpoints = this.maxHitpoints;
-    this.isDestroyed = false;
-    this.isActive = true;
-    
-    this.behavior.isActive = true;
-    this.behavior.currentTarget = undefined;
-    this.behavior.lastAttackTick = -100;
-    this.behavior.nextAttackTick = 0;
-    this.behavior.lastRetarget = 0;
-    
-    // Ré-enregistrer dans le système de combat
-    this.combatSystem.registerCombatant(this.toCombatant());
-  }
-
-  // === GETTERS PUBLICS ===
-  
-  getTowerInfo() {
-    return {
-      id: this.id,
-      type: this.towerType,
-      position: this.position,
-      ownerId: this.ownerId,
-      hitpoints: this.currentHitpoints,
-      maxHitpoints: this.maxHitpoints,
-      damage: this.currentDamage,
-      range: this.attackRange,
-      attackSpeed: this.attackSpeed,
-      isAlive: this.isAlive,
-      isDestroyed: this.isDestroyed,
-      canAttack: this.canAttack,
-      currentTarget: this.behavior?.currentTarget?.id,
-      availableEnemies: this.availableTargets?.filter(t => 
-        t.ownerId !== this.ownerId && t.isAlive && !t.isBuilding
-      ).length || 0,
-      level: this.level
-    };
-  }
-  
-  getStats(): ITowerStats {
-    return { ...this.baseStats };
-  }
-  
-  getBehavior(): ITowerBehavior {
-    return { ...this.behavior };
-  }
-  
-  // === MÉTHODES DE CONFIGURATION ===
-  
-  /**
-   * Modifier les priorités de ciblage
-   */
-  updateTargetPriorities(priorities: Partial<ITowerBehavior['targetPriorities']>): void {
-    this.behavior.targetPriorities = {
-      ...this.behavior.targetPriorities,
-      ...priorities
-    };
-    
-    console.log(`🏰⚙️ ${this.id} priorités mises à jour:`, this.behavior.targetPriorities);
-  }
-  
-  /**
-   * Modifier la range de ciblage automatique
-   */
-  updateAutoTargetRange(newRange: number): void {
-    this.behavior.autoTargetRange = Math.max(0, Math.min(15, newRange));
-    console.log(`🏰⚙️ ${this.id} range mise à jour: ${this.behavior.autoTargetRange}`);
-  }
-  
-  /**
-   * Activer/désactiver la tour
-   */
-  setActive(active: boolean): void {
-    this.isActive = active;
-    this.behavior.isActive = active;
-    
-    if (!active) {
-      this.behavior.currentTarget = undefined;
-    }
-    
-    console.log(`🏰⚙️ ${this.id} ${active ? 'activée' : 'désactivée'}`);
   }
 }
 
-// === EXPORT ===
 export default Tower;
