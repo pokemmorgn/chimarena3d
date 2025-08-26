@@ -30,26 +30,29 @@ export interface ITowerBehavior {
   isActive: boolean;
   lastStateChange: number;
   
-  // Targeting automatique
+  // Targeting CR authentique
   currentTarget?: ITarget | undefined;
   autoTargetRange: number;
+  blindSpotRadius: number; // Zone morte autour de la tour
   retargetCooldown: number;
   lastRetarget: number;
   lastTargetCheck: number;
+  targetLockDuration: number; // Durée pendant laquelle on garde la cible
   
-  // Combat
+  // Combat avec windup CR
   lastAttackTick: number;
   nextAttackTick: number;
   isAttacking: boolean;
+  attackWindupTicks: number; // Délai avant dégâts (comme CR)
   attackCooldownTicks: number;
-  
-  // Priorités de ciblage
-  targetPriorities: {
-    units: number;
-    tanks: number;
-    lowHP: number;
-    closest: number;
+  pendingAttack?: {
+    targetId: string;
+    startTick: number;
+    willHitTick: number;
   };
+  
+  // Historique des cibles (pour first-in-range)
+  targetEntryHistory: Map<string, number>; // targetId -> tick d'entrée en range
 }
 
 // === CLASSE TOWER PRINCIPALE ===
@@ -231,24 +234,23 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       isActive: true,
       lastStateChange: 0,
       
-      // Auto-targeting plus agressif que les unités
+      // CR Authentic targeting
       autoTargetRange: this.baseStats.range,
-      retargetCooldown: 10, // Retarget plus rapide (0.5s)
+      blindSpotRadius: 1.5, // Zone morte de 1.5 tiles comme CR
+      retargetCooldown: 5, // Très rapide, mais avec target lock
       lastRetarget: 0,
       lastTargetCheck: 0,
+      targetLockDuration: 60, // 3 secondes de lock sur la cible (comme CR)
       
+      // CR Authentic combat avec windup
       lastAttackTick: -100,
       nextAttackTick: 0,
       isAttacking: false,
+      attackWindupTicks: 3, // ~0.15s windup avant les dégâts (comme CR)
       attackCooldownTicks: this.attackSpeed,
       
-      // Priorités spéciales tours
-      targetPriorities: {
-        units: 10,    // Priorité maximale sur unités
-        tanks: 8,     // Tanks un peu moins prioritaires
-        lowHP: 12,    // Finir les unités blessées
-        closest: 15   // Priorité maximale sur proximité
-      }
+      // Historique pour first-in-range
+      targetEntryHistory: new Map()
     };
   }
 
@@ -261,17 +263,19 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       return;
     }
     
-    // 🔧 AUTO-TARGETING AGRESSIF (toutes les 0.5 secondes)
-    const shouldRetarget = !this.behavior.currentTarget || 
-                          currentTick >= this.behavior.lastRetarget + this.behavior.retargetCooldown;
+    // 🔧 CLASH ROYALE AUTHENTIC: Gestion windup attack en premier
+    this.processAttackWindup(currentTick);
+    
+    // 🔧 CLASH ROYALE AUTHENTIC: First-In-Range targeting (plus conservateur)
+    const shouldRetarget = this.shouldRetargetLikeCR(currentTick);
     
     if (shouldRetarget) {
-      this.updateTargeting(currentTick);
+      this.updateTargetingCR(currentTick);
     }
     
-    // 🔧 ATTAQUE AUTOMATIQUE
-    if (this.behavior.currentTarget) {
-      this.updateAttacking(currentTick);
+    // 🔧 CLASH ROYALE AUTHENTIC: Démarrer attaque avec windup
+    if (this.behavior.currentTarget && !this.behavior.pendingAttack) {
+      this.initiateAttackSequence(currentTick);
     }
     
     // Debug périodique
@@ -662,16 +666,199 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   }
   
   /**
-   * Debug de l'état de combat
+   * Debug de l'état de combat CR authentique
    */
   debugCombatState(): void {
-    console.log(`🔍 DEBUG Tower Combat ${this.id}:`);
+    console.log(`🔍 DEBUG Tower Combat CR ${this.id}:`);
     console.log(`   Type: ${this.towerType}`);
     console.log(`   IsAlive: ${this.isAlive}`);
     console.log(`   IsDestroyed: ${this.isDestroyed}`);
     console.log(`   CanAttack: ${this.canAttack}`);
     console.log(`   HP: ${this.currentHitpoints}/${this.maxHitpoints}`);
     console.log(`   Damage: ${this.currentDamage}`);
+    console.log(`   Range: ${this.attackRange} (blind spot: ${this.behavior.blindSpotRadius})`);
+    console.log(`   Owner: ${this.ownerId}`);
+    console.log(`   Position: (${this.x.toFixed(1)}, ${this.y.toFixed(1)})`);
+    console.log(`   LastAttack: ${this.behavior?.lastAttackTick || 0}`);
+    console.log(`   NextAttack: ${this.behavior?.nextAttackTick || 0}`);
+    console.log(`   AttackSpeed: ${this.attackSpeed} ticks (windup: ${this.behavior.attackWindupTicks})`);
+    
+    if (this.behavior?.pendingAttack) {
+      const remaining = this.behavior.pendingAttack.willHitTick - this.lastUpdateTick;
+      console.log(`   ⚡ WINDUP EN COURS: ${this.behavior.pendingAttack.targetId} (${remaining} ticks restants)`);
+    }
+    
+    if (this.behavior?.currentTarget) {
+      const distance = this.calculateDistance(this.position, this.behavior.currentTarget.position);
+      const entryTick = this.behavior.targetEntryHistory.get(this.behavior.currentTarget.id);
+      const lockAge = entryTick ? this.lastUpdateTick - entryTick : 0;
+      
+      console.log(`   Target: ${this.behavior.currentTarget.id}`);
+      console.log(`   Distance to target: ${distance.toFixed(2)}`);
+      console.log(`   Target lock age: ${lockAge} ticks (max: ${this.behavior.targetLockDuration})`);
+      console.log(`   Entry tick: ${entryTick}`);
+    } else {
+      console.log(`   Target: none`);
+    }
+    
+    const enemies = this.availableTargets?.filter(t => 
+      t.ownerId !== this.ownerId && t.isAlive && !t.isBuilding
+    ) || [];
+    console.log(`   Available enemies: ${enemies.length}`);
+    console.log(`   Target history: ${this.behavior.targetEntryHistory.size} entries`);
+    
+    if (enemies.length > 0) {
+      console.log(`   Enemies analysis:`);
+      enemies.forEach((enemy, i) => {
+        const distance = this.calculateDistance(this.position, enemy.position);
+        const inBlindSpot = distance < this.behavior.blindSpotRadius;
+        const inRange = distance <= this.behavior.autoTargetRange && !inBlindSpot;
+        const entryTick = this.behavior.targetEntryHistory.get(enemy.id);
+        
+        console.log(`     ${i}: ${enemy.id}`);
+        console.log(`        Distance: ${distance.toFixed(2)} tiles`);
+        console.log(`        Status: ${inBlindSpot ? '🚫 BLIND SPOT' : (inRange ? '✅ IN RANGE' : '❌ OUT RANGE')}`);
+        console.log(`        Entry tick: ${entryTick || 'not recorded'}`);
+      });
+    }
+  }
+  
+  /**
+   * Reset comportement CR authentique
+   */
+  reset(): void {
+    console.log(`🔄 Reset tour CR ${this.id}`);
+    
+    this.currentHitpoints = this.maxHitpoints;
+    this.isDestroyed = false;
+    this.isActive = true;
+    
+    this.behavior.isActive = true;
+    this.behavior.currentTarget = undefined;
+    this.behavior.lastAttackTick = -100;
+    this.behavior.nextAttackTick = 0;
+    this.behavior.lastRetarget = 0;
+    this.behavior.pendingAttack = undefined;
+    this.behavior.targetEntryHistory.clear();
+    
+    // Ré-enregistrer dans le système de combat
+    this.combatSystem.registerCombatant(this.toCombatant());
+  }
+
+  // === MÉTHODES DE CONFIGURATION CR ===
+  
+  /**
+   * Modifier la zone morte (blind spot) - CRUCIAL pour authenticity CR
+   */
+  updateBlindSpotRadius(newRadius: number): void {
+    this.behavior.blindSpotRadius = Math.max(0, Math.min(3, newRadius));
+    console.log(`🏰⚙️ ${this.id} blind spot mis à jour: ${this.behavior.blindSpotRadius}`);
+  }
+  
+  /**
+   * Modifier le target lock duration - CRUCIAL pour authenticity CR
+   */
+  updateTargetLockDuration(newDuration: number): void {
+    this.behavior.targetLockDuration = Math.max(20, Math.min(200, newDuration)); // 1-10s
+    console.log(`🏰⚙️ ${this.id} target lock mis à jour: ${this.behavior.targetLockDuration} ticks`);
+  }
+  
+  /**
+   * Modifier le windup d'attaque
+   */
+  updateAttackWindup(newWindupTicks: number): void {
+    this.behavior.attackWindupTicks = Math.max(1, Math.min(10, newWindupTicks));
+    console.log(`🏰⚙️ ${this.id} windup mis à jour: ${this.behavior.attackWindupTicks} ticks`);
+  }
+
+  // === MÉTHODES STATIQUES CR AUTHENTIQUE ===
+  
+  /**
+   * Créer une configuration CR parfaite pour les tours
+   */
+  static createCRAuthenticConfig(): {
+    crownTowerStats: ITowerStats;
+    kingTowerStats: ITowerStats;
+    behaviorConfig: Partial<ITowerBehavior>;
+  } {
+    return {
+      crownTowerStats: {
+        hitpoints: 1400,
+        damage: 90,
+        range: 7.0,
+        attackSpeed: 0.8,
+        targets: 'both',
+        damageReduction: 0.35, // 65% des dégâts
+        crownTowerBonus: 1.0
+      },
+      kingTowerStats: {
+        hitpoints: 2600,
+        damage: 109,
+        range: 7.0,
+        attackSpeed: 1.0,
+        targets: 'both',
+        damageReduction: 0.35,
+        hasBlastRadius: true,
+        blastRadius: 1.0
+      },
+      behaviorConfig: {
+        blindSpotRadius: 1.5, // Zone morte authentique CR
+        retargetCooldown: 5, // Très rapide mais avec lock
+        targetLockDuration: 60, // 3s de lock comme CR
+        attackWindupTicks: 3 // ~0.15s windup
+      }
+    };
+  }
+  
+  /**
+   * Vérifier si une position respecte les blind spots CR
+   */
+  static isInBlindSpot(towerPos: IPosition, targetPos: IPosition, blindSpotRadius: number = 1.5): boolean {
+    const dx = targetPos.x - towerPos.x;
+    const dy = targetPos.y - towerPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    return distance < blindSpotRadius;
+  }
+  
+  /**
+   * Calculer le temps exact d'une attaque CR (avec windup)
+   */
+  static calculateCRAttackTiming(attackSpeed: number, windupTicks: number = 3): {
+    totalAttackDuration: number;
+    windupDuration: number;
+    cooldownDuration: number;
+  } {
+    const cooldownTicks = Math.round(attackSpeed * 20); // Conversion en ticks
+    
+    return {
+      totalAttackDuration: windupTicks + cooldownTicks,
+      windupDuration: windupTicks,
+      cooldownDuration: cooldownTicks
+    };
+  }
+
+  // === GETTERS CR AUTHENTIQUE ===
+  
+  getCRInfo() {
+    return {
+      ...this.getTowerInfo(),
+      crSpecific: {
+        blindSpotRadius: this.behavior.blindSpotRadius,
+        targetLockDuration: this.behavior.targetLockDuration,
+        attackWindupTicks: this.behavior.attackWindupTicks,
+        currentTargetLockAge: this.behavior.currentTarget ? 
+          this.lastUpdateTick - (this.behavior.targetEntryHistory.get(this.behavior.currentTarget.id) || 0) : 0,
+        pendingAttack: this.behavior.pendingAttack ? {
+          targetId: this.behavior.pendingAttack.targetId,
+          remainingWindupTicks: this.behavior.pendingAttack.willHitTick - this.lastUpdateTick
+        } : null,
+        targetHistorySize: this.behavior.targetEntryHistory.size,
+        isFirstInRangeActive: true
+      }
+    };
+  }
+}log(`   Damage: ${this.currentDamage}`);
     console.log(`   Range: ${this.attackRange}`);
     console.log(`   Owner: ${this.ownerId}`);
     console.log(`   Position: (${this.x.toFixed(1)}, ${this.y.toFixed(1)})`);
