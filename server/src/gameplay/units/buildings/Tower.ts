@@ -214,14 +214,14 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     const target = this.availableTargets.find(t => t.id === attack.targetId);
     
     if (!target || !target.isAlive || !this.isValidTarget(target)) {
-      this.behavior.pendingAttack = null;
-      this.behavior.currentTarget = null;
+      this.behavior.pendingAttack = undefined;
+      this.behavior.currentTarget = undefined;
       return;
     }
     
     if (currentTick >= attack.willHitTick) {
       this.executeTowerAttack(attack.targetId, currentTick);
-      this.behavior.pendingAttack = null;
+      this.behavior.pendingAttack = undefined;
       this.behavior.nextAttackTick = currentTick + this.behavior.attackCooldownTicks;
     }
   }
