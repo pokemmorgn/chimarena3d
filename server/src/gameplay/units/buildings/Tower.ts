@@ -1,6 +1,7 @@
 import { Schema, type } from '@colyseus/schema';
 import { getActionLogger } from '../../../services/ActionLoggerService';
 import { getCombatSystem, ICombatant, IAttackConfig, ICombatResult } from '../../systems/CombatSystem';
+import { getTargetingSystem, ITargetableEntity, ITargetingResult } from '../../systems/TargetingSystem';
 import { IPosition, TargetType, ITarget } from '../BaseUnit';
 
 // === INTERFACES TOWER ===
