@@ -801,6 +801,15 @@ private canAttack(attacker: ICombatant, target: ICombatant): boolean {
     return false;
   }
   
+  // 🔧 NOUVEAU: Debug pour attaques sur tours
+  if (target.type === 'building') {
+    console.log(`   🏰 Cible = TOUR: ${target.id}`);
+    console.log(`   🏰 Tour vivante: ${target.isAlive}`);
+    console.log(`   🏰 Tour HP: ${target.hitpoints}/${target.maxHitpoints}`);
+  }
+  
+  // 6. ✅ Toutes les conditions remplies !
+  
   // 6. ✅ Toutes les conditions remplies !
   console.log(`   ✅ Toutes les conditions remplies !`);
   console.log(`      Distance: ${distance.toFixed(3)} <= Range: ${(attackRange + RANGE_TOLERANCE).toFixed(2)}`);
