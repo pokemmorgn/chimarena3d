@@ -23,7 +23,8 @@ class NetworkManager {
     this.userAPI = this.createAPIInstance('/user');
     this.cardAPI = this.createAPIInstance('/cards');
     this.collectionAPI = this.createAPIInstance('/collection');
-    
+    this.clanAPI = this.createAPIInstance('/clan');  // ✅ AJOUTER CETTE LIGNE
+
     // Network state
     this.isOnline = navigator.onLine;
     this.connectionStatus = 'disconnected'; // disconnected, connecting, connected
@@ -95,8 +96,9 @@ class NetworkManager {
   /**
    * Setup request/response interceptors for REST API instances
    */
-  setupRequestInterceptors() {
-    const apis = [this.gameAPI, this.userAPI, this.cardAPI, this.collectionAPI];
+setupRequestInterceptors() {
+    // ✅ CORRIGER : Inclure clanAPI dans la liste
+    const apis = [this.gameAPI, this.userAPI, this.cardAPI, this.collectionAPI, this.clanAPI];
     
     apis.forEach(api => {
       // Request interceptor
@@ -106,6 +108,9 @@ class NetworkManager {
           const token = this.getAccessToken();
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log('🔍 [NetworkManager] Token added to request:', config.url);
+          } else {
+            console.warn('⚠️ [NetworkManager] No token available for:', config.url);
           }
           
           // Add request timestamp
@@ -114,18 +119,17 @@ class NetworkManager {
           return config;
         },
         (error) => {
+          console.error('🔥 [NetworkManager] Request interceptor error:', error);
           this.emit('request:error', error);
           return Promise.reject(error);
         }
       );
 
-      // Response interceptor
+      // Response interceptor (reste identique)
       api.interceptors.response.use(
         (response) => {
-          // Calculate request duration
           const duration = Date.now() - response.config.metadata.startTime;
           this.emit('request:success', { duration, url: response.config.url });
-          
           return response;
         },
         async (error) => {
@@ -163,6 +167,15 @@ class NetworkManager {
         }
       );
     });
+
+    console.log('✅ Request interceptors configured for ALL APIs including Clan');
+  }
+
+  /**
+   * 🔥 NOUVELLE MÉTHODE : Exposer l'instance clanAPI pour ClanAPI.js
+   */
+  getClanAPIInstance() {
+    return this.clanAPI;
   }
 
   /**
