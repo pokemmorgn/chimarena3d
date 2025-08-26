@@ -1,7 +1,7 @@
 import { Schema, type } from '@colyseus/schema';
 import { getActionLogger } from '../../../services/ActionLoggerService';
 import { getCombatSystem, ICombatant, IAttackConfig, ICombatResult } from '../../systems/CombatSystem';
-import { ITargetableEntity, ITargetingResult } from '../../systems/TargetingSystem';
+import { ITargetableEntity } from '../../systems/TargetingSystem';
 import { IPosition, TargetType, ITarget } from '../BaseUnit';
 
 export type TowerType = 'left' | 'right' | 'king';
@@ -34,7 +34,7 @@ export interface ITowerBehavior {
     targetId: string;
     startTick: number;
     willHitTick: number;
-  };
+  } | undefined;
   
   targetEntryHistory: Map<string, number>;
 }
@@ -214,14 +214,14 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     const target = this.availableTargets.find(t => t.id === attack.targetId);
     
     if (!target || !target.isAlive || !this.isValidTarget(target)) {
-      this.behavior.pendingAttack = undefined;
-      this.behavior.currentTarget = undefined;
+      this.behavior.pendingAttack = null;
+      this.behavior.currentTarget = null;
       return;
     }
     
     if (currentTick >= attack.willHitTick) {
       this.executeTowerAttack(attack.targetId, currentTick);
-      this.behavior.pendingAttack = undefined;
+      this.behavior.pendingAttack = null;
       this.behavior.nextAttackTick = currentTick + this.behavior.attackCooldownTicks;
     }
   }
@@ -251,8 +251,8 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     
     if (validEnemies.length === 0) {
       if (this.behavior.currentTarget) {
-        this.behavior.currentTarget = undefined;
-        this.behavior.pendingAttack = undefined;
+        this.behavior.currentTarget = null;
+        this.behavior.pendingAttack = null;
       }
       this.behavior.lastRetarget = currentTick;
       return;
@@ -262,7 +262,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     
     if (!this.behavior.currentTarget || this.behavior.currentTarget.id !== newTarget.id) {
       this.behavior.currentTarget = this.entityToTarget(newTarget);
-      this.behavior.pendingAttack = undefined;
+      this.behavior.pendingAttack = null;
       
       if (!this.behavior.targetEntryHistory.has(newTarget.id)) {
         this.behavior.targetEntryHistory.set(newTarget.id, currentTick);
@@ -341,7 +341,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     this.behavior.lastAttackTick = currentTick;
   }
   
-  private executeTowerAttack(targetId: string, currentTick: number): void {
+  private executeTowerAttack(targetId: string, _currentTick: number): void {
     const attackConfig: IAttackConfig = {
       attackerId: this.id,
       targetId: targetId,
@@ -385,7 +385,6 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       actualDamage = Math.round(damage * this.baseStats.damageReduction);
     }
     
-    const oldHp = this.currentHitpoints;
     this.currentHitpoints = Math.max(0, this.currentHitpoints - actualDamage);
     
     this.logger.logBattle('card_played', this.ownerId, {
@@ -426,7 +425,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     });
   }
 
-  onTakeDamage = (damage: number, attacker: ICombatant, damageType: string): void => {
+  onTakeDamage = (_damage: number, attacker: ICombatant, _damageType: string): void => {
     if (!this.behavior.currentTarget && this.canTargetAttacker(attacker)) {
       const attackerTarget = this.availableTargets.find(t => t.id === attacker.id);
       if (attackerTarget && this.isValidTarget(attackerTarget)) {
@@ -435,11 +434,11 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     }
   };
   
-  onDeath = (killer: ICombatant): void => {
+  onDeath = (_killer: ICombatant): void => {
     this.markAsDestroyed();
   };
   
-  onAttack = (target: ICombatant): void => {
+  onAttack = (_target: ICombatant): void => {
     // Empty implementation
   };
 
@@ -475,7 +474,6 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   }
   
   updateHitpoints(newHitpoints: number): void {
-    const oldHp = this.currentHitpoints;
     this.currentHitpoints = Math.max(0, newHitpoints);
     
     if (this.currentHitpoints <= 0 && !this.isDestroyed) {
