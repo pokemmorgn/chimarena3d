@@ -303,7 +303,7 @@ router.post('/leave', clanActionLimiter, async (req: Request, res: Response): Pr
 
 /**
  * GET /api/clan/my
- * Obtenir les informations de son clan
+ * Obtenir les informations de son clan - CORRIGÉ TYPESCRIPT
  */
 router.get('/my', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -349,7 +349,7 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
       if (clan && !user.clanId) {
         const member = clan.getMember(new Types.ObjectId(req.userId!));
         if (member) {
-          user.clanId = clan._id;
+          user.clanId = new Types.ObjectId(clan._id as string); // Fix TypeScript
           user.clanRole = member.role;
           user.joinedClanAt = member.joinedAt;
           await user.save();
@@ -415,9 +415,9 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
         region: clan.region,
         createdAt: clan.createdAt,
         
-        // Données additionnelles pour le client
-        _id: clan._id.toString(), // Pour compatibilité avec le client
-        id: clan._id.toString()   // Alternative ID
+        // Données additionnelles pour le client - Fix TypeScript
+        _id: (clan._id as Types.ObjectId).toString(),
+        id: (clan._id as Types.ObjectId).toString()
       }
     });
 
