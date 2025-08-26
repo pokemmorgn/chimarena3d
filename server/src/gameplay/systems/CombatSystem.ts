@@ -445,11 +445,15 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
   
   console.log(`💀 HP mis à jour: ${oldHp} → ${target.hitpoints} (${realDamage} dégâts réels)`);
   
-  // 🔧 CORRECTION: Synchroniser DIRECTEMENT avec BaseUnit
-  // Au lieu de chercher dans this.combatants, utiliser une référence directe
+  // 🔧 CORRECTION: Synchroniser avec BaseUnit OU Tower
   if ((target as any).updateHitpoints) {
     (target as any).updateHitpoints(target.hitpoints);
-    console.log(`🔄 Sync direct avec BaseUnit: HP = ${target.hitpoints}`);
+    console.log(`🔄 Sync direct avec ${target.type}: HP = ${target.hitpoints}`);
+  }
+  
+  // 🔧 NOUVEAU: Debug spécial pour tours
+  if (target.type === 'building') {
+    console.log(`🏰 TOUR ENDOMMAGÉE: ${target.id} - ${realDamage} dégâts - ${target.hitpoints}/${target.maxHitpoints} HP`);
   }
   
   // Callback de dégâts
