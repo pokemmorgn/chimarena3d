@@ -3,9 +3,6 @@ import Joi from 'joi';
 import rateLimit from 'express-rate-limit';
 import { getClanService } from '../services/ClanService';
 import { authenticateToken } from '../middleware/AuthData';
-const { default: Clan } = await import('../models/Clan');
-const { default: UserData } = await import('../models/UserData');
-const { Types } = await import('mongoose');
 
 const router = Router();
 const clanService = getClanService();
@@ -313,8 +310,7 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
     // Import Clan here to avoid circular dependency
     const { default: Clan } = await import('../models/Clan');
     const { default: UserData } = await import('../models/UserData');
-    const mongoose = await import('mongoose');
-    const { Types } = mongoose;
+    const { Types } = await import('mongoose');
     
     console.log('🔍 Getting clan for user:', req.userId);
     
@@ -353,7 +349,7 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
       if (clan && !user.clanId) {
         const member = clan.getMember(new Types.ObjectId(req.userId!));
         if (member) {
-          user.clanId = clan._id as mongoose.Types.ObjectId;
+          user.clanId = clan._id as Types.ObjectId; // Fix TypeScript correct
           user.clanRole = member.role;
           user.joinedClanAt = member.joinedAt;
           await user.save();
@@ -431,6 +427,92 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Failed to get clan information',
       code: 'GET_CLAN_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/clan/chat
+ * Obtenir l'historique du chat - CORRIGÉ
+ */
+router.get('/chat', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const before = req.query.before as string; // messageId pour pagination
+    
+    if (limit > 100) {
+      res.status(400).json({
+        success: false,
+        message: 'Limit cannot exceed 100',
+        code: 'INVALID_LIMIT'
+      });
+      return;
+    }
+
+    // Import Clan here to avoid circular dependency
+    const { default: Clan } = await import('../models/Clan');
+    const { Types } = await import('mongoose');
+    
+    const clan = await Clan.getUserClan(new Types.ObjectId(req.userId!));
+    
+    if (!clan) {
+      res.status(404).json({
+        success: false,
+        message: 'User is not in a clan',
+        code: 'NO_CLAN'
+      });
+      return;
+    }
+
+    let messages = clan.chatMessages
+      .filter(msg => msg.isVisible)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    // Pagination
+    if (before) {
+      const beforeIndex = messages.findIndex(msg => msg.messageId === before);
+      if (beforeIndex > -1) {
+        messages = messages.slice(beforeIndex + 1);
+      }
+    }
+
+    messages = messages.slice(0, limit);
+
+    const formattedMessages = messages.map(msg => ({
+      messageId: msg.messageId,
+      author: {
+        username: msg.authorUsername,
+        role: msg.authorRole
+      },
+      content: msg.content,
+      type: msg.type,
+      timestamp: msg.timestamp,
+      donationData: msg.donationData ? {
+        cardId: msg.donationData.cardId,
+        requestedAmount: msg.donationData.requestedAmount,
+        fulfilledAmount: msg.donationData.fulfilledAmount,
+        contributors: msg.donationData.contributors,
+        expiresAt: msg.donationData.expiresAt
+      } : undefined
+    }));
+
+    res.json({
+      success: true,
+      message: 'Chat history retrieved successfully',
+      data: {
+        messages: formattedMessages,
+        hasMore: messages.length === limit,
+        clanId: clan.clanId,
+        clanName: clan.name
+      }
+    });
+
+  } catch (error) {
+    console.error('Get chat history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get chat history',
+      code: 'GET_CHAT_ERROR'
     });
   }
 });
