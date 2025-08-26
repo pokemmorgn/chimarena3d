@@ -1240,6 +1240,39 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
   }
   
   /**
+   * 🔧 DEBUG: État de combat détaillé
+   */
+  debugCombatState(): void {
+    console.log(`🔍 DEBUG Combat State ${this.id}:`);
+    console.log(`   State: ${this.state}`);
+    console.log(`   IsAlive: ${this.isAlive}`);
+    console.log(`   CanAttack: ${this.canAttack}`);
+    console.log(`   CurrentTick: ${this.lastUpdateTick}`);
+    console.log(`   LastAttackTick: ${this.behavior?.lastAttackTick || 0}`);
+    console.log(`   NextAttackTick: ${this.behavior?.nextAttackTick || 0}`);
+    console.log(`   AttackSpeed: ${this.attackSpeed}`);
+    console.log(`   AttackRange: ${this.attackRange}`);
+    console.log(`   Owner: ${this.ownerId}`);
+    console.log(`   Position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})`);
+    console.log(`   HP: ${this.currentHitpoints}/${this.maxHitpoints}`);
+    console.log(`   IsMovingToTower: ${this.behavior?.isMovingToTower || false}`);
+    console.log(`   TargetTower: ${this.behavior?.targetTower?.type || 'none'}`);
+    
+    if (this.behavior?.currentTarget) {
+      const distance = this.getDistanceToTarget(this.behavior.currentTarget);
+      console.log(`   Target: ${this.behavior.currentTarget.id} (${this.behavior.currentTarget.type})`);
+      console.log(`   Distance to target: ${distance.toFixed(2)}`);
+    } else {
+      console.log(`   Target: none`);
+    }
+    
+    const enemies = this.availableTargets?.filter(t => t.ownerId !== this.ownerId && t.isAlive) || [];
+    const towers = this.availableTowers?.filter(t => t.ownerId !== this.ownerId && !t.isDestroyed) || [];
+    console.log(`   Available enemies: ${enemies.length}`);
+    console.log(`   Available towers: ${towers.length}`);
+  }
+
+  /**
    * 🔧 NOUVEAU: Debug avec pathfinding
    */
   debugTargeting(): void {
