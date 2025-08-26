@@ -519,16 +519,22 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
   private findTargetsInRadius(center: IPosition, radius: number, attackerOwnerId: string, excludeId?: string): ICombatant[] {
     const targets: ICombatant[] = [];
     
-    for (const combatant of this.combatants.values()) {
-      if (combatant.id === excludeId) continue;  // Exclure la cible principale
-      if (combatant.ownerId === attackerOwnerId) continue;  // Pas friendly fire
-      if (!combatant.isAlive) continue;  // Pas les morts
+  for (const combatant of this.combatants.values()) {
+    if (combatant.id === excludeId) continue;  // Exclure la cible principale
+    if (combatant.ownerId === attackerOwnerId) continue;  // Pas friendly fire
+    if (!combatant.isAlive) continue;  // Pas les morts
+    
+    // 🔧 NOUVEAU: Les bâtiments (tours) peuvent être ciblés
+    const distance = this.calculateDistance(center, combatant.position);
+    if (distance <= radius) {
+      targets.push(combatant);
       
-      const distance = this.calculateDistance(center, combatant.position);
-      if (distance <= radius) {
-        targets.push(combatant);
+      // Debug pour tours
+      if (combatant.type === 'building') {
+        console.log(`🏰 Tour trouvée en range: ${combatant.id} à ${distance.toFixed(2)} tiles`);
       }
     }
+  }
     
     return targets.sort((a, b) => {
       // Trier par distance (plus proche en premier)
