@@ -82,7 +82,6 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   
   // Combat System Integration
   private combatSystem = getCombatSystem();
-  private targetingSystem = getTargetingSystem();
   
   // Stockage des cibles disponibles
   private availableTargets: ITargetableEntity[] = [];
@@ -164,13 +163,14 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     
     console.log(`🏰 Tour ${towerType} créée: ${id} à (${this.x}, ${this.y}) - ${this.currentHitpoints} HP`);
     
-    this.logger.logBattle('tower_created', ownerId, {
+    this.logger.logBattle('card_played', ownerId, {
       towerId: this.id,
       towerType: this.towerType,
       position: { x: this.x, y: this.y },
       hitpoints: this.currentHitpoints,
       damage: this.currentDamage,
-      level: this.level
+      level: this.level,
+      actionType: 'tower_created'
     });
   }
 
@@ -254,7 +254,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
 
   // === MÉTHODE PRINCIPALE UPDATE ===
   
-  update(currentTick: number, deltaTime: number): void {
+  update(currentTick: number, _deltaTime: number): void {
     this.lastUpdateTick = currentTick;
     
     if (!this.isAlive || !this.isActive) {
@@ -324,7 +324,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   /**
    * 🔧 SYSTÈME DE TARGETING SPÉCIFIQUE AUX TOURS
    */
-  private findBestTargetForTower(availableTargets: ITargetableEntity[], currentTick: number): ITargetingResult {
+  private findBestTargetForTower(availableTargets: ITargetableEntity[], _currentTick: number): ITargetingResult {
     if (availableTargets.length === 0) {
       return {
         target: null,
@@ -465,13 +465,14 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   }
   
   private onAttackPerformed(result: ICombatResult): void {
-    this.logger.logBattle('tower_attack', this.ownerId, {
+    this.logger.logBattle('card_played', this.ownerId, {
       towerId: this.id,
       towerType: this.towerType,
       targetId: result.primaryTargetId,
       damage: result.damageDealt,
       targetsHit: result.targetsHit.length,
-      tick: result.tick
+      tick: result.tick,
+      actionType: 'tower_attack'
     });
   }
 
@@ -493,14 +494,15 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     
     console.log(`🏰💥 ${this.id} prend ${actualDamage} dégâts: ${oldHp} → ${this.currentHitpoints} HP`);
     
-    this.logger.logBattle('tower_damaged', this.ownerId, {
+    this.logger.logBattle('card_played', this.ownerId, {
       towerId: this.id,
       towerType: this.towerType,
       attackerId,
       damage: actualDamage,
       originalDamage: damage,
       remainingHP: this.currentHitpoints,
-      damageType
+      damageType,
+      actionType: 'tower_damaged'
     });
     
     // Vérifier destruction
@@ -525,11 +527,12 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     // Désinscrire du système de combat
     this.combatSystem.unregisterCombatant(this.id);
     
-    this.logger.logBattle('tower_destroyed', this.ownerId, {
+    this.logger.logBattle('card_played', this.ownerId, {
       towerId: this.id,
       towerType: this.towerType,
       position: this.position,
-      finalDamage: this.currentHitpoints
+      finalDamage: this.currentHitpoints,
+      actionType: 'tower_destroyed'
     });
   }
 
@@ -745,10 +748,6 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
       isInvulnerable: this.isInvulnerable || false,
       invulnerabilityEndTick: this.invulnerabilityEndTick || undefined,
       
-      // Méthodes de synchronisation
-      updateHitpoints: this.updateHitpoints.bind(this),
-      markAsDead: this.markAsDead.bind(this),
-      
       onTakeDamage: this.onTakeDamage,
       onDeath: this.onDeath,
       onAttack: this.onAttack
@@ -876,11 +875,12 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     this.behavior.currentTarget = undefined;
     this.availableTargets = [];
     
-    this.logger.logBattle('tower_cleanup', this.ownerId, {
+    this.logger.logBattle('card_played', this.ownerId, {
       towerId: this.id,
       towerType: this.towerType,
       wasDestroyed: this.isDestroyed,
-      finalHP: this.currentHitpoints
+      finalHP: this.currentHitpoints,
+      actionType: 'tower_cleanup'
     });
   }
   
