@@ -1,6 +1,7 @@
 /**
  * ClanCreateOverlay.js - Overlay pour créer un nouveau clan
  * Interface complète avec validation et preview
+ * VERSION CORRIGÉE avec vrai appel API via ClanAPI
  */
 class ClanCreateOverlay {
   constructor() {
@@ -366,7 +367,7 @@ class ClanCreateOverlay {
   }
 
   /**
-   * Handle create clan
+   * Handle create clan - VERSION CORRIGÉE avec vrai appel API
    */
   async handleCreateClan() {
     try {
@@ -385,30 +386,52 @@ class ClanCreateOverlay {
       
       console.log('✨ Creating clan with data:', formData);
 
-      // TODO: Send API request to create clan
-      // const response = await fetch('/api/clan/create', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     Authorization: `Bearer ${userToken}`
-      //   },
-      //   body: JSON.stringify(formData)
-      // });
+      // 🔥 CORRECTION : Utiliser ClanAPI au lieu de la simulation
+      const ClanAPI = (await import('../../services/ClanAPI.js')).default;
+      const result = await ClanAPI.createClan(formData);
 
-      // Simulate API call
-      await this.simulateApiCall(2000);
+      if (!result.success) {
+        throw new Error(result.error || result.message || 'Failed to create clan');
+      }
 
-      // Success
+      // Success - le clan a été créé avec succès
+      const createdClan = result.data?.clan || result.data;
+      
+      console.log('🎉 Clan created successfully:', createdClan);
+      
       this.showSuccess('Clan created successfully! 🎉');
       
       setTimeout(() => {
-        this.emit('clan:created', formData);
+        // Émettre l'événement avec les bonnes données du clan
+        this.emit('clan:created', createdClan);
         this.close();
       }, 1500);
 
     } catch (error) {
       console.error('❌ Error creating clan:', error);
-      this.showError('Failed to create clan. Please try again.');
+      
+      // Gérer différents types d'erreurs
+      let errorMessage = 'Failed to create clan. Please try again.';
+      
+      if (error.message) {
+        const msg = error.message.toLowerCase();
+        
+        if (msg.includes('invalid clan data') || msg.includes('validation')) {
+          errorMessage = 'Invalid clan data. Please check your inputs.';
+        } else if (msg.includes('authentication') || msg.includes('token')) {
+          errorMessage = 'Authentication required. Please log in again.';
+        } else if (msg.includes('name already taken') || msg.includes('already exists')) {
+          errorMessage = 'Clan name already taken. Please choose another name.';
+        } else if (msg.includes('already in a clan') || msg.includes('already belong')) {
+          errorMessage = 'You are already in a clan. Leave your current clan first.';
+        } else if (msg.includes('network') || msg.includes('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      this.showError(errorMessage);
     } finally {
       this.setLoading(false);
     }
@@ -512,13 +535,6 @@ class ClanCreateOverlay {
     if (cancelBtn) {
       cancelBtn.disabled = loading;
     }
-  }
-
-  /**
-   * Simulate API call
-   */
-  async simulateApiCall(delay) {
-    return new Promise(resolve => setTimeout(resolve, delay));
   }
 
   /**
