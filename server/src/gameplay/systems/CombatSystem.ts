@@ -659,29 +659,34 @@ private updateProjectiles(tick: number): void {
   }
 
   public updateCombatants(combatants: Map<string, ICombatant>): void {
-  console.log(`🔄 CombatSystem: Mise à jour ${combatants.size} combattants`);
-  
-  // Vérifier que les combattants sont bien enregistrés
-  for (const [id, combatant] of combatants) {
-    if (!this.combatants.has(id)) {
-      console.log(`➕ Ajout nouveau combattant: ${id}`);
-      this.combatants.set(id, combatant);
-    } else {
-      // Mettre à jour le combattant existant
-      this.combatants.set(id, combatant);
+    console.log(`🔄 CombatSystem: Mise à jour ${combatants.size} combattants`);
+    
+    // 🔧 DEBUG: Logger les types de combattants
+    const unitCount = Array.from(combatants.values()).filter(c => c.type === 'unit').length;
+    const buildingCount = Array.from(combatants.values()).filter(c => c.type === 'building').length;
+    console.log(`   📊 Types: ${unitCount} unités, ${buildingCount} bâtiments`);
+    
+    // Vérifier que les combattants sont bien enregistrés
+    for (const [id, combatant] of combatants) {
+      if (!this.combatants.has(id)) {
+        console.log(`➕ Ajout nouveau combattant: ${id} (type: ${combatant.type})`);
+        this.combatants.set(id, combatant);
+      } else {
+        // Mettre à jour le combattant existant
+        this.combatants.set(id, combatant);
+      }
     }
-  }
-  
-  // Supprimer les combattants qui n'existent plus
-  for (const [id] of this.combatants) {
-    if (!combatants.has(id)) {
-      console.log(`➖ Suppression combattant: ${id}`);
-      this.combatants.delete(id);
+    
+    // Supprimer les combattants qui n'existent plus
+    for (const [id] of this.combatants) {
+      if (!combatants.has(id)) {
+        console.log(`➖ Suppression combattant: ${id}`);
+        this.combatants.delete(id);
+      }
     }
+    
+    console.log(`📊 Combattants finaux: ${this.combatants.size}`);
   }
-  
-  console.log(`📊 Combattants finaux: ${this.combatants.size}`);
-}
 
 // 🔧 MÉTHODE DEBUG: Lister tous les combattants
 public debugCombatants(): void {
