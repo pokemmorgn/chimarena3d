@@ -543,6 +543,11 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       const towerDistance = this.calculateDistance(this.getPosition(), this.behavior.targetTower.position);
       const attackRange = this.baseStats.range;
       
+      // 🔧 DEBUG: Mouvement vers tour
+      if (this.lastUpdateTick % 40 === 0) { // Debug toutes les 2 secondes
+        console.log(`🏰 ${this.id} se dirige vers tour ${this.behavior.targetTower.type}: ${towerDistance.toFixed(2)} tiles (range: ${attackRange})`);
+      }
+      
       if (towerDistance <= attackRange + 0.1) {
         console.log(`🏰 ${this.id} EN RANGE TOUR ! Distance: ${towerDistance.toFixed(2)}`);
         // Créer une cible pour la tour
