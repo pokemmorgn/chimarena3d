@@ -303,14 +303,15 @@ router.post('/leave', clanActionLimiter, async (req: Request, res: Response): Pr
 
 /**
  * GET /api/clan/my
- * Obtenir les informations de son clan - CORRIGÉ TYPESCRIPT
+ * Obtenir les informations de son clan - VERSION FINALE CORRIGÉE
  */
 router.get('/my', async (req: Request, res: Response): Promise<void> => {
   try {
     // Import Clan here to avoid circular dependency
     const { default: Clan } = await import('../models/Clan');
     const { default: UserData } = await import('../models/UserData');
-    const { Types } = await import('mongoose');
+    const mongoose = await import('mongoose');
+    const { Types } = mongoose;
     
     console.log('🔍 Getting clan for user:', req.userId);
     
@@ -349,7 +350,7 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
       if (clan && !user.clanId) {
         const member = clan.getMember(new Types.ObjectId(req.userId!));
         if (member) {
-          user.clanId = new Types.ObjectId(clan._id as string); // Fix TypeScript
+          user.clanId = clan._id as mongoose.Types.ObjectId;
           user.clanRole = member.role;
           user.joinedClanAt = member.joinedAt;
           await user.save();
@@ -415,9 +416,9 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
         region: clan.region,
         createdAt: clan.createdAt,
         
-        // Données additionnelles pour le client - Fix TypeScript
-        _id: (clan._id as Types.ObjectId).toString(),
-        id: (clan._id as Types.ObjectId).toString()
+        // Données additionnelles pour le client
+        _id: String(clan._id),
+        id: String(clan._id)
       }
     });
 
