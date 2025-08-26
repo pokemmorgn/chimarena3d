@@ -440,22 +440,28 @@ private initializeBehavior(): void {
   /**
    * 🔧 CORRIGÉ: Logique état idle avec targeting fonctionnel
    */
-  private updateIdle(currentTick: number): void {
-    // Chercher des cibles si cooldown écoulé
-    if (currentTick >= this.behavior.lastRetarget + this.behavior.retargetCooldown) {
-      const targetingResult = this.findTargetWithSystem(currentTick);
-      
-      if (targetingResult.target) {
-        console.log(`🎯 ${this.id} trouve une cible: ${targetingResult.target.id} - ${targetingResult.reason}`);
-        this.setTarget(targetingResult.target);
-        this.setState('moving');
-      } else {
+private updateIdle(currentTick: number): void {
+  // 🔧 CORRECTION: Chercher des cibles plus fréquemment si pas de cible actuelle
+  const shouldRetarget = !this.behavior.currentTarget || 
+                        currentTick >= this.behavior.lastRetarget + Math.min(this.behavior.retargetCooldown, 10);
+  
+  if (shouldRetarget) {
+    const targetingResult = this.findTargetWithSystem(currentTick);
+    
+    if (targetingResult.target) {
+      console.log(`🎯 ${this.id} trouve une cible: ${targetingResult.target.id} - ${targetingResult.reason}`);
+      this.setTarget(targetingResult.target);
+      this.setState('moving');
+    } else {
+      // Debug moins verbeux quand pas de cibles
+      if (currentTick % 60 === 0) { // Une fois toutes les 3 secondes seulement
         console.log(`❌ ${this.id} ne trouve pas de cible (${this.availableTargets.length} disponibles)`);
       }
-      
-      this.behavior.lastRetarget = currentTick;
     }
+    
+    this.behavior.lastRetarget = currentTick;
   }
+}
   
   /**
    * 🔧 CORRIGÉ: Logique mouvement avec marge d'hysteresis
@@ -539,31 +545,43 @@ private initializeBehavior(): void {
       this.setState('idle');
       return;
     }
-
-    // Vérifier que la cible existe toujours
+  
+    // 🔧 CORRECTION: Vérifier que la cible existe toujours ET est vivante
     const targetExists = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
     if (!targetExists || !targetExists.isAlive) {
-      console.log(`💀 ${this.id} cible disparue pendant l'attaque !`);
-      this.behavior.currentTarget = undefined;
-      this.setState('idle');
-      return;
+      console.log(`💀 ${this.id} cible morte/disparue, recherche nouvelle cible...`);
+      
+      // 🔧 NOUVEAU: Chercher immédiatement une nouvelle cible
+      const targetingResult = this.findTargetWithSystem(currentTick);
+      
+      if (targetingResult.target) {
+        console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
+        this.setTarget(targetingResult.target);
+        this.setState('moving'); // Aller vers la nouvelle cible
+        return;
+      } else {
+        console.log(`❌ ${this.id} aucune nouvelle cible, retour idle`);
+        this.behavior.currentTarget = undefined;
+        this.setState('idle');
+        return;
+      }
     }
-
+  
     // Mettre à jour la position cible
     this.behavior.currentTarget.position = targetExists.position;
-
+  
     // Vérifier si la cible est encore en range avec marge d'hysteresis
     const targetDistance = this.getDistanceToTarget(this.behavior.currentTarget);
     const attackRange = this.baseStats.range;
-    const hysteresisMargin = 0.3; // Plus grande marge pour éviter ping-pong
+    const hysteresisMargin = 0.3;
     
     if (targetDistance > attackRange + hysteresisMargin) {
       console.log(`🏃 ${this.id} cible trop loin (${targetDistance.toFixed(2)} > ${attackRange + hysteresisMargin}), retour mouvement`);
       this.setState('moving');
       return;
     }
-
-    // Cooldown d'attaque plus clair
+  
+    // Cooldown d'attaque
     const canAttackNow = currentTick >= this.behavior.nextAttackTick;
     
     if (canAttackNow) {
@@ -717,6 +735,21 @@ private performAttackWithSystem(currentTick: number): void {
   
   onTakeDamage = (damage: number, attacker: ICombatant, damageType: string): void => {
     console.log(`${this.id} took ${damage} ${damageType} damage from ${attacker.id}`);
+    
+    // 🔧 NOUVEAU: Si on n'a pas de cible, cibler notre attaquant
+    if (!this.behavior.currentTarget && this.isAlive && this.canAttack) {
+      const attackerTarget = this.availableTargets.find(t => t.id === attacker.id);
+      if (attackerTarget && attackerTarget.isAlive) {
+        console.log(`🎯 ${this.id} contre-attaque ${attacker.id} !`);
+        this.setTarget({
+          type: attackerTarget.type,
+          id: attackerTarget.id,
+          position: attackerTarget.position,
+          priority: 10 // Haute priorité pour contre-attaque
+        });
+        this.setState('moving');
+      }
+    }
     
     if (this.state === 'special' && damage > this.maxHitpoints * 0.1) {
       this.setState('idle');
