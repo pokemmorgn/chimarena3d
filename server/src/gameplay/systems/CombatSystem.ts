@@ -445,17 +445,18 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
   
   console.log(`💀 HP mis à jour: ${oldHp} → ${target.hitpoints} (${realDamage} dégâts réels)`);
   
-  // 🔧 CORRECTION: Synchroniser avec BaseUnit si c'est une BaseUnit
-  if (target.id && this.combatants.has(target.id)) {
-    const combatant = this.combatants.get(target.id)!;
-    combatant.hitpoints = target.hitpoints; // Synchroniser
-    console.log(`🔄 Sync combattant ${target.id}: HP = ${combatant.hitpoints}`);
-  }
+  // 🔧 NOUVELLE CORRECTION: Synchroniser avec la BaseUnit ORIGINALE
+  // Le problème: target est une copie, pas la BaseUnit originale !
+  // Solution: Accéder à la BaseUnit via une référence globale ou callback
   
-  // Callback de dégâts
+  // Méthode 1: Callback de synchronisation
   if (target.onTakeDamage) {
     target.onTakeDamage(realDamage, attacker, damageType);
   }
+  
+  // 🔧 CORRECTION MAJEURE: Forcer la synchronisation HP
+  // Cette méthode sera appelée pour mettre à jour la BaseUnit originale
+  this.forceSyncHitpoints(target.id, target.hitpoints);
   
   // Vérifier la mort
   if (target.hitpoints <= 0 && target.isAlive) {
@@ -468,6 +469,27 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
   }
   
   return realDamage;
+}
+
+// 🔧 NOUVELLE MÉTHODE: Synchronisation forcée des HP
+private unitRegistry = new Map<string, BaseUnit>(); // Registre des unités
+
+// Méthode à appeler lors de l'enregistrement d'une unité
+registerUnit(unit: BaseUnit): void {
+  this.unitRegistry.set(unit.id, unit);
+  this.registerCombatant(unit.toCombatant());
+}
+
+// Méthode de synchronisation forcée
+private forceSyncHitpoints(unitId: string, newHitpoints: number): void {
+  const unit = this.unitRegistry.get(unitId);
+  if (unit) {
+    // Synchroniser directement avec la BaseUnit
+    unit.currentHitpoints = newHitpoints;
+    console.log(`🔄 SYNC FORCÉ: ${unitId} HP = ${newHitpoints}`);
+  } else {
+    console.warn(`⚠️ Unit ${unitId} non trouvée dans le registre pour sync HP`);
+  }
 }
 
   /**
