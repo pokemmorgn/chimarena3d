@@ -251,8 +251,8 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     
     if (validEnemies.length === 0) {
       if (this.behavior.currentTarget) {
-        this.behavior.currentTarget = null;
-        this.behavior.pendingAttack = null;
+        this.behavior.currentTarget = undefined;
+        this.behavior.pendingAttack = undefined;
       }
       this.behavior.lastRetarget = currentTick;
       return;
@@ -262,7 +262,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     
     if (!this.behavior.currentTarget || this.behavior.currentTarget.id !== newTarget.id) {
       this.behavior.currentTarget = this.entityToTarget(newTarget);
-      this.behavior.pendingAttack = null;
+      this.behavior.pendingAttack = undefined;
       
       if (!this.behavior.targetEntryHistory.has(newTarget.id)) {
         this.behavior.targetEntryHistory.set(newTarget.id, currentTick);
