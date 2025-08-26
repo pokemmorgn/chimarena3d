@@ -309,9 +309,54 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
   try {
     // Import Clan here to avoid circular dependency
     const { default: Clan } = await import('../models/Clan');
+    const { default: UserData } = await import('../models/UserData');
     const { Types } = await import('mongoose');
     
-    const clan = await Clan.getUserClan(new Types.ObjectId(req.userId!));
+    console.log('🔍 Getting clan for user:', req.userId);
+    
+    // D'abord récupérer l'utilisateur pour voir ses infos de clan
+    const user = await UserData.findById(req.userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+      return;
+    }
+    
+    console.log('🔍 User clan info:', {
+      clanId: user.clanId,
+      clanRole: user.clanRole,
+      joinedClanAt: user.joinedClanAt
+    });
+    
+    // Chercher le clan selon les infos utilisateur
+    let clan = null;
+    
+    if (user.clanId) {
+      // Si l'utilisateur a un clanId dans son profil, l'utiliser
+      clan = await Clan.findById(user.clanId).where({ isActive: true });
+      console.log('🔍 Found clan by clanId:', clan ? clan.name : 'not found');
+    }
+    
+    if (!clan) {
+      // Fallback : chercher par member list
+      clan = await Clan.getUserClan(new Types.ObjectId(req.userId!));
+      console.log('🔍 Found clan by member search:', clan ? clan.name : 'not found');
+      
+      // Si trouvé par fallback, mettre à jour le profil utilisateur
+      if (clan && !user.clanId) {
+        const member = clan.getMember(new Types.ObjectId(req.userId!));
+        if (member) {
+          user.clanId = clan._id;
+          user.clanRole = member.role;
+          user.joinedClanAt = member.joinedAt;
+          await user.save();
+          console.log('✅ Updated user profile with clan info from fallback');
+        }
+      }
+    }
     
     if (!clan) {
       res.status(404).json({
@@ -324,34 +369,55 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
 
     const member = clan.getMember(new Types.ObjectId(req.userId!));
     
+    if (!member) {
+      // Cas de données incohérentes - nettoyer le profil utilisateur
+      user.clanId = null;
+      user.clanRole = null;
+      user.joinedClanAt = null;
+      await user.save();
+      
+      res.status(404).json({
+        success: false,
+        message: 'User is not a member of any clan',
+        code: 'NO_CLAN'
+      });
+      return;
+    }
+    
+    console.log('✅ Found clan and member, returning data');
+    
     res.json({
       success: true,
       message: 'Clan information retrieved successfully',
       data: {
-        clan: {
-          clanId: clan.clanId,
-          name: clan.name,
-          tag: clan.tag,
-          description: clan.settings.description,
-          badge: clan.settings.badge,
-          type: clan.settings.type,
-          requiredTrophies: clan.settings.requiredTrophies,
-          location: clan.settings.location,
-          language: clan.settings.language,
-          
-          memberCount: clan.memberCount,
-          maxMembers: clan.maxMembers,
-          
-          stats: clan.stats,
-          
-          myRole: member?.role || 'member',
-          myJoinDate: member?.joinedAt,
-          myDonationsGiven: member?.donationsGiven || 0,
-          myDonationsReceived: member?.donationsReceived || 0,
-          
-          region: clan.region,
-          createdAt: clan.createdAt
-        }
+        // Informations principales du clan
+        clanId: clan.clanId,
+        name: clan.name,
+        tag: clan.tag,
+        description: clan.settings.description,
+        badge: clan.settings.badge,
+        type: clan.settings.type,
+        requiredTrophies: clan.settings.requiredTrophies,
+        location: clan.settings.location,
+        language: clan.settings.language,
+        
+        memberCount: clan.memberCount,
+        maxMembers: clan.maxMembers,
+        
+        stats: clan.stats,
+        
+        // Infos spécifiques au membre
+        myRole: member.role,
+        myJoinDate: member.joinedAt,
+        myDonationsGiven: member.donationsGiven || 0,
+        myDonationsReceived: member.donationsReceived || 0,
+        
+        region: clan.region,
+        createdAt: clan.createdAt,
+        
+        // Données additionnelles pour le client
+        _id: clan._id.toString(), // Pour compatibilité avec le client
+        id: clan._id.toString()   // Alternative ID
       }
     });
 
