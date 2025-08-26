@@ -434,7 +434,7 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
     console.log(`🛡️ Shield absorbe ${shieldAbsorbed}, reste ${actualDamage} dégâts`);
     
     if (actualDamage <= 0) {
-      return shieldAbsorbed; // Shield a tout absorbé
+      return shieldAbsorbed;
     }
   }
   
@@ -445,11 +445,11 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
   
   console.log(`💀 HP mis à jour: ${oldHp} → ${target.hitpoints} (${realDamage} dégâts réels)`);
   
-  // 🔧 CORRECTION: Synchroniser avec BaseUnit si c'est une BaseUnit
-  if (target.id && this.combatants.has(target.id)) {
-    const combatant = this.combatants.get(target.id)!;
-    combatant.hitpoints = target.hitpoints; // Synchroniser
-    console.log(`🔄 Sync combattant ${target.id}: HP = ${combatant.hitpoints}`);
+  // 🔧 CORRECTION: Synchroniser DIRECTEMENT avec BaseUnit
+  // Au lieu de chercher dans this.combatants, utiliser une référence directe
+  if ((target as any).updateHitpoints) {
+    (target as any).updateHitpoints(target.hitpoints);
+    console.log(`🔄 Sync direct avec BaseUnit: HP = ${target.hitpoints}`);
   }
   
   // Callback de dégâts
@@ -459,8 +459,14 @@ private dealDamageToTarget(target: ICombatant, damage: number, damageType: Damag
   
   // Vérifier la mort
   if (target.hitpoints <= 0 && target.isAlive) {
-    target.isAlive = false;
+    // 🔧 CORRECTION: Marquer comme mort dans l'interface
+    (target as any).isAlive = false;
     console.log(`💀 ${target.id} est mort ! (${oldHp} → 0 HP)`);
+    
+    // 🔧 CORRECTION: Synchroniser le statut de mort avec BaseUnit
+    if ((target as any).markAsDead) {
+      (target as any).markAsDead();
+    }
     
     if (target.onDeath) {
       target.onDeath(attacker);
