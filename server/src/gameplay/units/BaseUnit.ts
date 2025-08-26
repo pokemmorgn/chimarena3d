@@ -620,15 +620,39 @@ private updateAttacking(currentTick: number): void {
   /**
    * 🔧 CORRIGÉ: Trouver une cible avec validation
    */
-  private findTargetWithSystem(currentTick: number): ITargetingResult {
-    if (!this.availableTargets || this.availableTargets.length === 0) {
-      console.warn(`⚠️ ${this.id} pas de cibles disponibles pour le targeting !`);
-      return {
-        target: null,
-        confidence: 0,
-        reason: 'no_available_targets',
-        alternativeTargets: []
-      };
+    private findTargetWithSystem(currentTick: number): ITargetingResult {
+      if (!this.availableTargets || this.availableTargets.length === 0) {
+        console.warn(`⚠️ ${this.id} pas de cibles disponibles pour le targeting !`);
+        return {
+          target: null,
+          confidence: 0,
+          reason: 'no_available_targets',
+          alternativeTargets: []
+        };
+      }
+    
+      // 🔧 CORRECTION: Filtrer explicitement les ennemis vivants avant le targeting
+      const aliveEnemies = this.availableTargets.filter(t => 
+        t.ownerId !== this.ownerId && t.isAlive === true
+      );
+    
+      console.log(`🎯 ${this.id} targeting: ${this.availableTargets.length} total, ${aliveEnemies.length} ennemis vivants`);
+    
+      if (aliveEnemies.length === 0) {
+        return {
+          target: null,
+          confidence: 0,
+          reason: 'no_alive_enemies',
+          alternativeTargets: []
+        };
+      }
+    
+      return this.targetingSystem.findBestTarget(
+        this.toTargetableEntity(),
+        aliveEnemies, // 🔧 Passer seulement les ennemis vivants
+        this.behavior.currentTarget || null,
+        currentTick
+      );
     }
 
     console.log(`🎯 ${this.id} cherche parmi ${this.availableTargets.length} cibles disponibles`);
@@ -678,45 +702,48 @@ private performAttackWithSystem(currentTick: number): void {
     this.onAttackPerformed(result);
     
   } else {
-    // ❌ Attaque échouée - NOUVEAU: Gestion intelligente
+    // ❌ Attaque échouée - GESTION INTELLIGENTE
     console.log(`❌ Échec de l'attaque sur ${this.behavior.currentTarget.id}`);
     
-    // 🔧 CORRECTION: Vérifier si la cible existe encore
-    const targetStillExists = this.availableTargets.find(t => 
-      t.id === this.behavior.currentTarget!.id && t.isAlive
+    // 🔧 CORRECTION CRITIQUE: Vérifier si la cible est VIVANTE et existe
+    const targetStillAlive = this.availableTargets.find(t => 
+      t.id === this.behavior.currentTarget!.id && t.isAlive === true
     );
     
-    if (!targetStillExists) {
-      // 🔧 La cible est morte/disparue - chercher une nouvelle cible ou idle
-      console.log(`💀 ${this.id} cible disparue, recherche nouvelle cible...`);
+    if (!targetStillAlive) {
+      // 🔧 La cible est morte ou disparue - chercher nouvelle cible
+      console.log(`💀 ${this.id} cible morte/disparue, recherche nouvelle cible...`);
       
       const availableEnemies = this.availableTargets.filter(t => 
-        t.ownerId !== this.ownerId && t.isAlive
+        t.ownerId !== this.ownerId && t.isAlive === true
       );
       
       if (availableEnemies.length === 0) {
-        console.log(`🏁 ${this.id} plus d'ennemis - passage en idle`);
+        console.log(`🏁 ${this.id} plus d'ennemis vivants - passage en idle`);
         this.behavior.currentTarget = undefined;
         this.setState('idle');
         return;
       }
       
-      // Chercher une nouvelle cible
+      // Chercher une nouvelle cible parmi les ennemis vivants
+      console.log(`🔍 ${this.id} cherche parmi ${availableEnemies.length} ennemis vivants`);
       const targetingResult = this.findTargetWithSystem(currentTick);
+      
       if (targetingResult.target) {
-        console.log(`🎯 ${this.id} nouvelle cible: ${targetingResult.target.id}`);
+        console.log(`🎯 ${this.id} nouvelle cible trouvée: ${targetingResult.target.id}`);
         this.setTarget(targetingResult.target);
         this.setState('moving');
         return;
       } else {
-        console.log(`❌ ${this.id} aucune nouvelle cible - idle`);
+        console.log(`❌ ${this.id} aucune nouvelle cible trouvée - idle`);
         this.behavior.currentTarget = undefined;
         this.setState('idle');
         return;
       }
+      
     } else {
-      // 🔧 La cible existe encore - problème de range/cooldown
-      console.log(`🔄 ${this.id} cible existe encore - vérification range/cooldown`);
+      // 🔧 La cible est encore vivante - problème de range/cooldown
+      console.log(`🔄 ${this.id} cible encore vivante - vérification range/cooldown`);
       
       const distance = this.getDistanceToTarget(this.behavior.currentTarget);
       const attackRange = this.baseStats.range;
@@ -726,12 +753,13 @@ private performAttackWithSystem(currentTick: number): void {
         this.setState('moving');
       } else {
         console.log(`⏱️ ${this.id} problème de cooldown - réinitialisation`);
-        // Réinitialiser pour permettre une nouvelle tentative plus tôt
+        // Réinitialiser pour permettre une nouvelle tentative
         this.behavior.lastAttackTick = currentTick - Math.floor(this.attackSpeed / 2);
       }
     }
   }
 }
+
   
   private onAttackPerformed(result: ICombatResult): void {
     this.logger.logBattle('card_played', this.ownerId, {
