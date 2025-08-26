@@ -288,54 +288,134 @@ class ClanContent {
     ClanRoomClient.on('system:sync', (data) => this.handleSystemSync(data));
   }
 
-  async connectToClan() {
+async connectToClan() {
     try {
       console.log('🔄 Connecting to clan room...');
-const result = await ClanRoomClient.connect(
-  this.currentUser.id,
-  this.clan.clanId || this.clan._id || this.clan.id
-);
+      
+      // Debug: vérifier les données disponibles
+      console.log('🔍 Clan data available:', {
+        clan: this.clan,
+        clanId: this.clan?.clanId,
+        _id: this.clan?._id,
+        id: this.clan?.id,
+        currentUser: this.currentUser
+      });
+
+      // Extraire le bon clanId
+      let clanId = null;
+      
+      if (this.clan) {
+        // Essayer différents champs possibles
+        clanId = this.clan.clanId || this.clan._id || this.clan.id;
+        
+        // Convertir ObjectId en string si nécessaire
+        if (clanId && typeof clanId === 'object' && clanId.toString) {
+          clanId = clanId.toString();
+        }
+      }
+
+      // Validation des paramètres
+      if (!this.currentUser?.id) {
+        throw new Error('Current user ID is missing');
+      }
+
+      if (!clanId) {
+        throw new Error('Clan ID is missing or invalid');
+      }
+
+      console.log('🔗 Connecting with parameters:', {
+        userId: this.currentUser.id,
+        clanId: clanId,
+        userType: typeof this.currentUser.id,
+        clanType: typeof clanId
+      });
+
+      // Tenter la connexion
+      const result = await ClanRoomClient.connect(
+        this.currentUser.id,
+        clanId
+      );
       
       if (result.success) {
         this.isConnected = true;
         console.log('✅ Connected to clan room successfully');
         this.showConnectionStatus(true);
         
-        // Demander les données initiales après connexion
+        // Demander les données initiales après connexion réussie
         setTimeout(() => {
-          this.loadInitialData();
+          if (this.isConnected) {
+            this.loadInitialData();
+          }
         }, 1000);
         
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Connection failed');
       }
+      
     } catch (error) {
       console.error('❌ Failed to connect to clan:', error);
       this.isConnected = false;
       this.showConnectionStatus(false);
       
-      // Afficher une erreur plus détaillée selon le type d'erreur
+      // Diagnostic de l'erreur
       let errorMessage = 'Failed to connect to clan.';
+      let canRetry = true;
       
-      if (error.message?.includes('not properly initialized')) {
+      if (error.message?.includes('missing') || error.message?.includes('invalid')) {
+        errorMessage = 'Invalid clan or user data. Please try reloading the page.';
+        canRetry = false;
+      } else if (error.message?.includes('not properly initialized')) {
         errorMessage = 'Server connection not available. Please try again later.';
       } else if (error.message?.includes('timeout')) {
         errorMessage = 'Connection timeout. Please check your internet connection.';
-      } else if (error.message?.includes('unauthorized')) {
-        errorMessage = 'Not authorized to join this clan.';
+      } else if (error.message?.includes('unauthorized') || error.message?.includes('not a member')) {
+        errorMessage = 'You are not authorized to join this clan chat.';
+        canRetry = false;
+      } else if (error.message?.includes('not found')) {
+        errorMessage = 'Clan not found. It may have been deleted.';
+        canRetry = false;
       }
       
       this.showError(errorMessage);
       
-      // Proposer une reconnexion après 5 secondes
-      setTimeout(() => {
-        if (!this.isConnected) {
-          this.showReconnectOption();
-        }
-      }, 5000);
+      // Proposer une reconnexion après 5 secondes si applicable
+      if (canRetry) {
+        setTimeout(() => {
+          if (!this.isConnected) {
+            this.showReconnectOption();
+          }
+        }, 5000);
+      } else {
+        // Si erreur critique, suggérer de recharger la page
+        setTimeout(() => {
+          if (!this.isConnected) {
+            this.showReloadOption();
+          }
+        }, 3000);
+      }
     }
   }
 
+  showReloadOption() {
+    const header = this.container.querySelector('.clan-header');
+    if (header && !header.querySelector('.reload-banner')) {
+      const banner = document.createElement('div');
+      banner.className = 'reconnect-banner';
+      banner.innerHTML = `
+        <div class="reconnect-content">
+          <span>⚠️ Connection error</span>
+          <button class="reconnect-btn">Reload Page</button>
+        </div>
+      `;
+      
+      header.appendChild(banner);
+      
+      // Bind reload button
+      banner.querySelector('.reconnect-btn').addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
+  }
   showReconnectOption() {
     const header = this.container.querySelector('.clan-header');
     if (header && !header.querySelector('.reconnect-banner')) {
