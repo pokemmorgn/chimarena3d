@@ -349,7 +349,7 @@ router.get('/my', async (req: Request, res: Response): Promise<void> => {
       if (clan && !user.clanId) {
         const member = clan.getMember(new Types.ObjectId(req.userId!));
         if (member) {
-          user.clanId = new Types.ObjectId(clan._id.toString());
+          user.clanId = new Types.ObjectId(String(clan._id));
           user.clanRole = member.role;
           user.joinedClanAt = member.joinedAt;
           await user.save();
