@@ -463,6 +463,7 @@ export class BaseUnit extends Schema implements ICombatant, ITargetableEntity {
       const shouldCheckTowers = currentTick >= this.behavior.lastTowerCheck + 40; // Vérifier toutes les 2 secondes
       
       if (shouldCheckTowers) {
+        console.log(`🏰 ${this.id} updateIdle: Recherche de tour cible (${availableEnemies.length} ennemis, ${this.availableTowers?.length || 0} tours)`);
         const targetTower = this.findBestTargetTower();
         
         if (targetTower) {
