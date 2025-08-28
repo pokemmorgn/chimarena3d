@@ -901,22 +901,27 @@ export class BattleRoom extends Room<BattleRoomState> {
       elixirState.currentElixir = playerState.currentElixir;
     }
     
-    // Créer l'unité
+// Créer l'unité Schema pour Colyseus
     const unitId = `unit_${this.tickCount}_${Math.random().toString(36).substr(2, 4)}`;
-    const unit = new BattleUnit();
-    unit.id = unitId;
-    unit.cardId = cardId;
-    unit.ownerId = playerState.userId;
-    unit.position.x = position.x;
-    unit.position.y = position.y;
-    unit.level = playerState.deckLevels[deckIndex] || 1;
-    unit.lastActionTick = this.tickCount;
+    const unitSchema = new BattleUnit();
+    unitSchema.id = unitId;
+    unitSchema.cardId = cardId;
+    unitSchema.ownerId = playerState.userId;
+    unitSchema.position.x = position.x;
+    unitSchema.position.y = position.y;
+    unitSchema.level = playerState.deckLevels[deckIndex] || 1;
+    unitSchema.lastActionTick = this.tickCount;
     
-    const stats = this.getCardStats(cardId, unit.level);
-    unit.hitpoints = stats.hitpoints;
-    unit.maxHitpoints = stats.hitpoints;
+    const stats = this.getCardStats(cardId, unitSchema.level);
+    unitSchema.hitpoints = stats.hitpoints;
+    unitSchema.maxHitpoints = stats.hitpoints;
     
-    this.state.units.set(unitId, unit);
+    // Créer la vraie unité BaseUnit pour le combat
+    const realUnit = await BaseUnit.create(cardId, unitSchema.level, playerState.userId, position, this.tickCount);
+    
+    // Stocker les deux
+    this.state.units.set(unitId, unitSchema);
+    this.battleUnits.set(unitId, realUnit);
     playerState.unitsDeployed++;
     
     this.cycleCard(playerState);
