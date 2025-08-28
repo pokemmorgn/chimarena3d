@@ -169,8 +169,8 @@ class ClashMenuScene {
    * Connect to WorldRoom and disconnect from AuthRoom
    */
   async connectToWorldRoom() {
-    if (this.isConnectingToWorld) {
-      console.log('🌍 Already connecting to WorldRoom...');
+    if (this.isConnectingToWorld || this.worldRoom) {
+      console.log('🌍 Already connected or connecting to WorldRoom...');
       return;
     }
     
