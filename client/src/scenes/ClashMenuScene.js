@@ -254,6 +254,43 @@ class ClashMenuScene {
     });
     
     console.log('🎮 WorldRoom event listeners setup');
+    // Setup menu event listeners for matchmaking
+    if (this.menuManager) {
+      // Battle search events
+      this.menuManager.on('battle:search', async (data) => {
+        console.log('🎯 Starting battle search:', data);
+        try {
+          // Send join_queue message to WorldRoom
+          this.worldRoom.send('join_queue', {
+            deckIndex: 0,  // Default deck for now
+            mode: data.mode
+          });
+          
+          // Update UI to show searching
+          this.menuManager.updateSearchStatus('searching');
+          
+        } catch (error) {
+          console.error('❌ Failed to join matchmaking queue:', error);
+          this.menuManager.updateSearchStatus('error');
+        }
+      });
+      
+      this.menuManager.on('battle:cancel', async () => {
+        console.log('❌ Cancelling battle search');
+        try {
+          // Send leave_queue message to WorldRoom
+          this.worldRoom.send('leave_queue', {});
+          
+          // Update UI
+          this.menuManager.updateSearchStatus('cancelled');
+          
+        } catch (error) {
+          console.error('❌ Failed to leave matchmaking queue:', error);
+        }
+      });
+      
+      console.log('🎮 Matchmaking event listeners connected');
+    }
   }
 
   /**
