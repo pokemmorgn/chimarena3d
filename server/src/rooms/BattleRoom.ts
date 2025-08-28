@@ -1103,17 +1103,17 @@ export class BattleRoom extends Room<BattleRoomState> {
         const targets = Array.from(allCombatants.values()).filter(c => 
           c.ownerId !== unit.ownerId && c.isAlive
         );
-        const towers = Array.from(this.battleTowers.values()).filter(t => 
-          t.ownerId !== unit.ownerId && !t.isDestroyed
-        ).map(t => ({
-          id: t.id,
-          position: t.position,
-          ownerId: t.ownerId,
-          isDestroyed: t.isDestroyed,
-          hitpoints: t.hitpoints,
-          maxHitpoints: t.maxHitpoints,
-          type: t.towerType
-        }));
+    const towers: ITower[] = Array.from(this.battleTowers.values()).filter(t => 
+            t.ownerId !== unit.ownerId && !t.isDestroyed
+          ).map(t => ({
+            id: t.id,
+            position: t.position,
+            ownerId: t.ownerId,
+            isDestroyed: t.isDestroyed,
+            hitpoints: t.hitpoints,
+            maxHitpoints: t.maxHitpoints,
+            type: t.towerType
+          }));
         
         unit.updateAvailableTargets(targets);
         unit.updateAvailableTowers(towers);
