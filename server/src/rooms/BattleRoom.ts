@@ -1203,15 +1203,54 @@ export class BattleRoom extends Room<BattleRoomState> {
 
   // === MÉTHODES UTILITAIRES ===
 
-  private initializeTowers() {
-    this.createTower('player1_left', 'left', this.state.player1.userId, { x: 6, y: 28 });
-    this.createTower('player1_right', 'right', this.state.player1.userId, { x: 12, y: 28 });
-    this.createTower('player1_king', 'king', this.state.player1.userId, { x: 9, y: 30 });
-    
-    this.createTower('player2_left', 'left', this.state.player2.userId, { x: 6, y: 4 });
-    this.createTower('player2_right', 'right', this.state.player2.userId, { x: 12, y: 4 });
-    this.createTower('player2_king', 'king', this.state.player2.userId, { x: 9, y: 2 });
-  }
+  private async initializeTowers(): Promise<void> {
+      console.log('🏰 Initializing battle towers with CombatSystem...');
+      
+      // Créer les vraies tours de combat
+      const leftTower1 = BattleTower.create('player1_left', 'left', this.state.player1.userId, { x: 6, y: 28 }, 13);
+      const rightTower1 = BattleTower.create('player1_right', 'right', this.state.player1.userId, { x: 12, y: 28 }, 13);
+      const kingTower1 = BattleTower.create('player1_king', 'king', this.state.player1.userId, { x: 9, y: 30 }, 13);
+      
+      const leftTower2 = BattleTower.create('player2_left', 'left', this.state.player2.userId, { x: 6, y: 4 }, 13);
+      const rightTower2 = BattleTower.create('player2_right', 'right', this.state.player2.userId, { x: 12, y: 4 }, 13);
+      const kingTower2 = BattleTower.create('player2_king', 'king', this.state.player2.userId, { x: 9, y: 2 }, 13);
+      
+      // Stocker les vraies tours
+      this.battleTowers.set('player1_left', leftTower1);
+      this.battleTowers.set('player1_right', rightTower1);
+      this.battleTowers.set('player1_king', kingTower1);
+      this.battleTowers.set('player2_left', leftTower2);
+      this.battleTowers.set('player2_right', rightTower2);
+      this.battleTowers.set('player2_king', kingTower2);
+      
+      // Créer aussi les Schema pour Colyseus (synchronisation client)
+      this.createTowerSchema('player1_left', 'left', this.state.player1.userId, { x: 6, y: 28 });
+      this.createTowerSchema('player1_right', 'right', this.state.player1.userId, { x: 12, y: 28 });
+      this.createTowerSchema('player1_king', 'king', this.state.player1.userId, { x: 9, y: 30 });
+      this.createTowerSchema('player2_left', 'left', this.state.player2.userId, { x: 6, y: 4 });
+      this.createTowerSchema('player2_right', 'right', this.state.player2.userId, { x: 12, y: 4 });
+      this.createTowerSchema('player2_king', 'king', this.state.player2.userId, { x: 9, y: 2 });
+      
+      // Enregistrer dans le CombatSystem
+      this.battleTowers.forEach(tower => {
+        this.combatSystem.registerTower(tower.toCombatant());
+      });
+      
+      console.log('✅ Battle towers initialized with CombatSystem');
+    }
+  
+    private createTowerSchema(id: string, type: string, ownerId: string, position: { x: number; y: number }) {
+      const tower = new Tower();
+      tower.id = id;
+      tower.type = type;
+      tower.ownerId = ownerId;
+      tower.position.x = position.x;
+      tower.position.y = position.y;
+      tower.hitpoints = type === 'king' ? 2600 : 1400;
+      tower.maxHitpoints = tower.hitpoints;
+      
+      this.state.towers.set(id, tower);
+    }
 
   private createTower(id: string, type: string, ownerId: string, position: { x: number; y: number }) {
     const tower = new Tower();
