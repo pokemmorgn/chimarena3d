@@ -72,12 +72,20 @@ class BattleScene {
 
   async joinBattleRoom(matchId) {
     try {
-      this.battleRoom = await this.networkManager.joinBattleRoom({
-        matchId: matchId
-      });
+      // TODO: Implement joinBattleRoom in NetworkManager
+      console.log('🎮 Would join BattleRoom for match:', matchId);
+      console.log('📝 BattleRoom connection will be implemented next');
+      
+      // For now, simulate successful connection
+      this.battleRoom = { 
+        matchId: matchId,
+        onMessage: (type, callback) => {
+          console.log(`📨 Would listen for message type: ${type}`);
+        }
+      };
       
       this.setupBattleEvents();
-      console.log('🎮 Joined BattleRoom for match:', matchId);
+      console.log('🎮 BattleRoom connection simulated');
     } catch (error) {
       console.error('❌ Failed to join BattleRoom:', error);
     }
