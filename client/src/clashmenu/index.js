@@ -200,29 +200,30 @@ styleSheet.textContent =
    * Deactivate the menu
    */
   deactivate() {
-    // Hide main container
-    if (this.mainContainer) {
-      this.mainContainer.style.display = 'none';
-    }
-    
-    // Deactivate components
-    if (this.tabNavigation) {
-      this.tabNavigation.deactivate();
-    }
-    
+    // Deactivate all tabs with safety checks
     if (this.battleTab && typeof this.battleTab.deactivate === 'function') {
       this.battleTab.deactivate();
     }
     
-    if (this.cardsTab) { // ✅ Deactivate CardsTab
+    if (this.cardsTab && typeof this.cardsTab.deactivate === 'function') {
       this.cardsTab.deactivate();
     }
-
-    // Dans deactivate():
-if (this.clanTab) {
-  this.clanTab.deactivate();
-}
-    console.log('⚔️ ClashMenuManager deactivated');
+    
+    if (this.clanTab && typeof this.clanTab.deactivate === 'function') {
+      this.clanTab.deactivate();
+    }
+    
+    if (this.profileOverlay && typeof this.profileOverlay.deactivate === 'function') {
+      this.profileOverlay.deactivate();
+    }
+    
+    // Deactivate navigation
+    if (this.tabNavigation && typeof this.tabNavigation.deactivate === 'function') {
+      this.tabNavigation.deactivate();
+    }
+    
+    this.isActive = false;
+    console.log('ClashMenuManager deactivated');
   }
 
   /**
