@@ -214,79 +214,72 @@ class ClashMenuScene {
   /**
    * Setup WorldRoom event listeners
    */
-  setupWorldRoomEvents() {
-    if (!this.worldRoom) return;
-    
-    // World welcome message
-    this.networkManager.getColyseusManager().on('world:welcome', (data) => {
-      console.log('🌍 World welcome:', data);
-      if (this.menuManager) {
-        this.menuManager.updatePlayerData(data.playerData);
-      }
-    });
-    
-    // World state changes
-    this.networkManager.getColyseusManager().on('world:state_change', (state) => {
-      // Handle world state updates
-      if (this.menuManager) {
-        this.menuManager.handleWorldStateChange(state);
-      }
-    });
-    
-    // Battle events
-    this.worldRoom.onMessage('battle_found', (data) => {
-      console.log('⚔️ Battle found:', data);
-      if (this.menuManager) {
-        this.menuManager.handleBattleFound(data);
-      }
-    });
-    
-    this.worldRoom.onMessage('battle_cancelled', (data) => {
-      console.log('❌ Battle cancelled:', data);
-      if (this.menuManager) {
-        this.menuManager.handleBattleCancelled(data);
-      }
-    });
-    
-    console.log('🎮 WorldRoom event listeners setup');
-    // Setup menu event listeners for matchmaking
-    if (this.menuManager) {
-      // Battle search events
-      this.menuManager.on('battle:search', async (data) => {
-        console.log('🎯 Starting battle search:', data);
-        try {
-          // Send join_queue message to WorldRoom
-          this.worldRoom.send('join_queue', {
-            deckIndex: 0,  // Default deck for now
-            mode: data.mode
-          });
-          
-          // Update UI to show searching
-          this.menuManager.updateSearchStatus('searching');
-          
-        } catch (error) {
-          console.error('❌ Failed to join matchmaking queue:', error);
-          this.menuManager.updateSearchStatus('error');
-        }
-      });
-      
-      this.menuManager.on('battle:cancel', async () => {
-        console.log('❌ Cancelling battle search');
-        try {
-          // Send leave_queue message to WorldRoom
-          this.worldRoom.send('leave_queue', {});
-          
-          // Update UI
-          this.menuManager.updateSearchStatus('cancelled');
-          
-        } catch (error) {
-          console.error('❌ Failed to leave matchmaking queue:', error);
-        }
-      });
-      
-      console.log('🎮 Matchmaking event listeners connected');
+setupWorldRoomEvents() {
+  if (!this.worldRoom) return;
+  
+  // World welcome message
+  this.networkManager.getColyseusManager().on('world:welcome', (data) => {
+    console.log('🌍 World welcome:', data);
+    if (this.menuManager && this.menuManager.updatePlayerData) {
+      this.menuManager.updatePlayerData(data.playerData);
     }
+  });
+  
+  // World state changes - Skip for now since handleWorldStateChange doesn't exist
+  this.networkManager.getColyseusManager().on('world:state_change', (state) => {
+    console.log('🌍 World state changed:', state);
+    // TODO: Handle world state updates when methods are implemented
+  });
+  
+  // Battle events from WorldRoom
+  this.worldRoom.onMessage('match_found', (data) => {
+    console.log('⚔️ Match found:', data);
+    // TODO: Handle match found
+  });
+  
+  this.worldRoom.onMessage('queue_joined', (data) => {
+    console.log('🎯 Queue joined:', data);
+    // TODO: Update UI to show searching
+  });
+  
+  this.worldRoom.onMessage('queue_left', (data) => {
+    console.log('❌ Queue left:', data);
+    // TODO: Update UI to show idle
+  });
+  
+  // Connect to BattleTab events directly
+  const battleTab = this.menuManager?.battleTab;
+  if (battleTab && this.worldRoom) {
+    battleTab.on('battle:search', async (data) => {
+      console.log('🎯 Starting battle search:', data);
+      try {
+        this.worldRoom.send('join_queue', {
+          deckIndex: 0,
+          mode: data.mode
+        });
+        console.log('✅ Sent join_queue message');
+      } catch (error) {
+        console.error('❌ Failed to join matchmaking queue:', error);
+      }
+    });
+    
+    battleTab.on('battle:cancel', async () => {
+      console.log('❌ Cancelling battle search');
+      try {
+        this.worldRoom.send('leave_queue', {});
+        console.log('✅ Sent leave_queue message');
+      } catch (error) {
+        console.error('❌ Failed to leave matchmaking queue:', error);
+      }
+    });
+    
+    console.log('🎮 BattleTab matchmaking events connected');
+  } else {
+    console.warn('⚠️ BattleTab not available for matchmaking connection');
   }
+  
+  console.log('🎮 WorldRoom event listeners setup');
+}
 
   /**
    * Scene lifecycle - activate
