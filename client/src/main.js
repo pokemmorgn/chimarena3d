@@ -8,7 +8,7 @@ import ColyseusManager from '@services/ColyseusManager';
 import LoginScene from '@scenes/LoginScene';
 import WelcomeMenuScene from '@scenes/WelcomeMenuScene';
 import ClashMenuScene from '@scenes/ClashMenuScene';
-
+import BattleScene from '@scenes/BattleScene';
 /**
  * Application Entry Point - Version avec Colyseus
  * Initialise l'application complète avec support WebSocket via Colyseus
@@ -158,20 +158,25 @@ document.getElementById('mobile-viewport').appendChild(this.canvas);
       transition: 'fade'
     });
     
-// Register welcome menu scene
-this.sceneManager.registerScene('welcomeMenu', WelcomeMenuScene, {
-  preload: true,
-  persistent: true,
-  transition: 'fade'
-});
-
-// Register clash menu scene (main game menu)
-this.sceneManager.registerScene('clashMenu', ClashMenuScene, {
-  preload: false,
-  persistent: true,
-  transition: 'slide'
-});
-
+    // Register welcome menu scene
+    this.sceneManager.registerScene('welcomeMenu', WelcomeMenuScene, {
+      preload: true,
+      persistent: true,
+      transition: 'fade'
+    });
+    
+    // Register clash menu scene (main game menu)
+    this.sceneManager.registerScene('clashMenu', ClashMenuScene, {
+      preload: false,
+      persistent: true,
+      transition: 'slide'
+    });*
+    // Register battle scene (for actual gameplay)
+    this.sceneManager.registerScene('battle', BattleScene, {
+      preload: false,
+      persistent: false,
+      transition: 'fade'
+    });
 // Preload the welcome menu scene for faster transitions
 await this.sceneManager.preloadScene('welcomeMenu');
     
