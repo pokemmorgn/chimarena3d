@@ -1062,7 +1062,60 @@ export class BattleRoom extends Room<BattleRoomState> {
       await this.startBattle();
     }
   }
-
+  
+  private updateCombatSystem(): void {
+      // Mettre à jour le CombatSystem avec le tick actuel
+      const allCombatants = new Map();
+      
+      // Ajouter toutes les tours de combat
+      this.battleTowers.forEach((tower, id) => {
+        if (tower.isAlive) {
+          allCombatants.set(id, tower.toCombatant());
+        }
+      });
+      
+      // Ajouter toutes les unités de combat
+      this.battleUnits.forEach((unit, id) => {
+        if (unit.isAlive) {
+          allCombatants.set(id, unit.toCombatant());
+        }
+      });
+      
+      // Mettre à jour le CombatSystem
+      this.combatSystem.update(this.tickCount, allCombatants);
+      
+      // Mettre à jour chaque tour avec les cibles disponibles
+      this.battleTowers.forEach(tower => {
+        const targets = Array.from(allCombatants.values()).filter(c => 
+          c.ownerId !== tower.ownerId && c.isAlive
+        );
+        tower.updateAvailableTargets(targets);
+        tower.update(this.tickCount, this.TICK_RATE_MS);
+      });
+      
+      // Mettre à jour chaque unité
+      this.battleUnits.forEach(unit => {
+        const targets = Array.from(allCombatants.values()).filter(c => 
+          c.ownerId !== unit.ownerId && c.isAlive
+        );
+        const towers = Array.from(this.battleTowers.values()).filter(t => 
+          t.ownerId !== unit.ownerId && !t.isDestroyed
+        ).map(t => ({
+          id: t.id,
+          position: t.position,
+          ownerId: t.ownerId,
+          isDestroyed: t.isDestroyed,
+          hitpoints: t.hitpoints,
+          maxHitpoints: t.maxHitpoints,
+          type: t.towerType
+        }));
+        
+        unit.updateAvailableTargets(targets);
+        unit.updateAvailableTowers(towers);
+        unit.update(this.tickCount, this.TICK_RATE_MS);
+      });
+    }
+  
   private updateUnits() {
     // Mise à jour de toutes les unités sur le terrain
     this.state.units.forEach((unit, unitId) => {
