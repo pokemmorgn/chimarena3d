@@ -170,7 +170,7 @@ document.getElementById('mobile-viewport').appendChild(this.canvas);
       preload: false,
       persistent: true,
       transition: 'slide'
-    });*
+    });
     // Register battle scene (for actual gameplay)
     this.sceneManager.registerScene('battle', BattleScene, {
       preload: false,
