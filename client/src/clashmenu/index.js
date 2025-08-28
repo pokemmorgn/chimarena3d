@@ -422,7 +422,8 @@ case 'clan':                   // ✅ Ajouter ce case
     // this.worldRoom.send('search_battle', { mode: 'ladder' });
     
     // For now, show searching state
-    this.showConnectionStatus('Searching for opponent...', 'searching');
+    // this.showConnectionStatus('Searching for opponent...', 'searching');
+    console.log('🔍 Battle search status would be shown here');
   }
 
   handleBattleCancel() {
