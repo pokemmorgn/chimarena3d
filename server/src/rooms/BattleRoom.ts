@@ -415,7 +415,8 @@ export class BattleRoom extends Room<BattleRoomState> {
       // 2. Régénération d'élixir PRÉCISE
       this.updateElixirRegeneration();
       
-      // 3. Mise à jour des unités
+      // 3. Mise à jour du CombatSystem et des unités
+      this.updateCombatSystem();
       this.updateUnits();
       
       // 4. Vérifier conditions de victoire
