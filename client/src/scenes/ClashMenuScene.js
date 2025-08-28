@@ -178,10 +178,8 @@ class ClashMenuScene {
       this.isConnectingToWorld = true;
       console.log('🌍 Connecting to WorldRoom...');
       
-      // Show connection status in menu
-      if (this.menuManager) {
-        this.menuManager.showConnectionStatus('Connecting to game world...', 'connecting');
-      }
+      // Show connection status in console for now
+      console.log('🌍 Connecting to game world...');
       
       // Join WorldRoom via NetworkManager
       this.worldRoom = await this.networkManager.joinWorldRoom();
@@ -189,22 +187,19 @@ class ClashMenuScene {
       // Setup WorldRoom event listeners
       this.setupWorldRoomEvents();
       
-      // Update menu with connection success
-      if (this.menuManager) {
-        this.menuManager.showConnectionStatus('Connected to game world!', 'connected');
-        this.menuManager.enableBattleFeatures(true);
-      }
+        // Update menu with connection success
+        console.log('✅ Connected to game world!');
+        if (this.menuManager && this.menuManager.enableBattleFeatures) {
+          this.menuManager.enableBattleFeatures(true);
+        }
       
       console.log('✅ Connected to WorldRoom successfully');
       
     } catch (error) {
       console.error('❌ Failed to connect to WorldRoom:', error);
       
-      // Show error in menu
-      if (this.menuManager) {
-        this.menuManager.showConnectionStatus('Failed to connect. Retrying...', 'error');
-        this.menuManager.enableBattleFeatures(false);
-      }
+      // Show error in console for now
+      console.error('🔌 Failed to connect. Retrying in 3s...');
       
       // Retry after delay
       setTimeout(() => {
@@ -324,7 +319,7 @@ class ClashMenuScene {
       console.error('❌ Failed to activate ClashMenuScene:', error);
       // Show error but don't crash
       if (this.menuManager) {
-        this.menuManager.showConnectionStatus('Failed to load menu. Please refresh.', 'error');
+        console.error('❌ Failed to load menu. Please refresh.');
       }
     }
   }
