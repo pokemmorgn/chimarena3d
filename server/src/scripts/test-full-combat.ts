@@ -53,7 +53,7 @@ tower.updateAvailableTargets([mockUnit]);
 
 // Simuler 10 ticks pour voir le combat complet
 console.log('\n=== SIMULATION COMBAT ===');
-for (let tick = 1; tick <= 20; tick++) {
+for (let tick = 1; tick <= 25; tick++) {
   console.log(`\n-- TICK ${tick} --`);
   tower.update(tick, 50);
   
