@@ -242,8 +242,32 @@ async onAuth(_client: Client, options: any, _request?: http.IncomingMessage) {
     this.onMessage('get_stats', async (client) => {
       await this.handleGetStats(client);
     });
+        // 🔧 AJOUT : Handler pour les pings de maintien de connexion
+    this.onMessage('ping', (client) => {
+      this.handlePing(client);
+    });
+    
   }
 
+    private handlePing(client: Client) {
+    const playerState = this.state.players.get(client.sessionId);
+    
+    // Optionnel : mettre à jour le timestamp de dernière activité
+    if (playerState) {
+      playerState.joinTime = Date.now(); // Ou ajouter un champ lastActivity si vous préférez
+    }
+    
+    // Répondre avec un pong
+    client.send('pong', { 
+      serverTime: Date.now(),
+      sessionId: client.sessionId,
+      status: 'ok'
+    });
+    
+    // Log optionnel pour debug (à supprimer en production)
+    console.log(`🏓 Ping received from ${playerState?.username || client.sessionId}`);
+  }
+  
   private async handleJoinQueue(client: Client, message: JoinQueueMessage) {
     const playerState = this.state.players.get(client.sessionId);
     if (!playerState) return client.send('error', { message: 'Player state not found' });
