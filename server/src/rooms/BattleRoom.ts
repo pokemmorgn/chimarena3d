@@ -7,7 +7,7 @@ import UserData from '../models/UserData';
 import PlayerCollection from '../models/PlayerCollection';
 import * as http from 'http';
 import { getCombatSystem } from '../gameplay/systems/CombatSystem';
-import { getTargetingSystem } from '../gameplay/systems/TargetingSystem';
+// import { getTargetingSystem } from '../gameplay/systems/TargetingSystem';
 import BaseUnit, { ITower } from '../gameplay/units/BaseUnit';
 import BattleTower from '../gameplay/units/buildings/Tower';
 
@@ -220,7 +220,7 @@ export class BattleRoom extends Room<BattleRoomState> {
   
   // === COMBAT SYSTEM INTEGRATION ===
   private combatSystem = getCombatSystem();
-  private targetingSystem = getTargetingSystem();
+  // private targetingSystem = getTargetingSystem();
   private battleUnits = new Map<string, BaseUnit>();
   private battleTowers = new Map<string, BattleTower>();
   
