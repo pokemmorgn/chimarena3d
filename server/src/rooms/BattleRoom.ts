@@ -1251,20 +1251,7 @@ export class BattleRoom extends Room<BattleRoomState> {
       
       this.state.towers.set(id, tower);
     }
-
-  private createTower(id: string, type: string, ownerId: string, position: { x: number; y: number }) {
-    const tower = new Tower();
-    tower.id = id;
-    tower.type = type;
-    tower.ownerId = ownerId;
-    tower.position.x = position.x;
-    tower.position.y = position.y;
-    tower.hitpoints = type === 'king' ? 2600 : 1400;
-    tower.maxHitpoints = tower.hitpoints;
-    
-    this.state.towers.set(id, tower);
-  }
-
+  
   private isValidPosition(position: { x: number; y: number }, playerNumber: string): boolean {
     const { x, y } = position;
     
