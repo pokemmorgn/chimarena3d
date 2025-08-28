@@ -217,7 +217,13 @@ export class BattleRoom extends Room<BattleRoomState> {
   };
   
   private disconnectedPlayers = new Map<string, number>();
-
+  
+  // === COMBAT SYSTEM INTEGRATION ===
+  private combatSystem = getCombatSystem();
+  private targetingSystem = getTargetingSystem();
+  private battleUnits = new Map<string, BaseUnit>();
+  private battleTowers = new Map<string, BattleTower>();
+  
   // === AUTH ET SETUP (GARDÉS) ===
   async onAuth(_client: Client, options: any, _request?: http.IncomingMessage) {
     try {
