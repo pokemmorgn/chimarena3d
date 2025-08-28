@@ -210,7 +210,7 @@ styleSheet.textContent =
       this.tabNavigation.deactivate();
     }
     
-    if (this.battleTab) {
+    if (this.battleTab && typeof this.battleTab.deactivate === 'function') {
       this.battleTab.deactivate();
     }
     
