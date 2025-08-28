@@ -233,7 +233,7 @@ setupWorldRoomEvents() {
   // Battle events from WorldRoom
   this.worldRoom.onMessage('match_found', (data) => {
     console.log('⚔️ Match found:', data);
-    // TODO: Handle match found
+    this.handleMatchFound(data);
   });
   
   this.worldRoom.onMessage('queue_joined', (data) => {
@@ -316,6 +316,17 @@ setupWorldRoomEvents() {
     }
   }
 
+    async handleMatchFound(matchData) {
+    console.log('🎮 Transitioning to battle scene...');
+    
+    try {
+      await this.sceneManager.switchToScene('battle', {
+        matchData: matchData
+      }, 'fade');
+    } catch (error) {
+      console.error('❌ Failed to switch to battle scene:', error);
+    }
+  }
   /**
    * Scene lifecycle - deactivate
    */
