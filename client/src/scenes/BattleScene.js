@@ -99,6 +99,30 @@ class BattleScene {
     });
   }
 
+    setupLighting() {
+    // Ambient light for general illumination
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    this.rootObject.add(ambientLight);
+  
+    // Directional light (sun)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(50, 50, 50);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    this.rootObject.add(directionalLight);
+  
+    console.log('💡 Battle lighting setup complete');
+  }
+  
+  setupCamera() {
+    // Position camera for battle view
+    const camera = this.gameEngine.getCamera();
+    camera.position.set(0, 25, 15);
+    camera.lookAt(0, 0, 0);
+  
+    console.log('📷 Battle camera positioned');
+  }
   // TODO: Implement unit rendering methods
   spawnUnit(data) {
     console.log('👤 Unit spawned:', data);
