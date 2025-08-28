@@ -262,7 +262,7 @@ export class BattleRoom extends Room<BattleRoomState> {
     this.state.phase = 'preparing';
     
     this.setupMessageHandlers();
-    this.initializeTowers();
+    await this.initializeTowers();
     this.startPerformanceMonitoring();
     
     await this.logger.log('system', 'battle_started', {
