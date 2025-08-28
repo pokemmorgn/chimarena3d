@@ -9,7 +9,7 @@ import * as http from 'http';
 import { getCombatSystem } from '../gameplay/systems/CombatSystem';
 import { getTargetingSystem } from '../gameplay/systems/TargetingSystem';
 import BaseUnit, { ITower } from '../gameplay/units/BaseUnit';
-import Tower from '../gameplay/units/buildings/Tower';
+import BattleTower from '../gameplay/units/buildings/Tower';
 
 // === COLYSEUS SCHEMAS (GARDÉES EXISTANTES) ===
 
