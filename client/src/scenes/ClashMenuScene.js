@@ -187,11 +187,10 @@ class ClashMenuScene {
       // Setup WorldRoom event listeners
       this.setupWorldRoomEvents();
       
-        // Update menu with connection success
+      // Update menu with connection success
         console.log('✅ Connected to game world!');
-        if (this.menuManager && this.menuManager.enableBattleFeatures) {
-          this.menuManager.enableBattleFeatures(true);
-        }
+        // Battle features enabled (method doesn't exist yet)
+        console.log('✅ Battle features would be enabled here');
       
       console.log('✅ Connected to WorldRoom successfully');
       
