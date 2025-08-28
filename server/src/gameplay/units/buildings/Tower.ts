@@ -220,6 +220,7 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
     }
     
     if (currentTick >= attack.willHitTick) {
+      console.log(`💥 EXECUTING ATTACK at tick ${currentTick}, scheduling next for tick ${currentTick + this.behavior.attackCooldownTicks}`);
       this.executeTowerAttack(attack.targetId, currentTick);
       this.behavior.pendingAttack = undefined;
       this.behavior.nextAttackTick = currentTick + this.behavior.attackCooldownTicks;
@@ -324,8 +325,13 @@ export class Tower extends Schema implements ICombatant, ITargetableEntity {
   }
   
   private initiateAttackSequence(currentTick: number): void {
-    if (!this.behavior.currentTarget || currentTick < this.behavior.nextAttackTick) return;
+    if (!this.behavior.currentTarget || currentTick < this.behavior.nextAttackTick) {
+      console.log(`🔍 Attack blocked: target=${!!this.behavior.currentTarget}, tick=${currentTick}, next=${this.behavior.nextAttackTick}`);
+      return;
+    }
     
+    console.log(`🔥 INITIATING ATTACK at tick ${currentTick}`);
+      
     const target = this.availableTargets.find(t => t.id === this.behavior.currentTarget!.id);
     if (!target || !target.isAlive || !this.isValidTarget(target)) {
       this.behavior.currentTarget = undefined;
