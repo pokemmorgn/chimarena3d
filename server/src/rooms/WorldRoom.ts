@@ -222,52 +222,27 @@ async onAuth(_client: Client, options: any, _request?: http.IncomingMessage) {
     });
   }
 
-private setupMessageHandlers() {
-  this.onMessage('join_queue', async (client, message: JoinQueueMessage) => {
-    await this.handleJoinQueue(client, message);
-  });
-
-  this.onMessage('leave_queue', async (client, message: LeaveQueueMessage) => {
-    await this.handleLeaveQueue(client, message);
-  });
-
-  this.onMessage('ready_status', async (client, message: ReadyStatusMessage) => {
-    await this.handleReadyStatus(client, message);
-  });
-
-  this.onMessage('chat', async (client, message: ChatMessage) => {
-    await this.handleChat(client, message);
-  });
-
-  this.onMessage('get_stats', async (client) => {
-    await this.handleGetStats(client);
-  });
-
-  // 🔧 AJOUT : Handler pour les pings de maintien de connexion
-  this.onMessage('ping', (client) => {
-    this.handlePing(client);
-  });
-
-  // 🔧 NOUVELLE MÉTHODE : Gérer les pings
-  private handlePing(client: Client) {
-    const playerState = this.state.players.get(client.sessionId);
-    
-    // Optionnel : mettre à jour le timestamp de dernière activité
-    if (playerState) {
-      playerState.joinTime = Date.now(); // Ou ajouter un champ lastActivity si vous préférez
-    }
-    
-    // Répondre avec un pong
-    client.send('pong', { 
-      serverTime: Date.now(),
-      sessionId: client.sessionId,
-      status: 'ok'
+  private setupMessageHandlers() {
+    this.onMessage('join_queue', async (client, message: JoinQueueMessage) => {
+      await this.handleJoinQueue(client, message);
     });
-    
-    // Log optionnel pour debug (à supprimer en production)
-    console.log(`🏓 Ping received from ${playerState?.username || client.sessionId}`);
+
+    this.onMessage('leave_queue', async (client, message: LeaveQueueMessage) => {
+      await this.handleLeaveQueue(client, message);
+    });
+
+    this.onMessage('ready_status', async (client, message: ReadyStatusMessage) => {
+      await this.handleReadyStatus(client, message);
+    });
+
+    this.onMessage('chat', async (client, message: ChatMessage) => {
+      await this.handleChat(client, message);
+    });
+
+    this.onMessage('get_stats', async (client) => {
+      await this.handleGetStats(client);
+    });
   }
-}
 
   private async handleJoinQueue(client: Client, message: JoinQueueMessage) {
     const playerState = this.state.players.get(client.sessionId);
