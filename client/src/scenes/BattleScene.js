@@ -26,7 +26,7 @@ class BattleScene {
     try {
       console.log('🎮 Loading Clash Royale Arena...');
       await this.loadArena();
-      this.setupArenaLighting();
+      //this.setupArenaLighting();
       this.isLoaded = true;
       console.log('✅ Arena Clash Royale loaded successfully');
     } catch (error) {
