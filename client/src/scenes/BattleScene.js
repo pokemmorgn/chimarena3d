@@ -26,7 +26,7 @@ class BattleScene {
     try {
       console.log('🎮 Loading Clash Royale Arena...');
       await this.loadArena();
-      //this.setupArenaLighting();
+      this.setupArenaLighting();
       this.isLoaded = true;
       console.log('✅ Arena Clash Royale loaded successfully');
     } catch (error) {
@@ -215,6 +215,35 @@ class BattleScene {
 
   // 💡 Éclairage style Clash Royale
   setupArenaLighting() {
+    // Lumière ambiante douce (pas trop forte)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    ambientLight.name = 'ArenaAmbientLight';
+    this.rootObject.add(ambientLight);
+    
+    // Soleil principal (directional light avec ombres)
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(10, 20, 10);
+    sunLight.castShadow = true;
+    
+    // Configuration ombres
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 50;
+    sunLight.shadow.camera.left = -25;
+    sunLight.shadow.camera.right = 25;
+    sunLight.shadow.camera.top = 25;
+    sunLight.shadow.camera.bottom = -25;
+    sunLight.shadow.bias = -0.0005;
+    
+    sunLight.name = 'ArenaSunLight';
+    this.rootObject.add(sunLight);
+    
+    // Lumière de remplissage (fill light)
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight.position.set(-10, 15, -10);
+    fillLight.name = 'ArenaFillLight';
+    this.rootObject.add(fillLight);
     
     console.log('💡 Éclairage Arena Clash Royale configuré (soleil + ombres)');
   }
