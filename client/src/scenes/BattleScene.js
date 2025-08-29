@@ -21,21 +21,77 @@ class BattleScene {
     this.units = new Map();
     this.towers = new Map();
     
+    // 🔥 CORRECTION MAJEURE : Système de rendu
+    this.isActive = false;
+    this.animationId = null;
+    
     this.gltfLoader = new GLTFLoader();
   }
 
   async initialize() {
     console.log('⚔️ Initializing BattleScene...');
     
-    // CORRECTION 1: Ajouter le rootObject à la scène AVANT de charger l'arena
+    // Ajouter le rootObject à la scène
     this.gameEngine.getScene().add(this.rootObject);
     
     await this.loadArena();
     this.setupLighting();
     this.setupCamera();
     
-    // CORRECTION 2: Forcer un rendu après l'initialisation
-    this.gameEngine.render();
+    // 🔥 CORRECTION : Démarrer la boucle de rendu
+    this.startRenderLoop();
+    
+    console.log('✅ BattleScene initialization complete');
+  }
+
+  // 🔥 NOUVELLE MÉTHODE : Boucle de rendu continue
+  startRenderLoop() {
+    this.isActive = true;
+    
+    const animate = () => {
+      if (!this.isActive) return; // Arrêter si désactivé
+      
+      this.animationId = requestAnimationFrame(animate);
+      
+      // Rendu de la scène
+      this.gameEngine.render();
+      
+      // Optionnel : animations d'unités, particules, etc.
+      this.updateAnimations();
+    };
+    
+    animate();
+    console.log('🎬 Render loop started');
+  }
+
+  // 🔥 NOUVELLE MÉTHODE : Arrêter le rendu
+  stopRenderLoop() {
+    this.isActive = false;
+    
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+    
+    console.log('⏸️ Render loop stopped');
+  }
+
+  // 🔥 NOUVELLE MÉTHODE : Mise à jour des animations
+  updateAnimations() {
+    // Ici on peut ajouter :
+    // - Rotation/animation des unités
+    // - Particules d'effets
+    // - Mouvements de caméra
+    // - Animations UI
+    
+    // Pour test : faire tourner légèrement la caméra
+    const time = Date.now() * 0.0001;
+    const camera = this.gameEngine.getCamera();
+    
+    // Rotation très lente autour du centre (pour test)
+    // camera.position.x = Math.cos(time) * 50;
+    // camera.position.z = Math.sin(time) * 50;
+    // camera.lookAt(0, 0, 0);
   }
 
   async loadArena() {
@@ -46,33 +102,42 @@ class BattleScene {
           this.arenaModel = gltf.scene;
           this.arenaModel.name = 'Arena01';
           
-          // CORRECTION 3: Échelle et position plus appropriées pour une arena 253x253
-          this.arenaModel.scale.setScalar(0.1); // Réduire la taille
+          // 🔥 CORRECTION : Échelle plus grande pour voir quelque chose
+          this.arenaModel.scale.setScalar(0.5); // Augmenté de 0.1 à 0.5
           this.arenaModel.position.set(0, 0, 0);
           
-          // CORRECTION 4: Vérifier et corriger les matériaux
+          // Traitement des matériaux
           this.arenaModel.traverse((child) => {
             if (child.isMesh) {
               console.log('- Processing mesh:', child.name, child.material?.type);
               
-              // S'assurer que le mesh est visible
               child.visible = true;
               child.castShadow = true;
               child.receiveShadow = true;
               
-              // Corriger les matériaux si nécessaire
               if (child.material) {
-                // Si le matériau est transparent ou invisible
-                if (child.material.transparent && child.material.opacity === 0) {
-                  child.material.opacity = 1;
+                // 🔥 CORRECTION : Matériaux plus visibles
+                if (child.material.transparent && child.material.opacity < 0.5) {
+                  child.material.opacity = 1.0;
+                  child.material.transparent = false;
                 }
                 
-                // Si pas de couleur définie, ajouter une couleur par défaut
-                if (!child.material.color) {
-                  child.material.color = new THREE.Color(0x888888);
+                // Couleurs plus vives pour debug
+                if (!child.material.color || child.material.color.getHex() === 0x000000) {
+                  // Couleurs par type de mesh
+                  if (child.name.includes('Ground')) {
+                    child.material.color = new THREE.Color(0x4a5d23); // Vert foncé
+                  } else if (child.name.includes('Road')) {
+                    child.material.color = new THREE.Color(0x8b4513); // Brun
+                  } else if (child.name.includes('King')) {
+                    child.material.color = new THREE.Color(0xff6b35); // Orange
+                  } else if (child.name.includes('Archer')) {
+                    child.material.color = new THREE.Color(0x6b46c1); // Violet
+                  } else {
+                    child.material.color = new THREE.Color(0x888888); // Gris par défaut
+                  }
                 }
                 
-                // Forcer la visibilité du matériau
                 child.material.visible = true;
                 child.material.needsUpdate = true;
               }
@@ -81,19 +146,16 @@ class BattleScene {
           
           this.rootObject.add(this.arenaModel);
           
-          // CORRECTION 5: Calculer la bounding box pour ajuster la caméra
+          // Debug de la bounding box
           const box = new THREE.Box3().setFromObject(this.arenaModel);
           const size = box.getSize(new THREE.Vector3());
           const center = box.getCenter(new THREE.Vector3());
           
           console.log('🏟️ Arena loaded:', {
-            size: size,
-            center: center,
+            size: { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) },
+            center: { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) },
             meshCount: this.getMeshCount(this.arenaModel)
           });
-          
-          // CORRECTION 6: Forcer un rendu après le chargement
-          this.gameEngine.render();
           
           resolve();
         },
@@ -118,9 +180,6 @@ class BattleScene {
 
   async activate(data = {}) {
     this.matchData = data.matchData;
-    
-    // CORRECTION 7: Le rootObject est déjà ajouté dans initialize()
-    // Ne pas l'ajouter à nouveau ici
     
     // Connect to BattleRoom
     if (this.matchData?.matchId) {
@@ -167,29 +226,27 @@ class BattleScene {
   }
 
   setupLighting() {
-    // CORRECTION 8: Éclairage plus fort et mieux positionné
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Plus intense
+    // Éclairage ambiant plus fort
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
     this.rootObject.add(ambientLight);
 
-    // Directional light (sun) - mieux positionné
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Plus intense
-    directionalLight.position.set(100, 200, 100); // Plus éloigné et haut
+    // Lumière directionnelle principale
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight.position.set(50, 100, 50);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
-    
-    // Améliorer les paramètres d'ombre
     directionalLight.shadow.camera.near = 0.1;
-    directionalLight.shadow.camera.far = 1000;
-    directionalLight.shadow.camera.left = -200;
-    directionalLight.shadow.camera.right = 200;
-    directionalLight.shadow.camera.top = 200;
-    directionalLight.shadow.camera.bottom = -200;
+    directionalLight.shadow.camera.far = 500;
+    directionalLight.shadow.camera.left = -100;
+    directionalLight.shadow.camera.right = 100;
+    directionalLight.shadow.camera.top = 100;
+    directionalLight.shadow.camera.bottom = -100;
     
     this.rootObject.add(directionalLight);
     
-    // CORRECTION 9: Ajout d'une lumière hémisphérique pour plus de réalisme
-    const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x98FB98, 0.4);
+    // Lumière hémisphérique pour l'atmosphère
+    const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x98FB98, 0.5);
     this.rootObject.add(hemisphereLight);
 
     console.log('💡 Battle lighting setup complete');
@@ -198,37 +255,40 @@ class BattleScene {
   setupCamera() {
     const camera = this.gameEngine.getCamera();
     
-    // CORRECTION 10: Position de caméra plus appropriée avec échelle réduite
-    camera.position.set(0, 50, 30); // Plus proche avec échelle 0.1
+    // 🔥 CORRECTION : Position plus éloignée avec échelle 0.5
+    camera.position.set(0, 80, 60);
     camera.lookAt(0, 0, 0);
     
-    // CORRECTION 11: Ajuster les paramètres de la caméra
+    // Paramètres de caméra
     camera.near = 0.1;
-    camera.far = 1000;
+    camera.far = 2000;
     camera.updateProjectionMatrix();
     
     console.log('📷 Camera positioned:', {
-      position: camera.position,
+      position: { 
+        x: camera.position.x, 
+        y: camera.position.y, 
+        z: camera.position.z 
+      },
       target: { x: 0, y: 0, z: 0 },
       fov: camera.fov,
       aspect: camera.aspect
     });
 
-    // CORRECTION 12: Cube de test plus visible et coloré
-    const testGeometry = new THREE.BoxGeometry(2, 2, 2);
+    // 🔥 CUBE TEST plus grand et plus visible
+    const testGeometry = new THREE.BoxGeometry(5, 5, 5);
     const testMaterial = new THREE.MeshLambertMaterial({ 
       color: 0x00ff00,
       transparent: false
     });
     const testCube = new THREE.Mesh(testGeometry, testMaterial);
-    testCube.position.set(0, 2, 0); // Plus haut pour être visible
+    testCube.position.set(0, 10, 0); // Plus haut
     testCube.castShadow = true;
     testCube.receiveShadow = true;
     
     this.rootObject.add(testCube);
-    console.log('✅ Added visible green test cube at (0,2,0)');
+    console.log('✅ Added large green test cube at (0,10,0)');
     
-    // CORRECTION 13: Debug complet de la scène
     this.debugScene();
   }
 
@@ -240,8 +300,15 @@ class BattleScene {
     console.log('🔍 Scene Debug:', {
       sceneChildren: scene.children.length,
       rootObjectChildren: this.rootObject.children.length,
-      cameraPosition: camera.position,
-      rendererSize: renderer.getSize(new THREE.Vector2()),
+      cameraPosition: {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z
+      },
+      rendererSize: {
+        width: renderer.domElement.width,
+        height: renderer.domElement.height
+      },
       rendererPixelRatio: renderer.getPixelRatio()
     });
     
@@ -257,19 +324,6 @@ class BattleScene {
     if (!arenaFound && this.arenaModel) {
       console.log('❌ Arena model NOT in scene');
     }
-    
-    // CORRECTION 14: Forcer le rendu après debug
-    this.gameEngine.render();
-  }
-
-  // CORRECTION 15: Méthode pour forcer le rendu en continu (temporaire pour debug)
-  startDebugRendering() {
-    const animate = () => {
-      this.gameEngine.render();
-      requestAnimationFrame(animate);
-    };
-    animate();
-    console.log('🔄 Debug rendering started');
   }
 
   // TODO: Implement unit rendering methods
@@ -286,11 +340,16 @@ class BattleScene {
   }
 
   cleanup() {
+    console.log('🧹 Cleaning up BattleScene...');
+    
+    // 🔥 CORRECTION : Arrêter la boucle de rendu
+    this.stopRenderLoop();
+    
     if (this.battleRoom) {
       this.battleRoom.leave();
     }
     
-    // CORRECTION 16: Nettoyer correctement les objets Three.js
+    // Nettoyer les objets Three.js
     if (this.rootObject) {
       this.rootObject.traverse((object) => {
         if (object.geometry) {
@@ -313,7 +372,7 @@ class BattleScene {
       this.gameEngine.getScene().remove(this.rootObject);
     }
     
-    console.log('🧹 BattleScene cleaned up');
+    console.log('✅ BattleScene cleaned up');
   }
 }
 
