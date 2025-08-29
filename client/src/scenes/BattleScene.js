@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 /**
- * BattleScene - VERSION FINALE QUI FONCTIONNE
- * Fix canvas visibility + suppression diagnostic buggy
+ * BattleScene - Affichage Arena Clash Royale Authentique
+ * Maintenant qu'on sait que Three.js marche, focus sur l'Arena !
  */
 class BattleScene {
   constructor(gameEngine, sceneManager) {
@@ -19,211 +19,331 @@ class BattleScene {
     this.arenaModel = null;
     this.originalCameraState = null;
     
-    console.log('⚔️ BattleScene constructor');
+    console.log('🏟️ BattleScene - Clash Royale Arena Display');
   }
 
   async initialize() {
     try {
-      console.log('🎮 BattleScene initialize() - Loading arena...');
+      console.log('🎮 Loading Clash Royale Arena...');
       await this.loadArena();
-      this.setupLighting();
+      this.setupArenaLighting();
       this.isLoaded = true;
-      console.log('✅ BattleScene initialized successfully');
+      console.log('✅ Arena Clash Royale loaded successfully');
     } catch (error) {
-      console.error('❌ BattleScene initialize failed:', error);
+      console.error('❌ Arena loading failed:', error);
       throw error;
     }
   }
 
   async activate(data = {}) {
     try {
-      console.log('🎬 BattleScene activate() - FINAL VERSION WITH CANVAS FIX');
+      console.log('🏟️ Activating Clash Royale Battle Arena...');
       
       if (!this.isLoaded) {
         await this.initialize();
       }
       
-      // Nettoyer les scènes précédentes
       this.cleanupPreviousScenes();
       this.saveCurrentCameraState();
       
-      // Ajouter à la scène principale
       const mainScene = this.gameEngine.getScene();
       if (!mainScene.children.includes(this.rootObject)) {
         mainScene.add(this.rootObject);
-        console.log('✅ BattleScene rootObject added to main scene');
+        console.log('✅ Arena added to scene');
       }
       
-      // Setup caméra et objets de test
-      this.setupEmergencyCamera();
-      this.addEmergencyTestCube();
+      // Configuration spécifique Clash Royale
+      this.setupClashRoyaleCamera();
+      this.setupClashRoyaleRenderer();
       
-      // S'assurer que GameEngine rend
       if (!this.gameEngine.isEngineRunning()) {
         this.gameEngine.start();
       }
       
       this.isActive = true;
-      
-      // 🔥 FIX CRITIQUE : CANVAS VISIBILITY
       this.fixCanvasVisibility();
+      this.debugArenaDisplay();
       
-      // Diagnostic simple (sans getClearColor buggy)
-      this.simpleDiagnostic();
-      
-      // Force plusieurs rendus pour s'assurer que ça marche
-      this.forceMultipleRenders();
-      
-      console.log('🎯 BattleScene activated - SHOULD BE VISIBLE NOW!');
+      console.log('🏟️ Clash Royale Arena Battle Ready!');
       
     } catch (error) {
-      console.error('❌ BattleScene activation failed:', error);
+      console.error('❌ Arena activation failed:', error);
       throw error;
     }
   }
 
-  // 🔥 FIX CANVAS VISIBILITY - MÉTHODE CRITIQUE
-  fixCanvasVisibility() {
-    console.log('🔧 FIXING Canvas visibility...');
-    
-    const renderer = this.gameEngine.getRenderer();
-    const canvas = renderer.domElement;
-    
-    // Debug état actuel
-    console.log('🖼️ Canvas AVANT fix:', {
-      visible: canvas.offsetParent !== null,
-      display: canvas.style.display || 'default',
-      visibility: canvas.style.visibility || 'default',
-      opacity: canvas.style.opacity || 'default',
-      zIndex: canvas.style.zIndex || 'default',
-      parentId: canvas.parentElement?.id
-    });
-    
-    // FORCE ABSOLUE de visibilité
-    canvas.style.display = 'block';
-    canvas.style.visibility = 'visible';
-    canvas.style.opacity = '1';
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.zIndex = '100'; // Très haut pour être sûr
-    canvas.style.pointerEvents = 'auto';
-    canvas.style.background = 'transparent';
-    
-    // S'assurer qu'il est dans mobile-viewport
-    const mobileViewport = document.getElementById('mobile-viewport');
-    if (mobileViewport) {
-      if (!mobileViewport.contains(canvas)) {
-        console.log('📱 Moving canvas to mobile-viewport...');
-        mobileViewport.appendChild(canvas);
-      }
-      
-      // S'assurer que le viewport est visible aussi
-      mobileViewport.style.position = 'relative';
-      mobileViewport.style.overflow = 'visible';
-      mobileViewport.style.zIndex = '10';
-    }
-    
-    // Masquer les menus pendant la bataille
-    const clashMenu = document.querySelector('.clash-menu-container');
-    if (clashMenu) {
-      clashMenu.style.display = 'none';
-      console.log('🙈 ClashMenu hidden during battle');
-    }
-    
-    console.log('🖼️ Canvas APRÈS fix:', {
-      visible: canvas.offsetParent !== null,
-      display: canvas.style.display,
-      zIndex: canvas.style.zIndex,
-      parentId: canvas.parentElement?.id
-    });
-    
-    console.log('✅ Canvas visibility fix applied - SHOULD BE VISIBLE NOW!');
-  }
-
   async loadArena() {
     return new Promise((resolve, reject) => {
-      console.log('📦 Loading Arena01.glb...');
+      console.log('📦 Loading Arena01.glb from /maps/...');
       
       this.gltfLoader.load(
         '/maps/Arena01.glb',
         (gltf) => {
           try {
-            console.log('✅ Arena01.glb loaded successfully');
+            console.log('✅ Arena01.glb loaded - Processing for Clash Royale...');
             
             this.arenaModel = gltf.scene;
-            this.arenaModel.name = 'Arena01';
+            this.arenaModel.name = 'ClashRoyaleArena';
             
-            // Configuration pour visibilité maximale
-            this.arenaModel.scale.set(0.5, 0.5, 0.5);
-            this.arenaModel.position.set(0, -2, 0);
-            this.arenaModel.rotation.set(0, 0, 0);
+            // 🏟️ CONFIGURATION ARENA CLASH ROYALE
+            // Arena Unity : 253x253 unités → réduire pour Three.js
+            this.arenaModel.scale.set(0.08, 0.08, 0.08); // Plus petit pour vue correcte
+            this.arenaModel.position.set(0, 0, 0); // Centré
+            this.arenaModel.rotation.set(0, 0, 0); // Pas de rotation
             
-            this.forceAllMaterialsVisible(this.arenaModel);
+            // Optimiser les matériaux pour Clash Royale
+            this.optimizeArenaMaterials(this.arenaModel);
+            
             this.rootObject.add(this.arenaModel);
             
-            console.log(`🎯 Arena configured: Scale=0.5, Position=(0,-2,0), Meshes=${this.countMeshes(this.arenaModel)}`);
+            console.log(`🏟️ Arena configurée: Scale=0.08, Meshes=${this.countMeshes(this.arenaModel)}`);
+            this.logArenaComponents(this.arenaModel);
+            
             resolve();
             
           } catch (error) {
-            console.error('❌ Error processing loaded arena:', error);
+            console.error('❌ Erreur traitement arena:', error);
             reject(error);
           }
         },
         (progress) => {
           const percent = Math.round((progress.loaded / progress.total) * 100);
-          console.log(`⏳ Loading arena: ${percent}%`);
+          if (percent % 20 === 0) { // Log chaque 20%
+            console.log(`⏳ Chargement arena: ${percent}%`);
+          }
         },
         (error) => {
-          console.error('❌ Failed to load arena:', error);
+          console.error('❌ Échec chargement Arena01.glb:', error);
           reject(error);
         }
       );
     });
   }
 
-  forceAllMaterialsVisible(object) {
-    console.log('🔧 FORCING all materials visible...');
+  // 🎨 Optimisation des matériaux pour look Clash Royale
+  optimizeArenaMaterials(arena) {
+    console.log('🎨 Optimizing Arena materials for Clash Royale look...');
     let materialCount = 0;
     
-    object.traverse((child) => {
+    arena.traverse((child) => {
       if (child.isMesh && child.material) {
         materialCount++;
         child.visible = true;
-        child.frustumCulled = false;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.frustumCulled = false; // Important pour éviter le culling
         
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         
         materials.forEach(mat => {
+          // Propriétés de base
           mat.needsUpdate = true;
-          mat.transparent = false;
-          mat.opacity = 1.0;
-          mat.visible = true;
-          mat.side = THREE.DoubleSide;
+          mat.side = THREE.FrontSide; // Une seule face pour performance
           
-          if (!mat.color || mat.color.getHex() === 0x000000) {
-            mat.color = new THREE.Color(0x00ff00);
-          } else {
-            mat.color.multiplyScalar(3);
+          // Amélioration visuelle style Clash Royale
+          if (mat.map) {
+            mat.map.generateMipmaps = true;
+            mat.map.minFilter = THREE.LinearMipmapLinearFilter;
+            mat.map.magFilter = THREE.LinearFilter;
           }
           
-          mat.alphaTest = 0;
-          mat.depthWrite = true;
-          mat.depthTest = true;
+          // Couleurs vives style Clash Royale
+          if (mat.color) {
+            // Saturer légèrement les couleurs
+            const hsl = {};
+            mat.color.getHSL(hsl);
+            mat.color.setHSL(hsl.h, Math.min(1, hsl.s * 1.2), Math.min(1, hsl.l * 1.1));
+          }
+          
+          // Éclairage réactif
+          mat.transparent = false;
+          mat.opacity = 1.0;
+          
+          // Debug: marquer les matériaux importants
+          if (child.name && child.name.includes('Tower')) {
+            console.log(`🏰 Tour détectée: ${child.name}`);
+          }
+          if (child.name && child.name.includes('Ground')) {
+            console.log(`🌱 Sol détecté: ${child.name}`);
+          }
         });
       }
     });
     
-    console.log(`🎨 Forced ${materialCount} materials to be visible`);
+    console.log(`🎨 ${materialCount} matériaux optimisés pour Clash Royale`);
   }
 
+  // 📷 Caméra style Clash Royale (vue isométrique)
+  setupClashRoyaleCamera() {
+    const camera = this.gameEngine.getCamera();
+    
+    // Position classique Clash Royale : derrière les tours du joueur
+    // Vue légèrement élevée regardant vers les tours ennemies
+    camera.position.set(0, 12, 8); // Y=hauteur, Z=distance depuis fond
+    camera.lookAt(0, 0, -3); // Regarder légèrement vers l'avant
+    
+    // FOV typique des jeux mobiles
+    camera.fov = 60;
+    camera.near = 0.1;
+    camera.far = 200;
+    camera.updateProjectionMatrix();
+    
+    console.log('📷 Caméra Clash Royale configurée:', {
+      position: camera.position.toArray(),
+      lookAt: [0, 0, -3],
+      fov: camera.fov
+    });
+  }
+
+  // 🎨 Renderer optimisé pour Clash Royale
+  setupClashRoyaleRenderer() {
+    const renderer = this.gameEngine.getRenderer();
+    
+    // Fond couleur ciel Clash Royale
+    renderer.setClearColor(0x87CEEB, 1.0); // Sky Blue
+    
+    // Shadows pour le réalisme
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    // Tone mapping pour les couleurs vives
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2; // Légèrement plus lumineux
+    
+    console.log('🎨 Renderer Clash Royale configuré (fond bleu ciel)');
+  }
+
+  // 💡 Éclairage style Clash Royale
+  setupArenaLighting() {
+    // Lumière ambiante douce (pas trop forte)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    ambientLight.name = 'ArenaAmbientLight';
+    this.rootObject.add(ambientLight);
+    
+    // Soleil principal (directional light avec ombres)
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(10, 20, 10);
+    sunLight.castShadow = true;
+    
+    // Configuration ombres
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 50;
+    sunLight.shadow.camera.left = -25;
+    sunLight.shadow.camera.right = 25;
+    sunLight.shadow.camera.top = 25;
+    sunLight.shadow.camera.bottom = -25;
+    sunLight.shadow.bias = -0.0005;
+    
+    sunLight.name = 'ArenaSunLight';
+    this.rootObject.add(sunLight);
+    
+    // Lumière de remplissage (fill light)
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight.position.set(-10, 15, -10);
+    fillLight.name = 'ArenaFillLight';
+    this.rootObject.add(fillLight);
+    
+    console.log('💡 Éclairage Arena Clash Royale configuré (soleil + ombres)');
+  }
+
+  // 🔍 Debug spécifique à l'Arena
+  debugArenaDisplay() {
+    console.log('🔍 === DEBUG ARENA CLASH ROYALE ===');
+    
+    const camera = this.gameEngine.getCamera();
+    const renderer = this.gameEngine.getRenderer();
+    
+    console.log('🏟️ Arena Model:', {
+      present: !!this.arenaModel,
+      scale: this.arenaModel?.scale.toArray(),
+      position: this.arenaModel?.position.toArray(),
+      rotation: this.arenaModel?.rotation.toArray(),
+      meshCount: this.countMeshes(this.arenaModel)
+    });
+    
+    console.log('📷 Camera Clash Royale:', {
+      position: camera.position.toArray(),
+      fov: camera.fov,
+      aspect: camera.aspect.toFixed(2)
+    });
+    
+    // Test de rendu
+    renderer.info.reset();
+    const scene = this.gameEngine.getScene();
+    renderer.render(scene, camera);
+    
+    console.log('🎬 Render Stats Arena:', {
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      clearColor: renderer.getClearColor ? 'Sky Blue' : 'N/A'
+    });
+    
+    console.log('🏟️ Arena should be visible in Clash Royale style!');
+  }
+
+  // 📊 Analyser les composants de l'Arena
+  logArenaComponents(arena) {
+    console.log('🏗️ Composants Arena détectés:');
+    
+    const components = {
+      towers: [],
+      ground: [],
+      bridges: [],
+      decorations: [],
+      other: []
+    };
+    
+    arena.traverse((child) => {
+      if (child.isMesh) {
+        const name = child.name.toLowerCase();
+        
+        if (name.includes('tower') || name.includes('king') || name.includes('princess')) {
+          components.towers.push(child.name);
+        } else if (name.includes('ground') || name.includes('grass') || name.includes('floor')) {
+          components.ground.push(child.name);
+        } else if (name.includes('bridge') || name.includes('river') || name.includes('water')) {
+          components.bridges.push(child.name);
+        } else if (name.includes('tree') || name.includes('rock') || name.includes('decoration')) {
+          components.decorations.push(child.name);
+        } else {
+          components.other.push(child.name);
+        }
+      }
+    });
+    
+    console.log('🏰 Tours:', components.towers.length, components.towers.slice(0, 3));
+    console.log('🌱 Terrain:', components.ground.length, components.ground.slice(0, 3));
+    console.log('🌉 Ponts/Eau:', components.bridges.length, components.bridges.slice(0, 3));
+    console.log('🎨 Décorations:', components.decorations.length, components.decorations.slice(0, 3));
+    console.log('📦 Autres:', components.other.length, components.other.slice(0, 3));
+  }
+
+  // 🔧 Fix Canvas Visibility (gardé de la version précédente)
+  fixCanvasVisibility() {
+    const renderer = this.gameEngine.getRenderer();
+    const canvas = renderer.domElement;
+    
+    canvas.style.display = 'block';
+    canvas.style.visibility = 'visible';
+    canvas.style.opacity = '1';
+    canvas.style.zIndex = '100';
+    
+    // Masquer les menus pendant la bataille
+    const clashMenu = document.querySelector('.clash-menu-container');
+    if (clashMenu) {
+      clashMenu.style.display = 'none';
+    }
+    
+    console.log('✅ Canvas visible pour Clash Royale Arena');
+  }
+
+  // 🧹 Cleanup Previous Scenes
   cleanupPreviousScenes() {
     const mainScene = this.gameEngine.getScene();
-    console.log('🧹 Cleaning up previous scenes...');
-    
     const toRemove = [];
+    
     mainScene.children.forEach(child => {
       if (child.name === 'WelcomeMenuScene' || child.name === 'ClashMenuScene') {
         toRemove.push(child);
@@ -232,119 +352,7 @@ class BattleScene {
     
     toRemove.forEach(obj => {
       mainScene.remove(obj);
-      console.log(`🗑️ Removed ${obj.name} from scene`);
     });
-  }
-
-  setupEmergencyCamera() {
-    const camera = this.gameEngine.getCamera();
-    
-    // Position éloignée pour voir toute l'arène
-    camera.position.set(0, 50, 50);
-    camera.lookAt(0, 0, 0);
-    camera.fov = 75;
-    camera.updateProjectionMatrix();
-    
-    console.log('🚨 EMERGENCY Camera positioned at (0,50,50) looking at (0,0,0)');
-  }
-
-  addEmergencyTestCube() {
-    // Cube vert géant
-    const geometry = new THREE.BoxGeometry(10, 10, 10);
-    const material = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff00,
-      side: THREE.DoubleSide
-    });
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.set(0, 5, 0);
-    cube.name = 'EmergencyTestCube';
-    this.rootObject.add(cube);
-    
-    // Cube rouge
-    const redGeometry = new THREE.BoxGeometry(5, 5, 5);
-    const redMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const redCube = new THREE.Mesh(redGeometry, redMaterial);
-    redCube.position.set(10, 2.5, 0);
-    redCube.name = 'RedTestCube';
-    this.rootObject.add(redCube);
-    
-    console.log('🟢🔴 Emergency test cubes added: Green(0,5,0) + Red(10,2.5,0)');
-  }
-
-  setupLighting() {
-    // Éclairage extrême
-    const ambientLight = new THREE.AmbientLight(0xffffff, 3.0);
-    ambientLight.name = 'BattleAmbientLight';
-    this.rootObject.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 3.0);
-    directionalLight.position.set(20, 40, 20);
-    directionalLight.name = 'BattleDirectionalLight';
-    this.rootObject.add(directionalLight);
-    
-    // Lumières supplémentaires
-    const lights = [
-      { pos: [50, 50, 50], color: 0xffffff, intensity: 2.0 },
-      { pos: [-50, 50, 50], color: 0xffffff, intensity: 2.0 },
-      { pos: [0, 50, -50], color: 0xffffff, intensity: 2.0 }
-    ];
-    
-    lights.forEach((lightConfig, index) => {
-      const light = new THREE.DirectionalLight(lightConfig.color, lightConfig.intensity);
-      light.position.set(...lightConfig.pos);
-      light.name = `ExtraLight${index}`;
-      this.rootObject.add(light);
-    });
-    
-    console.log('💡🌟 EXTREME lighting configured (ambient=3.0, multiple directional lights)');
-  }
-
-  // DIAGNOSTIC SIMPLE (sans getClearColor buggy)
-  simpleDiagnostic() {
-    console.log('🔍 SIMPLE DIAGNOSTIC (no buggy getClearColor):');
-    
-    const mainScene = this.gameEngine.getScene();
-    const camera = this.gameEngine.getCamera();
-    const renderer = this.gameEngine.getRenderer();
-    const canvas = renderer.domElement;
-    
-    console.log('📊 Quick Stats:', {
-      sceneChildren: mainScene.children.length,
-      rootObjectChildren: this.rootObject.children.length,
-      canvasVisible: canvas.offsetParent !== null,
-      canvasDisplay: canvas.style.display,
-      canvasZIndex: canvas.style.zIndex,
-      cameraPosition: camera.position.toArray(),
-      gameEngineRunning: this.gameEngine.isEngineRunning()
-    });
-    
-    // Test de rendu
-    renderer.info.reset();
-    renderer.render(mainScene, camera);
-    
-    console.log('🎬 Render Test:', {
-      calls: renderer.info.render.calls,
-      triangles: renderer.info.render.triangles
-    });
-    
-    console.log('✅ Simple diagnostic complete - Canvas should be visible!');
-  }
-
-  // Force plusieurs rendus pour s'assurer que ça marche
-  forceMultipleRenders() {
-    const renderer = this.gameEngine.getRenderer();
-    const scene = this.gameEngine.getScene();
-    const camera = this.gameEngine.getCamera();
-    
-    console.log('🎬 Forcing 10 renders to ensure visibility...');
-    
-    for (let i = 0; i < 10; i++) {
-      setTimeout(() => {
-        renderer.render(scene, camera);
-        if (i === 0) console.log('🎯 First forced render executed');
-        if (i === 9) console.log('🎯 All forced renders complete - ARENA SHOULD BE VISIBLE!');
-      }, i * 50);
-    }
   }
 
   saveCurrentCameraState() {
@@ -357,7 +365,7 @@ class BattleScene {
   }
 
   deactivate() {
-    console.log('⏸️ BattleScene deactivate()');
+    console.log('⏸️ Deactivating Clash Royale Arena...');
     this.isActive = false;
     
     // Restaurer la caméra
@@ -373,7 +381,6 @@ class BattleScene {
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) {
       clashMenu.style.display = '';
-      console.log('👁️ ClashMenu restored');
     }
     
     // Retirer de la scène
@@ -384,7 +391,7 @@ class BattleScene {
   }
 
   cleanup() {
-    console.log('🧹 BattleScene cleanup()');
+    console.log('🧹 Cleaning up Clash Royale Arena...');
     this.deactivate();
     
     if (this.arenaModel) {
@@ -406,6 +413,7 @@ class BattleScene {
   }
 
   countMeshes(object) {
+    if (!object) return 0;
     let count = 0;
     object.traverse((child) => {
       if (child.isMesh) count++;
@@ -414,11 +422,10 @@ class BattleScene {
   }
 
   update(deltaTime) {
-    if (!this.isActive) return;
-    // Animation simple de test - rotation lente
-    if (this.arenaModel) {
-      this.arenaModel.rotation.y += deltaTime * 0.1;
-    }
+    if (!this.isActive || !this.arenaModel) return;
+    
+    // Animation subtile de l'arena (optionnel)
+    // Par exemple, légère ondulation de l'eau, mouvement des arbres, etc.
   }
 
   // Getters
