@@ -66,6 +66,10 @@ class BattleScene {
     if (!this.isLoaded) await this.initialize();
     this.saveCameraState();
     this.isActive = true;
+
+    // Masquer le menu
+    const clashMenu = document.querySelector('.clash-menu-container');
+    if (clashMenu) clashMenu.style.display = 'none';
   }
 
   saveCameraState() {
@@ -79,6 +83,7 @@ class BattleScene {
 
   deactivate() {
     this.isActive = false;
+
     if (this.originalCameraState) {
       const cam = this.gameEngine.getCamera();
       cam.position.copy(this.originalCameraState.position);
@@ -86,6 +91,11 @@ class BattleScene {
       cam.fov = this.originalCameraState.fov;
       cam.updateProjectionMatrix();
     }
+
+    // Restaurer le menu
+    const clashMenu = document.querySelector('.clash-menu-container');
+    if (clashMenu) clashMenu.style.display = '';
+
     this.gameEngine.getScene().remove(this.rootObject);
   }
 
