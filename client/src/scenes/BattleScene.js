@@ -76,7 +76,7 @@ class BattleScene {
       console.log('Chargement Arena01.glb...');
       
       this.gltfLoader.load(
-        '/maps/Arena01.glb',
+        '/maps/_Arena01.glb',
         (gltf) => {
           try {
             console.log('Arena01.glb chargée, correction des matériaux...');
