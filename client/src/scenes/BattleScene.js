@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 /**
- * BattleScene - Version Simple
- * Objectif: Afficher l'arena Unity EXACTEMENT comme dans Unity
+ * BattleScene - Version Pure Unity
+ * Objectif: Afficher la map Unity EXACTEMENT comme elle est, sans modifications
  */
 class BattleScene {
   constructor(gameEngine, sceneManager) {
@@ -20,24 +20,23 @@ class BattleScene {
     this.originalCameraState = null;
     this.originalRendererState = null;
     
-    console.log('🏟️ Arena - Affichage simple Unity map');
+    console.log('🏟️ Arena - Version Pure Unity (sans modifications)');
   }
 
   async initialize() {
     try {
-      console.log('📦 Chargement simple de l\'arena...');
+      console.log('📦 Chargement pur de l\'arena Unity...');
       
-      // ÉTAPE 1: Configuration minimale du renderer
-      this.configureRendererForUnity();
+      // ÉTAPE 1: Pas de configuration renderer spéciale
+      this.saveRendererState();
       
-      // ÉTAPE 2: Chargement direct
-      await this.loadArenaSimple();
+      // ÉTAPE 2: Chargement direct sans modifications
+      await this.loadArenaPure();
       
-      // ÉTAPE 3: Éclairage minimal
-      this.setupSimpleLighting();
+      // ÉTAPE 3: Aucun éclairage ajouté (on garde celui de Unity)
       
       this.isLoaded = true;
-      console.log('✅ Arena chargée (version simple)');
+      console.log('✅ Arena Unity chargée (version pure)');
       
     } catch (error) {
       console.error('❌ Erreur chargement arena:', error);
@@ -46,12 +45,11 @@ class BattleScene {
   }
 
   /**
-   * Configuration minimale pour Unity GLB
+   * Sauvegarder l'état du renderer sans le modifier
    */
-  configureRendererForUnity() {
+  saveRendererState() {
     const renderer = this.gameEngine.getRenderer();
     
-    // Sauvegarder l'état actuel
     this.originalRendererState = {
       outputColorSpace: renderer.outputColorSpace,
       toneMapping: renderer.toneMapping,
@@ -60,42 +58,36 @@ class BattleScene {
       clearAlpha: renderer.getClearAlpha()
     };
     
-    // Configuration simple pour GLB Unity
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.LinearToneMapping; // Plus doux que NoToneMapping
-    renderer.toneMappingExposure = 0.6;             // Réduire l'exposition
-    renderer.setClearColor(0x87CEEB, 1.0);         // Bleu ciel
-    
-    console.log('🔧 Renderer configuré pour Unity GLB');
+    console.log('💾 État renderer sauvegardé (pas de modifications)');
   }
 
   /**
-   * Chargement simple - pas de modifications excessives
+   * Chargement pur - ZÉRO modification
    */
-  async loadArenaSimple() {
+  async loadArenaPure() {
     return new Promise((resolve, reject) => {
-      console.log('⏳ Chargement Arena01.glb...');
+      console.log('⏳ Chargement Arena01.glb (pur)...');
       
       this.gltfLoader.load(
         '/maps/Arena01.glb',
         (gltf) => {
           try {
-            console.log('📥 Arena chargée, ajustements minimes...');
+            console.log('📥 Arena chargée, AUCUNE modification...');
             
             this.arenaModel = gltf.scene;
             this.arenaModel.name = 'Arena';
             
-            // Échelle et position de base
+            // Uniquement échelle et position de base
             this.arenaModel.scale.set(0.1, 0.1, 0.1);
             this.arenaModel.position.set(0, 0, 0);
             this.arenaModel.rotation.set(0, 0, 0);
             
-            // UNIQUEMENT corriger les matériaux trop brillants
-            this.fixOverlyBrightMaterials(this.arenaModel);
+            // AUCUNE modification des matériaux ou éclairages
+            // On garde tout comme Unity l'a exporté
             
             this.rootObject.add(this.arenaModel);
             
-            console.log(`✅ Arena prête: ${this.countMeshes(this.arenaModel)} meshes`);
+            console.log(`✅ Arena Unity pure: ${this.countMeshes(this.arenaModel)} meshes`);
             resolve();
             
           } catch (error) {
@@ -117,90 +109,9 @@ class BattleScene {
     });
   }
 
-  /**
-   * Correction minimale: seulement les matériaux trop brillants
-   */
-  fixOverlyBrightMaterials(arena) {
-    console.log('🔧 Correction matériaux trop brillants...');
-    let fixed = 0;
-    
-    arena.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.visible = true;
-        child.frustumCulled = false;
-        
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        
-        materials.forEach((mat) => {
-          // PROBLÈME PRINCIPAL: Matériaux Unity trop métalliques/brillants
-          if (mat.type === 'MeshStandardMaterial') {
-            
-            // Réduire le métal (cause principale du blanc)
-            if (mat.metalness > 0.2) {
-              mat.metalness = 0.1;
-              fixed++;
-            }
-            
-            // Augmenter la rugosité (réduire le brillant)
-            if (mat.roughness < 0.5) {
-              mat.roughness = 0.8;
-              fixed++;
-            }
-            
-            // Si couleur trop claire, l'assombrir légèrement
-            if (mat.color) {
-              const hex = mat.color.getHex();
-              if (hex > 0xF0F0F0) { // Très blanc
-                mat.color.multiplyScalar(0.7);
-                fixed++;
-              }
-            }
-            
-            // Supprimer émissive si présente (cause de sur-éclairage)
-            if (mat.emissive && mat.emissive.getHex() > 0x000000) {
-              mat.emissive.setHex(0x000000);
-              fixed++;
-            }
-          }
-          
-          mat.needsUpdate = true;
-        });
-      }
-    });
-    
-    console.log(`🔧 ${fixed} corrections de matériaux appliquées`);
-  }
-
-  /**
-   * Éclairage simple et naturel
-   */
-  setupSimpleLighting() {
-    // Lumière ambiante douce
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    this.rootObject.add(ambient);
-    
-    // Une seule lumière directionnelle
-    const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    sunLight.position.set(10, 15, 10);
-    sunLight.castShadow = true;
-    
-    // Ombres simples
-    sunLight.shadow.mapSize.setScalar(1024);
-    sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 50;
-    sunLight.shadow.camera.left = -15;
-    sunLight.shadow.camera.right = 15;
-    sunLight.shadow.camera.top = 15;
-    sunLight.shadow.camera.bottom = -15;
-    
-    this.rootObject.add(sunLight);
-    
-    console.log('💡 Éclairage simple configuré');
-  }
-
   async activate(data = {}) {
     try {
-      console.log('🎮 Activation Arena Battle Scene...');
+      console.log('🎮 Activation Arena Battle Scene (Pure Unity)...');
       
       if (!this.isLoaded) {
         await this.initialize();
@@ -213,7 +124,7 @@ class BattleScene {
       const mainScene = this.gameEngine.getScene();
       if (!mainScene.children.includes(this.rootObject)) {
         mainScene.add(this.rootObject);
-        console.log('🏟️ Arena ajoutée à la scène');
+        console.log('🏟️ Arena Unity ajoutée à la scène');
       }
       
       // Positionner la caméra
@@ -230,7 +141,7 @@ class BattleScene {
       this.isActive = true;
       this.debugArenaStats();
       
-      console.log('✅ Arena Battle Scene active');
+      console.log('✅ Arena Battle Scene active (Pure Unity)');
       
     } catch (error) {
       console.error('❌ Erreur activation:', error);
@@ -244,10 +155,10 @@ class BattleScene {
   setupBattleCamera() {
     const camera = this.gameEngine.getCamera();
     
-    // Position optimale pour voir toute l'arène
-    camera.position.set(0, 18, 14);  // Légèrement au-dessus et en arrière
-    camera.lookAt(0, 0, -2);         // Regarder vers le centre-bas de l'arène
-    camera.fov = 65;                 // FOV large pour voir l'arène complète
+    // Position optimale pour voir toute l'arène Unity
+    camera.position.set(0, 18, 14);
+    camera.lookAt(0, 0, -2);
+    camera.fov = 65;
     camera.updateProjectionMatrix();
     
     console.log('📷 Caméra Battle positionnée');
@@ -276,10 +187,10 @@ class BattleScene {
   }
 
   /**
-   * Debug: Statistiques de l'arena
+   * Debug: Statistiques de l'arena Unity
    */
   debugArenaStats() {
-    console.log('=== 📊 STATS ARENA ===');
+    console.log('=== 📊 STATS ARENA UNITY PURE ===');
     
     if (this.arenaModel) {
       const stats = {
@@ -288,11 +199,11 @@ class BattleScene {
         textures: this.countTextures(this.arenaModel)
       };
       
-      console.log('Arena Stats:', stats);
+      console.log('Arena Unity Stats:', stats);
     }
     
     const renderer = this.gameEngine.getRenderer();
-    console.log('Renderer:', {
+    console.log('Renderer (non modifié):', {
       outputColorSpace: renderer.outputColorSpace,
       toneMapping: renderer.toneMapping,
       exposure: renderer.toneMappingExposure
@@ -305,12 +216,12 @@ class BattleScene {
     renderer.info.reset();
     renderer.render(scene, camera);
     
-    console.log('Rendu:', {
+    console.log('Rendu Unity:', {
       drawCalls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles
     });
     
-    console.log('✅ Arena prête pour la bataille!');
+    console.log('✅ Arena Unity pure prête!');
   }
 
   /**
@@ -352,14 +263,7 @@ class BattleScene {
     console.log('⏹️ Désactivation Battle Scene');
     this.isActive = false;
     
-    // Restaurer le renderer
-    if (this.originalRendererState) {
-      const renderer = this.gameEngine.getRenderer();
-      renderer.outputColorSpace = this.originalRendererState.outputColorSpace;
-      renderer.toneMapping = this.originalRendererState.toneMapping;
-      renderer.toneMappingExposure = this.originalRendererState.toneMappingExposure;
-      renderer.setClearColor(this.originalRendererState.clearColor, this.originalRendererState.clearAlpha);
-    }
+    // Restaurer le renderer (pas de modifications donc pas de restauration)
     
     // Restaurer la caméra
     if (this.originalCameraState) {
