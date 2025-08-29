@@ -123,38 +123,38 @@ class BattleScene {
     console.log('💡 Battle lighting setup complete');
   }
   
-setupCamera() {
-  const camera = this.gameEngine.getCamera();
-  
-  // Position plus éloignée pour voir l'ensemble
-  camera.position.set(0, 40, 30);
-  camera.lookAt(0, 0, 0);
-  
-  // Debug: Informations sur la caméra et la scène
-  console.log('📷 Camera debug:');
-  console.log('- Position:', camera.position);
-  console.log('- Looking at: (0,0,0)');
-  console.log('- Camera type:', camera.type);
-  console.log('- Scene children count:', this.gameEngine.getScene().children.length);
-  
-  // Debug: Vérifier le renderer
-  const renderer = this.gameEngine.getRenderer();
-  console.log('- Renderer size:', renderer.getSize(new THREE.Vector2()));
-  console.log('- Clear color:', renderer.getClearColor());
-  
-  // Debug: Arena dans la scène
-  if (this.arenaModel) {
-    const box = new THREE.Box3().setFromObject(this.arenaModel);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
+  setupCamera() {
+    const camera = this.gameEngine.getCamera();
     
-    console.log('- Arena size:', size);
-    console.log('- Arena center:', center);
-    console.log('- Arena visible:', this.arenaModel.visible);
+    // Position plus éloignée pour voir l'ensemble
+    camera.position.set(0, 40, 30);
+    camera.lookAt(0, 0, 0);
+    
+    // Debug: Informations sur la caméra et la scène
+    console.log('📷 Camera debug:');
+    console.log('- Position:', camera.position);
+    console.log('- Looking at: (0,0,0)');
+    console.log('- Camera type:', camera.type);
+    console.log('- Scene children count:', this.gameEngine.getScene().children.length);
+    
+    // Debug: Vérifier le renderer (sans getClearColor qui pose problème)
+    const renderer = this.gameEngine.getRenderer();
+    console.log('- Renderer size:', renderer.getSize(new THREE.Vector2()));
+    
+    // Debug: Arena dans la scène
+    if (this.arenaModel) {
+      const box = new THREE.Box3().setFromObject(this.arenaModel);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      
+      console.log('- Arena size:', size);
+      console.log('- Arena center:', center);
+      console.log('- Arena visible:', this.arenaModel.visible);
+    }
+    
+    console.log('📷 Battle camera positioned and debugged');
   }
   
-  console.log('📷 Battle camera positioned and debugged');
-}
   // TODO: Implement unit rendering methods
   spawnUnit(data) {
     console.log('👤 Unit spawned:', data);
