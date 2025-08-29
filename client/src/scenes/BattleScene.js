@@ -167,6 +167,16 @@ setupCamera() {
   console.log('Added green test cube at origin');
 }
   
+  // Ajouter un cube de test pour vérifier que le rendu fonctionne
+  const testCube = new THREE.Mesh(
+    new THREE.BoxGeometry(10, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+  );
+  testCube.position.set(0, 5, 0);
+  this.rootObject.add(testCube);
+  console.log('Added green test cube at origin');
+}
+  
   // TODO: Implement unit rendering methods
   spawnUnit(data) {
     console.log('👤 Unit spawned:', data);
