@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 /**
- * BattleScene - Scène de combat principale
- * Affiche l'arène Unity avec intégration GameEngine correcte
+ * BattleScene - Version Emergency Fix pour problème de visibilité
  */
 class BattleScene {
   constructor(gameEngine, sceneManager) {
@@ -11,11 +10,9 @@ class BattleScene {
     this.sceneManager = sceneManager;
     this.gltfLoader = new GLTFLoader();
     
-    // Objets de la scène
     this.rootObject = new THREE.Group();
     this.rootObject.name = 'BattleSceneRoot';
     
-    // État de la scène
     this.isActive = false;
     this.isLoaded = false;
     this.arenaModel = null;
@@ -24,64 +21,54 @@ class BattleScene {
     console.log('⚔️ BattleScene constructor');
   }
 
-  /**
-   * Initialisation de la scène (appelée une fois)
-   */
   async initialize() {
     try {
       console.log('🎮 BattleScene initialize() - Loading arena...');
-      
-      // Charger l'arène
       await this.loadArena();
-      
-      // Setup de base (ne pas activer la caméra ici)
       this.setupLighting();
-      
       this.isLoaded = true;
       console.log('✅ BattleScene initialized successfully');
-      
     } catch (error) {
       console.error('❌ BattleScene initialize failed:', error);
       throw error;
     }
   }
 
-  /**
-   * Activation de la scène (appelée à chaque transition)
-   */
   async activate(data = {}) {
     try {
-      console.log('🎬 BattleScene activate() - Setting up battle view...');
+      console.log('🎬 BattleScene activate() - EMERGENCY FIX VERSION');
       
       if (!this.isLoaded) {
         await this.initialize();
       }
       
-      // Sauvegarder l'état actuel de la caméra
+      // 🔥 FIX 1: NETTOYER LA SCÈNE DES ANCIENNES SCÈNES
+      this.cleanupPreviousScenes();
+      
       this.saveCurrentCameraState();
       
-      // Ajouter le rootObject à la scène principale
       const mainScene = this.gameEngine.getScene();
       if (!mainScene.children.includes(this.rootObject)) {
         mainScene.add(this.rootObject);
         console.log('✅ BattleScene rootObject added to main scene');
       }
       
-      // Configurer la caméra pour la vue de bataille
-      this.setupBattleCamera();
+      // 🔥 FIX 2: CAMÉRA REPOSITIONNÉE DRASTIQUEMENT
+      this.setupEmergencyCamera();
       
-      // S'assurer que le GameEngine rend
+      // 🔥 FIX 3: CUBE DE TEST GÉANT VISIBLE
+      this.addEmergencyTestCube();
+      
       if (!this.gameEngine.isEngineRunning()) {
-        console.log('🎬 Starting GameEngine render loop...');
         this.gameEngine.start();
       }
       
       this.isActive = true;
       
-      // Debug de la scène
-      this.debugScene();
+      // 🔥 FIX 4: DIAGNOSTIC COMPLET + RENDU FORCÉ
+      this.emergencyDiagnostic();
       
-      console.log('✅ BattleScene activated - Battle ready!');
+      console.log('🚨 EMERGENCY BattleScene activated');
       
     } catch (error) {
       console.error('❌ BattleScene activation failed:', error);
@@ -89,9 +76,6 @@ class BattleScene {
     }
   }
 
-  /**
-   * Charger l'arène Unity
-   */
   async loadArena() {
     return new Promise((resolve, reject) => {
       console.log('📦 Loading Arena01.glb...');
@@ -105,23 +89,17 @@ class BattleScene {
             this.arenaModel = gltf.scene;
             this.arenaModel.name = 'Arena01';
             
-            // Configuration pour Unity → Three.js
-            // Unity: Y-up, Three.js: Y-up (compatible)
-            this.arenaModel.scale.set(0.1, 0.1, 0.1); // Réduire car 253x253 Unity units
-            this.arenaModel.position.set(0, 0, 0);
+            // 🔥 FIX: ÉCHELLE PLUS GRANDE ET POSITION ÉLEVÉE
+            this.arenaModel.scale.set(0.5, 0.5, 0.5); // Plus grand qu'avant (0.1)
+            this.arenaModel.position.set(0, -2, 0); // Légèrement en dessous
             this.arenaModel.rotation.set(0, 0, 0);
             
-            // S'assurer que tous les matériaux sont visibles
-            this.configureMaterials(this.arenaModel);
+            // Forcer TOUS les matériaux visibles
+            this.forceAllMaterialsVisible(this.arenaModel);
             
-            // Ajouter au rootObject (pas directement à la scène)
             this.rootObject.add(this.arenaModel);
             
-            // Debug
-            console.log(`📊 Arena loaded: ${this.countMeshes(this.arenaModel)} meshes`);
-            console.log('🎯 Arena scale:', this.arenaModel.scale);
-            console.log('🎯 Arena position:', this.arenaModel.position);
-            
+            console.log(`🎯 Arena configured: Scale=0.5, Position=(0,-2,0), Meshes=${this.countMeshes(this.arenaModel)}`);
             resolve();
             
           } catch (error) {
@@ -141,87 +119,201 @@ class BattleScene {
     });
   }
 
-  /**
-   * Configurer les matériaux pour s'assurer qu'ils sont visibles
-   */
-  configureMaterials(object) {
+  // 🔥 FIX: MÉTHODE AGRESSIVE POUR FORCER LA VISIBILITÉ
+  forceAllMaterialsVisible(object) {
+    console.log('🔧 FORCING all materials visible...');
+    let materialCount = 0;
+    
     object.traverse((child) => {
       if (child.isMesh && child.material) {
-        // S'assurer que les matériaux sont visibles
-        if (Array.isArray(child.material)) {
-          child.material.forEach(mat => {
-            mat.needsUpdate = true;
-            mat.transparent = false;
-            mat.opacity = 1.0;
-            mat.visible = true;
-            
-            // Fix pour matériaux sombres Unity
-            if (mat.color) {
-              mat.color.multiplyScalar(2); // Éclaircir
-            }
-          });
-        } else {
-          child.material.needsUpdate = true;
-          child.material.transparent = false;
-          child.material.opacity = 1.0;
-          child.material.visible = true;
-          
-          // Fix pour matériaux sombres Unity
-          if (child.material.color) {
-            child.material.color.multiplyScalar(2); // Éclaircir
-          }
-        }
-        
-        // S'assurer que la geometry est visible
+        materialCount++;
         child.visible = true;
-        child.castShadow = true;
-        child.receiveShadow = true;
+        child.frustumCulled = false; // Empêche le culling
+        
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        
+        materials.forEach(mat => {
+          // Force les propriétés de base
+          mat.needsUpdate = true;
+          mat.transparent = false;
+          mat.opacity = 1.0;
+          mat.visible = true;
+          mat.wireframe = false; // Pas de wireframe
+          mat.side = THREE.DoubleSide; // Visible des 2 côtés
+          
+          // Couleur très visible si pas définie
+          if (!mat.color || mat.color.getHex() === 0x000000) {
+            mat.color = new THREE.Color(0x00ff00); // Vert visible
+          } else {
+            // Éclaircir les couleurs sombres
+            mat.color.multiplyScalar(3);
+          }
+          
+          // Désactiver les effets qui peuvent masquer
+          mat.alphaTest = 0;
+          mat.depthWrite = true;
+          mat.depthTest = true;
+        });
       }
+    });
+    
+    console.log(`🎨 Forced ${materialCount} materials to be visible`);
+  }
+
+  // 🔥 FIX: NETTOYER LES SCÈNES PRÉCÉDENTES
+  cleanupPreviousScenes() {
+    const mainScene = this.gameEngine.getScene();
+    console.log('🧹 Cleaning up previous scenes...');
+    
+    // Supprimer WelcomeMenuScene et ClashMenuScene
+    const toRemove = [];
+    mainScene.children.forEach(child => {
+      if (child.name === 'WelcomeMenuScene' || child.name === 'ClashMenuScene') {
+        toRemove.push(child);
+      }
+    });
+    
+    toRemove.forEach(obj => {
+      mainScene.remove(obj);
+      console.log(`🗑️ Removed ${obj.name} from scene`);
     });
   }
 
-  /**
-   * Configuration de l'éclairage pour l'arène
-   */
+  // 🔥 FIX: CAMÉRA POSITIONNÉE DE FAÇON EXTRÊME
+  setupEmergencyCamera() {
+    const camera = this.gameEngine.getCamera();
+    
+    // Position TRÈS éloignée pour voir toute l'arène
+    camera.position.set(0, 50, 50); // Très haut et loin
+    camera.lookAt(0, 0, 0); // Regarder le centre exact
+    camera.fov = 75; // FOV large
+    camera.updateProjectionMatrix();
+    
+    console.log('🚨 EMERGENCY Camera positioned at (0,50,50) looking at (0,0,0)');
+  }
+
+  // 🔥 FIX: CUBE DE TEST GÉANT ET TRÈS VISIBLE
+  addEmergencyTestCube() {
+    // Cube géant vert au centre
+    const geometry = new THREE.BoxGeometry(10, 10, 10); // 10x10x10 unités
+    const material = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, // Vert vif
+      wireframe: false,
+      side: THREE.DoubleSide
+    });
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.set(0, 5, 0); // 5 unités au-dessus du sol
+    cube.name = 'EmergencyTestCube';
+    this.rootObject.add(cube);
+    
+    // Cube rouge pour contraste
+    const redGeometry = new THREE.BoxGeometry(5, 5, 5);
+    const redMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const redCube = new THREE.Mesh(redGeometry, redMaterial);
+    redCube.position.set(10, 2.5, 0);
+    redCube.name = 'RedTestCube';
+    this.rootObject.add(redCube);
+    
+    console.log('🟢🔴 Emergency test cubes added: Green(0,5,0) + Red(10,2.5,0)');
+  }
+
   setupLighting() {
-    // Lumière ambiante forte pour voir l'arène Unity
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    // Éclairage EXTRÊME pour s'assurer que tout est visible
+    const ambientLight = new THREE.AmbientLight(0xffffff, 3.0); // Très fort
     ambientLight.name = 'BattleAmbientLight';
     this.rootObject.add(ambientLight);
     
-    // Lumière directionnelle principale
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
-    directionalLight.position.set(10, 20, 10);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 3.0); // Très fort
+    directionalLight.position.set(20, 40, 20);
     directionalLight.name = 'BattleDirectionalLight';
     this.rootObject.add(directionalLight);
     
-    console.log('💡 Battle lighting configured');
-  }
-
-  /**
-   * Configurer la caméra pour la vue de bataille
-   */
-  setupBattleCamera() {
-    const camera = this.gameEngine.getCamera();
+    // Lumières supplémentaires de tous les côtés
+    const lights = [
+      { pos: [50, 50, 50], color: 0xffffff, intensity: 2.0 },
+      { pos: [-50, 50, 50], color: 0xffffff, intensity: 2.0 },
+      { pos: [0, 50, -50], color: 0xffffff, intensity: 2.0 }
+    ];
     
-    // Vue isométrique typique Clash Royale
-    // Position derrière les tours du joueur, regardant vers l'ennemi
-    camera.position.set(0, 15, 12); // Y=hauteur, Z=distance
-    camera.lookAt(0, 0, -5); // Regarder vers le centre-avant de l'arène
-    
-    // FOV adapté pour Clash Royale
-    camera.fov = 65;
-    camera.updateProjectionMatrix();
-    
-    console.log('📷 Battle camera configured:', {
-      position: camera.position,
-      fov: camera.fov
+    lights.forEach((lightConfig, index) => {
+      const light = new THREE.DirectionalLight(lightConfig.color, lightConfig.intensity);
+      light.position.set(...lightConfig.pos);
+      light.name = `ExtraLight${index}`;
+      this.rootObject.add(light);
     });
+    
+    console.log('💡🌟 EXTREME lighting configured (ambient=3.0, multiple directional lights)');
   }
 
-  /**
-   * Sauvegarder l'état actuel de la caméra
-   */
+  // 🔥 DIAGNOSTIC EMERGENCY COMPLET
+  emergencyDiagnostic() {
+    console.log('🚨 ===== EMERGENCY DIAGNOSTIC =====');
+    
+    const mainScene = this.gameEngine.getScene();
+    const camera = this.gameEngine.getCamera();
+    const renderer = this.gameEngine.getRenderer();
+    
+    // Canvas state
+    const canvas = renderer.domElement;
+    console.log('🖼️ Canvas State:', {
+      width: canvas.width,
+      height: canvas.height,
+      clientWidth: canvas.clientWidth,
+      clientHeight: canvas.clientHeight,
+      visible: canvas.offsetParent !== null,
+      display: canvas.style.display,
+      zIndex: canvas.style.zIndex,
+      position: canvas.style.position
+    });
+    
+    // Scene content
+    console.log('📂 Scene Children Count:', mainScene.children.length);
+    mainScene.children.forEach((child, i) => {
+      console.log(`  ${i}: ${child.name || child.type} (visible: ${child.visible}, children: ${child.children.length})`);
+    });
+    
+    // RootObject content
+    console.log('🎯 RootObject Children:', this.rootObject.children.length);
+    this.rootObject.children.forEach((child, i) => {
+      console.log(`  ${i}: ${child.name || child.type} (visible: ${child.visible})`);
+    });
+    
+    // Camera details
+    console.log('📷 Camera Details:', {
+      position: [camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2)],
+      rotation: [camera.rotation.x.toFixed(2), camera.rotation.y.toFixed(2), camera.rotation.z.toFixed(2)],
+      fov: camera.fov,
+      aspect: camera.aspect.toFixed(2),
+      near: camera.near,
+      far: camera.far
+    });
+    
+    // Render stats
+    renderer.info.reset();
+    renderer.render(mainScene, camera);
+    
+    console.log('🎬 Render Stats:', {
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      points: renderer.info.render.points,
+      lines: renderer.info.render.lines
+    });
+    
+    // Clear color
+    const clearColor = renderer.getClearColor();
+    console.log('🎨 Clear Color:', clearColor.getHexString());
+    
+    console.log('🚨 ===== END EMERGENCY DIAGNOSTIC =====');
+    
+    // Force 10 renders
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        renderer.render(mainScene, camera);
+        console.log(`🔄 Forced render ${i + 1}/10`);
+      }, i * 100);
+    }
+  }
+
   saveCurrentCameraState() {
     const camera = this.gameEngine.getCamera();
     this.originalCameraState = {
@@ -231,53 +323,31 @@ class BattleScene {
     };
   }
 
-  /**
-   * Restaurer l'état de la caméra
-   */
-  restoreCameraState() {
+  deactivate() {
+    console.log('⏸️ BattleScene deactivate()');
+    this.isActive = false;
+    
     if (this.originalCameraState) {
       const camera = this.gameEngine.getCamera();
       camera.position.copy(this.originalCameraState.position);
       camera.rotation.copy(this.originalCameraState.rotation);
       camera.fov = this.originalCameraState.fov;
       camera.updateProjectionMatrix();
-      console.log('📷 Camera state restored');
     }
-  }
-
-  /**
-   * Désactiver la scène
-   */
-  deactivate() {
-    console.log('⏸️ BattleScene deactivate()');
     
-    this.isActive = false;
-    
-    // Restaurer l'état de la caméra
-    this.restoreCameraState();
-    
-    // Retirer de la scène principale (mais garder en mémoire)
     const mainScene = this.gameEngine.getScene();
     if (mainScene.children.includes(this.rootObject)) {
       mainScene.remove(this.rootObject);
-      console.log('🗑️ BattleScene rootObject removed from main scene');
     }
   }
 
-  /**
-   * Nettoyage complet de la scène
-   */
   cleanup() {
     console.log('🧹 BattleScene cleanup()');
-    
     this.deactivate();
     
-    // Libérer les ressources Three.js
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
-        if (child.geometry) {
-          child.geometry.dispose();
-        }
+        if (child.geometry) child.geometry.dispose();
         if (child.material) {
           if (Array.isArray(child.material)) {
             child.material.forEach(mat => mat.dispose());
@@ -288,43 +358,11 @@ class BattleScene {
       });
     }
     
-    // Nettoyer le rootObject
     this.rootObject.clear();
-    
     this.isLoaded = false;
     this.arenaModel = null;
-    
-    console.log('✅ BattleScene cleanup complete');
   }
 
-  /**
-   * Debug de la scène
-   */
-  debugScene() {
-    const mainScene = this.gameEngine.getScene();
-    const camera = this.gameEngine.getCamera();
-    
-    console.log('🔍 BattleScene Debug:');
-    console.log('  - Main scene children:', mainScene.children.length);
-    console.log('  - RootObject children:', this.rootObject.children.length);
-    console.log('  - Camera position:', camera.position);
-    console.log('  - Camera rotation:', camera.rotation);
-    console.log('  - Arena model present:', !!this.arenaModel);
-    console.log('  - GameEngine running:', this.gameEngine.isEngineRunning());
-    
-    // Lister les objets de la scène
-    mainScene.children.forEach((child, index) => {
-      console.log(`  - Child ${index}: ${child.name || child.type} (${child.children.length} children)`);
-    });
-    
-    // Test de rendu forcé
-    console.log('🎬 Forcing render...');
-    this.gameEngine.render();
-  }
-
-  /**
-   * Compter les meshes dans un objet
-   */
   countMeshes(object) {
     let count = 0;
     object.traverse((child) => {
@@ -333,35 +371,15 @@ class BattleScene {
     return count;
   }
 
-  /**
-   * Update de la scène (appelé par GameEngine à chaque frame)
-   */
   update(deltaTime) {
     if (!this.isActive) return;
-    
-    // Ici on peut ajouter des animations de l'arène
-    // Par exemple, rotation lente, effets, etc.
-    
-    // Animation de test : rotation lente de l'arène
-    if (this.arenaModel) {
-      this.arenaModel.rotation.y += deltaTime * 0.1; // Rotation lente
-    }
+    // Pas d'animation pour le moment, focus sur la visibilité
   }
 
-  /**
-   * Getters pour l'état de la scène
-   */
-  getArenaModel() {
-    return this.arenaModel;
-  }
-  
-  isSceneActive() {
-    return this.isActive;
-  }
-  
-  isSceneLoaded() {
-    return this.isLoaded;
-  }
+  // Getters
+  getArenaModel() { return this.arenaModel; }
+  isSceneActive() { return this.isActive; }
+  isSceneLoaded() { return this.isLoaded; }
 }
 
 export default BattleScene;
