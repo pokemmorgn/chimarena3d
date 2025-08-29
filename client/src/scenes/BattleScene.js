@@ -123,37 +123,27 @@ class BattleScene {
     console.log('💡 Battle lighting setup complete');
   }
   
-  setupCamera() {
-    const camera = this.gameEngine.getCamera();
-    
-    // Position plus éloignée pour voir l'ensemble
-    camera.position.set(0, 40, 30);
-    camera.lookAt(0, 0, 0);
-    
-    // Debug: Informations sur la caméra et la scène
-    console.log('📷 Camera debug:');
-    console.log('- Position:', camera.position);
-    console.log('- Looking at: (0,0,0)');
-    console.log('- Camera type:', camera.type);
-    console.log('- Scene children count:', this.gameEngine.getScene().children.length);
-    
-    // Debug: Vérifier le renderer (sans getClearColor qui pose problème)
-    const renderer = this.gameEngine.getRenderer();
-    console.log('- Renderer size:', renderer.getSize(new THREE.Vector2()));
-    
-    // Debug: Arena dans la scène
-    if (this.arenaModel) {
-      const box = new THREE.Box3().setFromObject(this.arenaModel);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      
-      console.log('- Arena size:', size);
-      console.log('- Arena center:', center);
-      console.log('- Arena visible:', this.arenaModel.visible);
-    }
-    
-    console.log('📷 Battle camera positioned and debugged');
+setupCamera() {
+  const camera = this.gameEngine.getCamera();
+  
+  // L'arena fait 253 unités, donc on doit reculer beaucoup plus
+  camera.position.set(0, 200, 200);
+  camera.lookAt(0, 0, 0);
+  
+  // Alternative : vue de dessus pour Clash Royale
+  // camera.position.set(0, 300, 100);
+  // camera.lookAt(0, 0, 0);
+  
+  console.log('Camera repositioned for large arena (253 units)');
+  
+  // Debug si besoin
+  if (this.arenaModel) {
+    console.log('Arena bounds:', {
+      size: this.arenaModel.children.length,
+      visible: this.arenaModel.visible
+    });
   }
+}
   
   // TODO: Implement unit rendering methods
   spawnUnit(data) {
