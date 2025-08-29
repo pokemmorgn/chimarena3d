@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 /**
- * BattleScene - Correction COMPLÈTE Unity vers Three.js
- * ✅ Problème résolu : Espace colorimétrique + Matériaux + Éclairage
+ * BattleScene - Version Simple
+ * Objectif: Afficher l'arena Unity EXACTEMENT comme dans Unity
  */
 class BattleScene {
   constructor(gameEngine, sceneManager) {
@@ -20,24 +20,24 @@ class BattleScene {
     this.originalCameraState = null;
     this.originalRendererState = null;
     
-    console.log('🎯 Arena - Correction Unity/Three.js complète');
+    console.log('🏟️ Arena - Affichage simple Unity map');
   }
 
   async initialize() {
     try {
-      console.log('⚡ Chargement avec correction espace colorimétrique Unity...');
+      console.log('📦 Chargement simple de l\'arena...');
       
-      // ÉTAPE 1: Configurer le renderer AVANT le chargement
-      this.setupRendererForUnityAssets();
+      // ÉTAPE 1: Configuration minimale du renderer
+      this.configureRendererForUnity();
       
-      // ÉTAPE 2: Charger avec correction des matériaux
-      await this.loadArenaWithUnityFixes();
+      // ÉTAPE 2: Chargement direct
+      await this.loadArenaSimple();
       
-      // ÉTAPE 3: Éclairage adapté
-      this.setupUnityCompatibleLighting();
+      // ÉTAPE 3: Éclairage minimal
+      this.setupSimpleLighting();
       
       this.isLoaded = true;
-      console.log('✅ Arena chargée avec corrections Unity');
+      console.log('✅ Arena chargée (version simple)');
       
     } catch (error) {
       console.error('❌ Erreur chargement arena:', error);
@@ -46,12 +46,12 @@ class BattleScene {
   }
 
   /**
-   * 🔧 CORRECTION #1: Configuration renderer pour assets Unity
+   * Configuration minimale pour Unity GLB
    */
-  setupRendererForUnityAssets() {
+  configureRendererForUnity() {
     const renderer = this.gameEngine.getRenderer();
     
-    // Sauvegarder l'état original
+    // Sauvegarder l'état actuel
     this.originalRendererState = {
       outputColorSpace: renderer.outputColorSpace,
       toneMapping: renderer.toneMapping,
@@ -60,62 +60,57 @@ class BattleScene {
       clearAlpha: renderer.getClearAlpha()
     };
     
-    // CORRECTION PRINCIPALE: Configurer pour Unity
-    renderer.outputColorSpace = THREE.SRGBColorSpace; // ⚡ IMPORTANT
-    renderer.toneMapping = THREE.NoToneMapping;       // ⚡ Pas de tone mapping
-    renderer.toneMappingExposure = 1.0;               // ⚡ Exposition neutre
+    // Configuration simple pour GLB Unity
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.LinearToneMapping; // Plus doux que NoToneMapping
+    renderer.toneMappingExposure = 0.6;             // Réduire l'exposition
+    renderer.setClearColor(0x87CEEB, 1.0);         // Bleu ciel
     
-    // Fond plus naturel
-    renderer.setClearColor(0x87CEEB, 1.0); // Bleu ciel clair
-    
-    console.log('🔧 Renderer configuré pour Unity (sRGB, NoToneMapping)');
+    console.log('🔧 Renderer configuré pour Unity GLB');
   }
 
   /**
-   * 🎯 CORRECTION #2: Chargement avec fixes Unity
+   * Chargement simple - pas de modifications excessives
    */
-  async loadArenaWithUnityFixes() {
+  async loadArenaSimple() {
     return new Promise((resolve, reject) => {
-      console.log('📦 Chargement Arena01.glb...');
+      console.log('⏳ Chargement Arena01.glb...');
       
       this.gltfLoader.load(
         '/maps/Arena01.glb',
         (gltf) => {
           try {
-            console.log('🔄 Arena chargée, application corrections Unity...');
+            console.log('📥 Arena chargée, ajustements minimes...');
             
             this.arenaModel = gltf.scene;
             this.arenaModel.name = 'Arena';
             
-            // Échelle et position
-            this.arenaModel.scale.set(0.08, 0.08, 0.08); // Légèrement plus petit
+            // Échelle et position de base
+            this.arenaModel.scale.set(0.1, 0.1, 0.1);
             this.arenaModel.position.set(0, 0, 0);
             this.arenaModel.rotation.set(0, 0, 0);
             
-            // 🎯 CORRECTION PRINCIPALE: Matériaux Unity
-            this.fixUnityMaterials(this.arenaModel);
-            
-            // 🎯 CORRECTION: Textures Unity (sRGB)
-            this.fixUnityTextures(this.arenaModel);
+            // UNIQUEMENT corriger les matériaux trop brillants
+            this.fixOverlyBrightMaterials(this.arenaModel);
             
             this.rootObject.add(this.arenaModel);
             
-            console.log(`✅ Arena corrigée: ${this.countMeshes(this.arenaModel)} meshes`);
+            console.log(`✅ Arena prête: ${this.countMeshes(this.arenaModel)} meshes`);
             resolve();
             
           } catch (error) {
-            console.error('❌ Erreur traitement arena:', error);
+            console.error('❌ Erreur traitement:', error);
             reject(error);
           }
         },
         (progress) => {
           const percent = Math.round((progress.loaded / progress.total) * 100);
-          if (percent % 20 === 0) {
-            console.log(`⏳ Chargement: ${percent}%`);
+          if (percent % 25 === 0) {
+            console.log(`📊 ${percent}%`);
           }
         },
         (error) => {
-          console.error('❌ Erreur chargement GLB:', error);
+          console.error('❌ Erreur GLB:', error);
           reject(error);
         }
       );
@@ -123,216 +118,109 @@ class BattleScene {
   }
 
   /**
-   * 🔥 CORRECTION #3: Matériaux Unity -> Three.js
+   * Correction minimale: seulement les matériaux trop brillants
    */
-  fixUnityMaterials(arena) {
-    console.log('🔧 Correction matériaux Unity...');
-    let fixedCount = 0;
+  fixOverlyBrightMaterials(arena) {
+    console.log('🔧 Correction matériaux trop brillants...');
+    let fixed = 0;
     
     arena.traverse((child) => {
       if (child.isMesh && child.material) {
-        fixedCount++;
-        
-        // Assurer la visibilité
         child.visible = true;
         child.frustumCulled = false;
-        child.castShadow = true;
-        child.receiveShadow = true;
         
         const materials = Array.isArray(child.material) ? child.material : [child.material];
         
-        materials.forEach((mat, index) => {
-          // ⚡ PROBLÈME PRINCIPAL: Unity utilise souvent des MeshStandardMaterial trop brillants
+        materials.forEach((mat) => {
+          // PROBLÈME PRINCIPAL: Matériaux Unity trop métalliques/brillants
           if (mat.type === 'MeshStandardMaterial') {
             
-            // Réduire la metalness (Unity souvent trop métallique)
-            if (mat.metalness > 0.1) {
-              console.log(`  Metalness réduite: ${mat.metalness} -> 0.0`);
-              mat.metalness = 0.0;
+            // Réduire le métal (cause principale du blanc)
+            if (mat.metalness > 0.2) {
+              mat.metalness = 0.1;
+              fixed++;
             }
             
-            // Augmenter la roughness (Unity trop lisse)
-            if (mat.roughness < 0.8) {
-              console.log(`  Roughness augmentée: ${mat.roughness} -> 0.9`);
-              mat.roughness = 0.9;
+            // Augmenter la rugosité (réduire le brillant)
+            if (mat.roughness < 0.5) {
+              mat.roughness = 0.8;
+              fixed++;
             }
             
-            // COULEUR: Unity utilise souvent l'espace linéaire
+            // Si couleur trop claire, l'assombrir légèrement
             if (mat.color) {
-              const currentHex = mat.color.getHex();
-              
-              // Si couleur très claire (typique Unity)
-              if (currentHex > 0xE0E0E0) {
-                console.log(`  Couleur Unity claire: #${currentHex.toString(16)} -> assombrie`);
-                mat.color.multiplyScalar(0.3); // Diviser par 3
-              }
-              // Si couleur modérément claire
-              else if (currentHex > 0xB0B0B0) {
-                mat.color.multiplyScalar(0.7); // Légèrement assombrie
+              const hex = mat.color.getHex();
+              if (hex > 0xF0F0F0) { // Très blanc
+                mat.color.multiplyScalar(0.7);
+                fixed++;
               }
             }
             
-            // ÉMISSIVE: Unity utilise souvent émissive pour l'éclairage
+            // Supprimer émissive si présente (cause de sur-éclairage)
             if (mat.emissive && mat.emissive.getHex() > 0x000000) {
-              console.log(`  Émissive Unity supprimée: #${mat.emissive.getHex().toString(16)}`);
               mat.emissive.setHex(0x000000);
+              fixed++;
             }
           }
           
-          // Appliquer couleurs par nom d'objet (logique du jeu)
-          this.applyGameLogicColors(child.name, mat);
-          
-          // Forcer la mise à jour
           mat.needsUpdate = true;
         });
       }
     });
     
-    console.log(`✅ ${fixedCount} matériaux Unity corrigés`);
+    console.log(`🔧 ${fixed} corrections de matériaux appliquées`);
   }
 
   /**
-   * 🎨 CORRECTION #4: Textures Unity (sRGB)
+   * Éclairage simple et naturel
    */
-  fixUnityTextures(arena) {
-    console.log('🖼️ Correction textures Unity...');
-    let textureCount = 0;
+  setupSimpleLighting() {
+    // Lumière ambiante douce
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    this.rootObject.add(ambient);
     
-    arena.traverse((child) => {
-      if (child.isMesh && child.material) {
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        
-        materials.forEach((mat) => {
-          // Map, normalMap, etc.
-          ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'].forEach(mapType => {
-            if (mat[mapType]) {
-              textureCount++;
-              
-              // ⚡ CORRECTION: Assurer que les textures Unity sont en sRGB
-              mat[mapType].colorSpace = THREE.SRGBColorSpace;
-              mat[mapType].needsUpdate = true;
-              
-              // Ajustements spécifiques
-              if (mapType === 'map') {
-                // Texture diffuse légèrement plus sombre (Unity souvent trop claire)
-                mat[mapType].offset.set(0, 0);
-                mat[mapType].repeat.set(1, 1);
-              }
-            }
-          });
-        });
-      }
-    });
+    // Une seule lumière directionnelle
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    sunLight.position.set(10, 15, 10);
+    sunLight.castShadow = true;
     
-    console.log(`🖼️ ${textureCount} textures Unity configurées (sRGB)`);
-  }
-
-  /**
-   * 🎮 Couleurs logiques du jeu Clash Royale
-   */
-  applyGameLogicColors(objectName, material) {
-    const name = objectName.toLowerCase();
+    // Ombres simples
+    sunLight.shadow.mapSize.setScalar(1024);
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 50;
+    sunLight.shadow.camera.left = -15;
+    sunLight.shadow.camera.right = 15;
+    sunLight.shadow.camera.top = 15;
+    sunLight.shadow.camera.bottom = -15;
     
-    // Terrain
-    if (name.includes('grass') || name.includes('ground') || name.includes('terrain')) {
-      material.color.setHex(0x2d5a2d); // Vert foncé terrain
-      material.roughness = 0.9;
-      console.log(`  ${objectName} -> terrain vert`);
-    }
-    // Rivière
-    else if (name.includes('water') || name.includes('river')) {
-      material.color.setHex(0x1e3a8a); // Bleu profond
-      material.roughness = 0.1;
-      material.metalness = 0.0;
-      console.log(`  ${objectName} -> rivière bleue`);
-    }
-    // Tours bleues
-    else if (name.includes('tower') && (name.includes('blue') || name.includes('left'))) {
-      material.color.setHex(0x1e40af); // Bleu royal
-      material.roughness = 0.7;
-      console.log(`  ${objectName} -> tour bleue`);
-    }
-    // Tours rouges
-    else if (name.includes('tower') && (name.includes('red') || name.includes('right'))) {
-      material.color.setHex(0xdc2626); // Rouge vif
-      material.roughness = 0.7;
-      console.log(`  ${objectName} -> tour rouge`);
-    }
-    // Pont
-    else if (name.includes('bridge') || name.includes('wood')) {
-      material.color.setHex(0x92400e); // Marron bois
-      material.roughness = 0.8;
-      console.log(`  ${objectName} -> pont bois`);
-    }
-    // Murs/Pierre
-    else if (name.includes('wall') || name.includes('stone')) {
-      material.color.setHex(0x6b7280); // Gris pierre
-      material.roughness = 0.8;
-      console.log(`  ${objectName} -> pierre grise`);
-    }
-  }
-
-  /**
-   * 💡 CORRECTION #5: Éclairage compatible Unity
-   */
-  setupUnityCompatibleLighting() {
-    // Unity utilise souvent un éclairage plus doux et diffus
+    this.rootObject.add(sunLight);
     
-    // Lumière ambiante plus forte (Unity style)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    ambientLight.name = 'UnityStyleAmbient';
-    this.rootObject.add(ambientLight);
-    
-    // Lumière directionnelle douce
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.name = 'UnityStyleDirectional';
-    dirLight.position.set(5, 10, 5);
-    dirLight.castShadow = true;
-    
-    // Ombres douces
-    dirLight.shadow.mapSize.setScalar(1024);
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 50;
-    dirLight.shadow.camera.left = -10;
-    dirLight.shadow.camera.right = 10;
-    dirLight.shadow.camera.top = 10;
-    dirLight.shadow.camera.bottom = -10;
-    dirLight.shadow.bias = -0.0001;
-    
-    this.rootObject.add(dirLight);
-    
-    // Lumière d'appoint (fill light)
-    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.3);
-    fillLight.name = 'UnityStyleFill';
-    fillLight.position.set(-5, 5, -5);
-    this.rootObject.add(fillLight);
-    
-    console.log('💡 Éclairage Unity configuré (ambient=0.4, directional=0.8, fill=0.3)');
+    console.log('💡 Éclairage simple configuré');
   }
 
   async activate(data = {}) {
     try {
-      console.log('🎮 Activation Arena avec corrections Unity...');
+      console.log('🎮 Activation Arena Battle Scene...');
       
       if (!this.isLoaded) {
         await this.initialize();
       }
       
+      this.saveCurrentStates();
       this.cleanupPreviousScenes();
-      this.saveCurrentCameraState();
       
-      // Ajouter à la scène
+      // Ajouter à la scène principale
       const mainScene = this.gameEngine.getScene();
       if (!mainScene.children.includes(this.rootObject)) {
         mainScene.add(this.rootObject);
-        console.log('🎯 Arena ajoutée avec corrections');
+        console.log('🏟️ Arena ajoutée à la scène');
       }
       
-      // Caméra optimale
-      this.setupOptimalCamera();
+      // Positionner la caméra
+      this.setupBattleCamera();
       
-      // Canvas visible
-      this.fixCanvasVisibility();
+      // Gérer l'affichage
+      this.handleDisplay();
       
       // Démarrer le moteur si nécessaire
       if (!this.gameEngine.isEngineRunning()) {
@@ -340,11 +228,9 @@ class BattleScene {
       }
       
       this.isActive = true;
+      this.debugArenaStats();
       
-      // Debug final
-      this.debugFinalResult();
-      
-      console.log('✅ Arena Battle Scene prête (corrections Unity appliquées)');
+      console.log('✅ Arena Battle Scene active');
       
     } catch (error) {
       console.error('❌ Erreur activation:', error);
@@ -352,55 +238,65 @@ class BattleScene {
     }
   }
 
-  setupOptimalCamera() {
+  /**
+   * Caméra positionnée pour la bataille
+   */
+  setupBattleCamera() {
     const camera = this.gameEngine.getCamera();
     
-    // Position idéale pour voir l'arène Clash Royale
-    camera.position.set(0, 20, 15);
-    camera.lookAt(0, 0, 0);
-    camera.fov = 60; // FOV standard
+    // Position optimale pour voir toute l'arène
+    camera.position.set(0, 18, 14);  // Légèrement au-dessus et en arrière
+    camera.lookAt(0, 0, -2);         // Regarder vers le centre-bas de l'arène
+    camera.fov = 65;                 // FOV large pour voir l'arène complète
     camera.updateProjectionMatrix();
     
-    console.log('📷 Caméra positionnée pour Battle Arena');
+    console.log('📷 Caméra Battle positionnée');
   }
 
-  debugFinalResult() {
-    console.log('=== 🎯 RÉSULTAT FINAL ===');
+  /**
+   * Gérer l'affichage canvas/UI
+   */
+  handleDisplay() {
+    const renderer = this.gameEngine.getRenderer();
+    const canvas = renderer.domElement;
+    
+    // Canvas visible et prioritaire
+    canvas.style.display = 'block';
+    canvas.style.visibility = 'visible';
+    canvas.style.opacity = '1';
+    canvas.style.zIndex = '100';
+    
+    // Masquer l'UI du menu pendant la bataille
+    const clashMenu = document.querySelector('.clash-menu-container');
+    if (clashMenu) {
+      clashMenu.style.display = 'none';
+    }
+    
+    console.log('🖼️ Affichage configuré pour la bataille');
+  }
+
+  /**
+   * Debug: Statistiques de l'arena
+   */
+  debugArenaStats() {
+    console.log('=== 📊 STATS ARENA ===');
+    
+    if (this.arenaModel) {
+      const stats = {
+        meshes: this.countMeshes(this.arenaModel),
+        materials: this.countMaterials(this.arenaModel),
+        textures: this.countTextures(this.arenaModel)
+      };
+      
+      console.log('Arena Stats:', stats);
+    }
     
     const renderer = this.gameEngine.getRenderer();
     console.log('Renderer:', {
       outputColorSpace: renderer.outputColorSpace,
       toneMapping: renderer.toneMapping,
-      toneMappingExposure: renderer.toneMappingExposure
+      exposure: renderer.toneMappingExposure
     });
-    
-    if (this.arenaModel) {
-      let materialStats = {
-        standard: 0,
-        basic: 0,
-        lambert: 0,
-        correctedColors: 0
-      };
-      
-      this.arenaModel.traverse((child) => {
-        if (child.isMesh && child.material) {
-          const materials = Array.isArray(child.material) ? child.material : [child.material];
-          
-          materials.forEach(mat => {
-            if (mat.type === 'MeshStandardMaterial') materialStats.standard++;
-            else if (mat.type === 'MeshBasicMaterial') materialStats.basic++;
-            else if (mat.type === 'MeshLambertMaterial') materialStats.lambert++;
-            
-            if (mat.color && mat.color.getHex() < 0xCCCCCC) {
-              materialStats.correctedColors++;
-            }
-          });
-        }
-      });
-      
-      console.log('Matériaux:', materialStats);
-      console.log('Meshes visibles:', this.countVisibleMeshes(this.arenaModel));
-    }
     
     // Test de rendu
     const scene = this.gameEngine.getScene();
@@ -410,19 +306,53 @@ class BattleScene {
     renderer.render(scene, camera);
     
     console.log('Rendu:', {
-      calls: renderer.info.render.calls,
+      drawCalls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles
     });
     
-    console.log('🎉 Arena corrigée Unity -> Three.js');
+    console.log('✅ Arena prête pour la bataille!');
   }
 
-  // Méthodes de nettoyage et utilitaires
+  /**
+   * Sauvegarder les états actuels
+   */
+  saveCurrentStates() {
+    // État de la caméra
+    const camera = this.gameEngine.getCamera();
+    this.originalCameraState = {
+      position: camera.position.clone(),
+      rotation: camera.rotation.clone(),
+      fov: camera.fov
+    };
+  }
+
+  /**
+   * Nettoyer les scènes précédentes
+   */
+  cleanupPreviousScenes() {
+    const mainScene = this.gameEngine.getScene();
+    const toRemove = [];
+    
+    mainScene.children.forEach(child => {
+      if (child.name === 'WelcomeMenuScene' || child.name === 'ClashMenuScene') {
+        toRemove.push(child);
+      }
+    });
+    
+    toRemove.forEach(obj => {
+      console.log(`🧹 Suppression: ${obj.name}`);
+      mainScene.remove(obj);
+    });
+  }
+
+  /**
+   * Désactiver la scène
+   */
   deactivate() {
     console.log('⏹️ Désactivation Battle Scene');
     this.isActive = false;
     
-    // Restaurer l'état original du renderer
+    // Restaurer le renderer
     if (this.originalRendererState) {
       const renderer = this.gameEngine.getRenderer();
       renderer.outputColorSpace = this.originalRendererState.outputColorSpace;
@@ -431,7 +361,7 @@ class BattleScene {
       renderer.setClearColor(this.originalRendererState.clearColor, this.originalRendererState.clearAlpha);
     }
     
-    // Restaurer caméra
+    // Restaurer la caméra
     if (this.originalCameraState) {
       const camera = this.gameEngine.getCamera();
       camera.position.copy(this.originalCameraState.position);
@@ -440,7 +370,7 @@ class BattleScene {
       camera.updateProjectionMatrix();
     }
     
-    // Montrer l'UI
+    // Remettre l'UI
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) {
       clashMenu.style.display = '';
@@ -453,44 +383,9 @@ class BattleScene {
     }
   }
 
-  fixCanvasVisibility() {
-    const renderer = this.gameEngine.getRenderer();
-    const canvas = renderer.domElement;
-    
-    canvas.style.display = 'block';
-    canvas.style.visibility = 'visible';
-    canvas.style.opacity = '1';
-    canvas.style.zIndex = '100';
-    
-    // Masquer l'UI du menu
-    const clashMenu = document.querySelector('.clash-menu-container');
-    if (clashMenu) {
-      clashMenu.style.display = 'none';
-    }
-  }
-
-  cleanupPreviousScenes() {
-    const mainScene = this.gameEngine.getScene();
-    const toRemove = [];
-    
-    mainScene.children.forEach(child => {
-      if (child.name === 'WelcomeMenuScene' || child.name === 'ClashMenuScene') {
-        toRemove.push(child);
-      }
-    });
-    
-    toRemove.forEach(obj => mainScene.remove(obj));
-  }
-
-  saveCurrentCameraState() {
-    const camera = this.gameEngine.getCamera();
-    this.originalCameraState = {
-      position: camera.position.clone(),
-      rotation: camera.rotation.clone(),
-      fov: camera.fov
-    };
-  }
-
+  /**
+   * Nettoyage complet
+   */
   cleanup() {
     console.log('🧹 Nettoyage Battle Scene');
     this.deactivate();
@@ -501,9 +396,10 @@ class BattleScene {
         if (child.material) {
           const materials = Array.isArray(child.material) ? child.material : [child.material];
           materials.forEach(mat => {
-            if (mat.map) mat.map.dispose();
-            if (mat.normalMap) mat.normalMap.dispose();
-            if (mat.roughnessMap) mat.roughnessMap.dispose();
+            // Disposer des textures
+            ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach(mapType => {
+              if (mat[mapType]) mat[mapType].dispose();
+            });
             mat.dispose();
           });
         }
@@ -517,27 +413,45 @@ class BattleScene {
     this.originalRendererState = null;
   }
 
-  // Utilitaires
+  /**
+   * Méthodes utilitaires
+   */
   countMeshes(object) {
-    if (!object) return 0;
     let count = 0;
-    object.traverse((child) => {
+    object?.traverse((child) => {
       if (child.isMesh) count++;
     });
     return count;
   }
 
-  countVisibleMeshes(object) {
-    if (!object) return 0;
-    let count = 0;
-    object.traverse((child) => {
-      if (child.isMesh && child.visible) count++;
+  countMaterials(object) {
+    const materials = new Set();
+    object?.traverse((child) => {
+      if (child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach(mat => materials.add(mat.uuid));
+      }
     });
-    return count;
+    return materials.size;
+  }
+
+  countTextures(object) {
+    const textures = new Set();
+    object?.traverse((child) => {
+      if (child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach(mat => {
+          ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'].forEach(mapType => {
+            if (mat[mapType]) textures.add(mat[mapType].uuid);
+          });
+        });
+      }
+    });
+    return textures.size;
   }
 
   update(deltaTime) {
-    // Animation du terrain, effets, etc.
+    // Animations futures de la bataille
   }
 
   // Getters
