@@ -126,23 +126,45 @@ class BattleScene {
 setupCamera() {
   const camera = this.gameEngine.getCamera();
   
-  // L'arena fait 253 unités, donc on doit reculer beaucoup plus
-  camera.position.set(0, 200, 200);
+  // Position très éloignée pour voir l'arena massive
+  camera.position.set(0, 400, 300);
   camera.lookAt(0, 0, 0);
-  
-  // Alternative : vue de dessus pour Clash Royale
-  // camera.position.set(0, 300, 100);
-  // camera.lookAt(0, 0, 0);
   
   console.log('Camera repositioned for large arena (253 units)');
   
-  // Debug si besoin
+  // Debug complet de l'arena
   if (this.arenaModel) {
-    console.log('Arena bounds:', {
-      size: this.arenaModel.children.length,
-      visible: this.arenaModel.visible
+    console.log('Arena debug:');
+    console.log('- Children count:', this.arenaModel.children.length);
+    console.log('- Visible:', this.arenaModel.visible);
+    
+    // Parcourir tous les enfants pour voir les meshes
+    this.arenaModel.traverse((child) => {
+      if (child.isMesh) {
+        console.log('- Mesh found:', child.name);
+        console.log('  - Visible:', child.visible);
+        console.log('  - Material:', child.material?.type);
+        console.log('  - Geometry:', child.geometry?.type);
+        
+        // Forcer la visibilité et matériau basique
+        child.visible = true;
+        if (child.material) {
+          child.material.visible = true;
+          // Remplacer par un matériau simple rouge pour test
+          child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        }
+      }
     });
   }
+  
+  // Ajouter un cube de test pour vérifier que le rendu fonctionne
+  const testCube = new THREE.Mesh(
+    new THREE.BoxGeometry(10, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+  );
+  testCube.position.set(0, 5, 0);
+  this.rootObject.add(testCube);
+  console.log('Added green test cube at origin');
 }
   
   // TODO: Implement unit rendering methods
