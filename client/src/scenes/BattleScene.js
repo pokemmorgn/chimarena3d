@@ -6,6 +6,7 @@ class BattleScene {
   constructor(gameEngine) {
     this.gameEngine = gameEngine;
     this.loader = new GLTFLoader();
+
     this.rootObject = new THREE.Group();
     this.rootObject.name = 'BattleSceneRoot';
 
@@ -20,15 +21,15 @@ class BattleScene {
     try { THREE.ColorManagement && (THREE.ColorManagement.enabled = true); } catch {}
   }
 
-  // ===== PUBLIC =====
+  // ========= PUBLIC =========
   async initialize() {
     const gltf = await this.loadArena();
     this.setupRendererAndLights();
 
-    // ⚠️ Si on a une caméra embarquée, on NE recentre/scale pas le modèle,
-    // sinon la relation caméra↔scène serait cassée.
+    // Si la map fournit une camera, on l'utilise telle quelle (pos + rot).
     const hasEmbeddedCam = this.applyEmbeddedCamera(gltf);
     if (!hasEmbeddedCam) {
+      // Sinon, on normalise / centre et on cadre automatiquement
       this.normalizeAndCenterModel();
       this.frameCameraToArena({ padding: 1.2, tiltDeg: 55, azimuthDeg: 35 });
     }
@@ -41,6 +42,7 @@ class BattleScene {
     if (!this.isLoaded) await this.initialize();
     this.saveCameraState();
     this.isActive = true;
+
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) clashMenu.style.display = 'none';
   }
@@ -52,7 +54,7 @@ class BattleScene {
     if (this.originalCameraState) {
       const cam = this.gameEngine.getCamera();
       cam.position.copy(this.originalCameraState.position);
-      cam.quaternion.copy(this.originalCameraState.rotation);
+      cam.quaternion.copy(this.originalCameraState.rotation); // ✅ restore rotation
       cam.fov = this.originalCameraState.fov;
       cam.near = this.originalCameraState.near;
       cam.far = this.originalCameraState.far;
@@ -69,6 +71,7 @@ class BattleScene {
 
   cleanup() {
     this.deactivate();
+
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
         if (child.geometry) child.geometry.dispose();
@@ -89,9 +92,10 @@ class BattleScene {
     this.originalCameraState = null;
   }
 
-  // ===== Helpers visibles =====
+  // ========= HELPERS VISIBLES =========
   showWireframe() {
     if (!this.arenaModel) return;
+    console.log('🔍 Enabling wireframe...');
     this.arenaModel.traverse((child) => {
       if (child.isMesh && child.material) {
         const arr = Array.isArray(child.material) ? child.material : [child.material];
@@ -101,6 +105,7 @@ class BattleScene {
   }
   hideWireframe() {
     if (!this.arenaModel) return;
+    console.log('🔍 Disabling wireframe...');
     this.arenaModel.traverse((child) => {
       if (child.isMesh && child.material) {
         const arr = Array.isArray(child.material) ? child.material : [child.material];
@@ -110,40 +115,47 @@ class BattleScene {
   }
   listAllMeshes() {
     if (!this.arenaModel) return;
-    console.log('📋 All meshes in arena:');
+    console.log('📋 Meshes:');
     this.arenaModel.traverse((child) => {
       if (child.isMesh) {
         const mat = Array.isArray(child.material) ? child.material[0] : child.material;
-        console.log(`- ${child.name} | visible=${child.visible} | pos=${child.position.toArray().map(n=>n.toFixed(2))}`);
-        if (mat) console.log(`  material=${mat.type} | opaque=${!mat.transparent} | opacity=${mat.opacity}`);
+        console.log(`- ${child.name} visible=${child.visible} pos=${child.position.toArray().map(n=>n.toFixed(2))}`);
+        if (mat) console.log(`  material=${mat.type} opaque=${!mat.transparent} opacity=${mat.opacity}`);
       }
     });
   }
 
-  // ===== INTERNAL =====
+  // ========= INTERNAL =========
   loadArena() {
     return new Promise((resolve, reject) => {
+      console.log('📦 Loading /maps/Arena01.glb ...');
       this.loader.load(
         '/maps/Arena01.glb',
         (gltf) => {
           this.arenaModel = gltf.scene;
           this.arenaModel.name = 'Arena';
 
-          // Nettoyage lights + émissifs
+          // Nettoyage contenu GLB
           this.removeEmbeddedLights(this.arenaModel);
           this.tameEmissives(this.arenaModel);
 
           this.rootObject.add(this.arenaModel);
           this.gameEngine.getScene().add(this.rootObject);
 
-          // Logs
+          // Log debug
           const box = new THREE.Box3().setFromObject(this.arenaModel);
           const size = new THREE.Vector3(); box.getSize(size);
           const center = new THREE.Vector3(); box.getCenter(center);
           console.log('🔍 GLB size:', size, 'center:', center);
+
           resolve(gltf);
         },
-        undefined,
+        (ev) => {
+          if (ev && ev.total) {
+            const pct = Math.round((ev.loaded / ev.total) * 100);
+            if (pct % 10 === 0) console.log(`⏳ Loading: ${pct}%`);
+          }
+        },
         (err) => reject(err)
       );
     });
@@ -183,41 +195,43 @@ class BattleScene {
     }
   }
 
-  // Utiliser la caméra contenue dans le GLB si disponible
+  // Utilise la camera du GLB si disponible (position + rotation exactes)
   applyEmbeddedCamera(gltf) {
-    const camNode =
-      (gltf.cameras && gltf.cameras[0]) // cameras exportés
-      || this.findNodeCamera(this.arenaModel); // node avec isCamera
+    // Cherche une vraie Camera dans le graphe
+    const camNode = this.findNodeCamera(this.arenaModel) || (gltf.cameras && gltf.cameras[0]);
+    if (!camNode) { console.log('📷 No embedded camera → fallback'); return false; }
 
-    if (!camNode) {
-      console.log('📷 No embedded camera found → fallback');
-      return false;
-    }
+    camNode.updateWorldMatrix(true, true);
 
-    // Certains exporters mettent la Camera dans un Object3D parent.
-    // On récupère la world transform exacte du node camera.
-    const src = camNode;
-    src.updateWorldMatrix(true, true);
-
-    const worldPos = new THREE.Vector3();
+    const worldPos  = new THREE.Vector3();
     const worldQuat = new THREE.Quaternion();
-    const worldScale = new THREE.Vector3();
-    src.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+    const worldScl  = new THREE.Vector3();
+    camNode.matrixWorld.decompose(worldPos, worldQuat, worldScl);
 
     const dst = this.gameEngine.getCamera();
     dst.position.copy(worldPos);
-    dst.quaternion.copy(worldQuat);
-
-    // Copier les paramètres optiques si présents
-    if (src.isPerspectiveCamera) {
-      dst.fov  = src.fov;
-      dst.near = src.near;
-      dst.far  = src.far;
+    dst.quaternion.copy(worldQuat); // ✅ rotation copiée
+    if (camNode.isPerspectiveCamera) {
+      dst.fov  = camNode.fov;
+      dst.near = camNode.near;
+      dst.far  = camNode.far;
     }
-    if (dst.isPerspectiveCamera) dst.updateProjectionMatrix();
+    dst.updateProjectionMatrix();
 
-    console.log('📷 Embedded camera applied:',
-      { pos: dst.position.toArray(), fov: dst.fov, near: dst.near, far: dst.far });
+    // Gestion d’un éventuel target/lookAt exporté
+    const target = this.findCameraTarget(camNode);
+    if (target) {
+      const t = new THREE.Vector3();
+      target.updateWorldMatrix(true, true);
+      target.getWorldPosition(t);
+      dst.lookAt(t);
+    }
+
+    console.log('📷 Embedded camera applied', {
+      pos: dst.position.toArray().map(n=>+n.toFixed(3)),
+      quat: dst.quaternion.toArray().map(n=>+n.toFixed(4)),
+      fov: dst.fov, near: dst.near, far: dst.far
+    });
 
     return true;
   }
@@ -228,8 +242,22 @@ class BattleScene {
       if (found) return;
       if (n.isCamera) { found = n; return; }
       const nm = (n.name || '').toLowerCase();
-      if (nm.includes('camera') || nm === 'maincamera') { if (n.isObject3D) found = n; }
+      if ((nm.includes('camera') || nm === 'maincamera') && n.isObject3D && n.isCamera) found = n;
     });
+    return found;
+  }
+
+  findCameraTarget(camNode) {
+    let found = null;
+    const match = (n) => {
+      const nm = (n.name || '').toLowerCase();
+      return nm.includes('target') || nm.includes('lookat') || nm === 'camera_target';
+    };
+    if (camNode.parent) {
+      camNode.parent.children.forEach(c => { if (!found && c !== camNode && match(c)) found = c; });
+      if (!found && match(camNode.parent)) found = camNode.parent;
+    }
+    if (!found) camNode.traverse(n => { if (!found && match(n)) found = n; });
     return found;
   }
 
@@ -239,10 +267,8 @@ class BattleScene {
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
 
-    // Recentrer
     this.arenaModel.position.sub(center);
 
-    // Uniform scale vers ~60 unités en X/Z
     const maxXZ = Math.max(size.x, size.z);
     const target = 60;
     if (maxXZ > 0) {
@@ -253,6 +279,7 @@ class BattleScene {
 
   frameCameraToArena({ padding = 1.2, tiltDeg = 55, azimuthDeg = 35 } = {}) {
     const cam = this.gameEngine.getCamera();
+
     const box = new THREE.Box3().setFromObject(this.arenaModel);
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
@@ -279,7 +306,7 @@ class BattleScene {
   bindResize(keepEmbedded) {
     if (this._resizeHandler) return;
     this._resizeHandler = () => {
-      // Si on suit la caméra du GLB, on ne recadre pas automatiquement.
+      // Si on suit la camera GLB, on ne recadre pas automatiquement sur resize
       if (!keepEmbedded) this.frameCameraToArena({ padding: 1.22, tiltDeg: 55, azimuthDeg: 35 });
     };
     window.addEventListener('resize', this._resizeHandler);
@@ -294,14 +321,14 @@ class BattleScene {
     const cam = this.gameEngine.getCamera();
     this.originalCameraState = {
       position: cam.position.clone(),
-      rotation: cam.quaternion.clone(),
+      rotation: cam.quaternion.clone(), // ✅ quaternion stocké
       fov: cam.fov,
       near: cam.near,
       far: cam.far
     };
   }
 
-  // ===== CLEANUP UTILS =====
+  // ========= CLEANUP UTILS =========
   removeEmbeddedLights(root) {
     let count = 0;
     root.traverse((obj) => {
