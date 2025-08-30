@@ -17,9 +17,7 @@ class BattleScene {
     this._lights = [];
     this._resizeHandler = null;
 
-    // Assure un rendu correct des couleurs selon la version
     try {
-      // r152+
       THREE.ColorManagement && (THREE.ColorManagement.enabled = true);
     } catch {}
   }
@@ -40,7 +38,6 @@ class BattleScene {
     this.saveCameraState();
     this.isActive = true;
 
-    // Masquer le menu si présent
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) clashMenu.style.display = 'none';
 
@@ -51,7 +48,6 @@ class BattleScene {
     this.isActive = false;
     this.unbindResize();
 
-    // Restaurer caméra
     if (this.originalCameraState) {
       const cam = this.gameEngine.getCamera();
       cam.position.copy(this.originalCameraState.position);
@@ -62,11 +58,9 @@ class BattleScene {
       cam.updateProjectionMatrix();
     }
 
-    // Restaurer le menu
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) clashMenu.style.display = '';
 
-    // Retirer scène
     this.gameEngine.getScene().remove(this.rootObject);
     this._lights.forEach(l => this.gameEngine.getScene().remove(l));
     this._lights = [];
@@ -142,10 +136,14 @@ class BattleScene {
         (gltf) => {
           this.arenaModel = gltf.scene;
           this.arenaModel.name = 'Arena';
+
+          // 🧹 Supprimer lights GLB
+          this.removeEmbeddedLights(this.arenaModel);
+          this.tameEmissives(this.arenaModel);
+
           this.rootObject.add(this.arenaModel);
           this.gameEngine.getScene().add(this.rootObject);
 
-          // Stats brutes
           const box = new THREE.Box3().setFromObject(this.arenaModel);
           const size = new THREE.Vector3(); box.getSize(size);
           const center = new THREE.Vector3(); box.getCenter(center);
@@ -166,7 +164,6 @@ class BattleScene {
 
   setupRendererAndLights() {
     const renderer = this.gameEngine.getRenderer();
-    // sRGB / ACES (selon version)
     try {
       if ('outputColorSpace' in renderer) {
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -180,25 +177,25 @@ class BattleScene {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // Background doux façon Clash
     const scene = this.gameEngine.getScene();
-    scene.background = new THREE.Color(0x0f1220); // bleu nuit doux
+    scene.background = new THREE.Color(0x0f1220);
 
-    // Lights
     const hemi = new THREE.HemisphereLight(0xffffff, 0x162033, 0.9);
     hemi.position.set(0, 1, 0);
+
     const dir = new THREE.DirectionalLight(0xffffff, 1.2);
     dir.position.set(50, 120, 70);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
     dir.shadow.camera.near = 10;
     dir.shadow.camera.far = 300;
+    dir.shadow.bias = -0.0005;
+    dir.shadow.normalBias = 0.02;
 
     scene.add(hemi);
     scene.add(dir);
     this._lights.push(hemi, dir);
 
-    // Activer cast/receive shadow sur les meshes si pertinent
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
         if (child.isMesh) {
@@ -211,24 +208,19 @@ class BattleScene {
 
   normalizeAndCenterModel() {
     if (!this.arenaModel) return;
-
-    // Box actuelle
     const box = new THREE.Box3().setFromObject(this.arenaModel);
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
 
-    // 1) Recentrer à l'origine
     this.arenaModel.position.sub(center);
 
-    // 2) Mise à l’échelle — on cible ~60 unités sur X/Z
     const maxXZ = Math.max(size.x, size.z);
-    const target = 60; // "taille monde" standard
+    const target = 60;
     if (maxXZ > 0) {
       const scale = target / maxXZ;
       this.arenaModel.scale.multiplyScalar(scale);
     }
 
-    // Recalcul box après normalisation
     const newBox = new THREE.Box3().setFromObject(this.arenaModel);
     const newSize = new THREE.Vector3(); newBox.getSize(newSize);
     const newCenter = new THREE.Vector3(); newBox.getCenter(newCenter);
@@ -237,21 +229,17 @@ class BattleScene {
 
   frameCameraToArena({ padding = 1.2, tiltDeg = 55, azimuthDeg = 35 } = {}) {
     const cam = this.gameEngine.getCamera();
-    const scene = this.gameEngine.getScene();
 
-    // Box globale de l'arène
     const box = new THREE.Box3().setFromObject(this.arenaModel);
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
 
-    // Distance idéale en fonction du FOV
     const maxDim = Math.max(size.x, size.z) * padding;
     const fov = cam.fov * (Math.PI / 180);
     const dist = (maxDim / 2) / Math.tan(fov / 2);
 
-    // Convertir tilt/azimuth en position orbitale
-    const tilt = THREE.MathUtils.degToRad(tiltDeg);     // élévation
-    const azim = THREE.MathUtils.degToRad(azimuthDeg);  // rotation horizontale
+    const tilt = THREE.MathUtils.degToRad(tiltDeg);
+    const azim = THREE.MathUtils.degToRad(azimuthDeg);
     const radius = Math.max(dist, size.y * 1.2 + 20);
 
     const x = center.x + radius * Math.cos(tilt) * Math.cos(azim);
@@ -264,20 +252,16 @@ class BattleScene {
     cam.lookAt(center);
     cam.updateProjectionMatrix();
 
-    // Optionnel: helper pour debug
-    // const axes = new THREE.AxesHelper(10); scene.add(axes);
     console.log('📸 Camera framed:', cam.position);
   }
 
   bindResize() {
     if (this._resizeHandler) return;
     this._resizeHandler = () => {
-      // garder le cadrage correct lors des rotations d’écran
       this.frameCameraToArena({ padding: 1.22, tiltDeg: 55, azimuthDeg: 35 });
     };
     window.addEventListener('resize', this._resizeHandler);
   }
-
   unbindResize() {
     if (!this._resizeHandler) return;
     window.removeEventListener('resize', this._resizeHandler);
@@ -293,6 +277,31 @@ class BattleScene {
       near: cam.near,
       far: cam.far
     };
+  }
+
+  // ===== EXTRA CLEANUP =====
+  removeEmbeddedLights(root) {
+    let count = 0;
+    root.traverse((obj) => {
+      if (obj.isLight || /Light$/.test(obj.type)) {
+        if (obj.parent) obj.parent.remove(obj);
+        count++;
+      }
+    });
+    console.log(`🧹 Embedded lights removed: ${count}`);
+  }
+
+  tameEmissives(root) {
+    root.traverse((child) => {
+      if (child.isMesh) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach(m => {
+          if (m.emissive && m.emissiveIntensity != null) {
+            m.emissiveIntensity = Math.min(m.emissiveIntensity ?? 1, 0.3);
+          }
+        });
+      }
+    });
   }
 }
 
