@@ -130,7 +130,7 @@ class BattleScene {
     // 🔧 AJOUT: Configuration du tone mapping du renderer
     const renderer = this.gameEngine.getRenderer();
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.8; // Réduire l'exposition globale
+    renderer.toneMappingExposure = 0.2; // Réduire l'exposition globale
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Ombres plus douces
     
