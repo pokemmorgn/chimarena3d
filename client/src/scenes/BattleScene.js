@@ -24,7 +24,7 @@ class BattleScene {
   async loadArena() {
     return new Promise((resolve, reject) => {
       this.loader.load(
-        '/maps/Arena01.glb',
+        '/maps/_Arena01.glb',
         (gltf) => {
           this.arenaModel = gltf.scene;
           this.arenaModel.name = 'Arena';
