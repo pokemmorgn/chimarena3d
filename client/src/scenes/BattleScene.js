@@ -11,243 +11,211 @@ class BattleScene {
     this.isActive = false;
     this.isLoaded = false;
     this.originalCameraState = null;
+    this.originalBackground = null;
   }
 
   async initialize() {
-    console.log('🏟️ Initializing BattleScene...');
     await this.loadArena();
     this.setupLighting();
     this.setupCamera();
     this.isLoaded = true;
-    console.log('✅ BattleScene initialized');
   }
 
   async loadArena() {
     return new Promise((resolve, reject) => {
-      console.log('📦 Loading Arena01.glb...');
-      
       this.loader.load(
         '/maps/Arena01.glb',
         (gltf) => {
-          console.log('✅ Arena loaded successfully:', gltf);
-          
           this.arenaModel = gltf.scene;
           this.arenaModel.name = 'Arena';
           
-          // 🔍 DEBUG: Afficher les infos du modèle
-          this.debugArenaModel();
+          // 🔧 CORRECTION MAJEURE: Traiter la skybox et les conflits
+          this.fixArenaConflicts();
           
-          // 🔧 Position et échelle originales mais debug
+          // 🔧 Position et échelle corrigées
           this.arenaModel.position.set(0, 0, 0);
           this.arenaModel.scale.set(0.1, 0.1, 0.1);
-          
-          // 🔧 CORRECTION: Assurer que le modèle est visible
-          this.arenaModel.visible = true;
-          this.arenaModel.frustumCulled = false; // Empêche le culling
           
           this.rootObject.add(this.arenaModel);
           this.gameEngine.getScene().add(this.rootObject);
           
-          console.log('🏟️ Arena added to scene');
           resolve();
         },
-        (progress) => {
-          console.log('📊 Loading progress:', (progress.loaded / progress.total * 100) + '%');
-        },
-        (error) => {
-          console.error('❌ Error loading arena:', error);
-          
-          // 🚨 FALLBACK: Créer une arène basique si le chargement échoue
-          this.createFallbackArena();
-          resolve();
-        }
+        undefined,
+        (error) => reject(error)
       );
     });
   }
 
-  // 🔍 DEBUG: Analyser le modèle chargé
-  debugArenaModel() {
+  // 🔧 NOUVEAU: Corriger les conflits avec la skybox et autres éléments
+  fixArenaConflicts() {
     if (!this.arenaModel) return;
     
-    console.log('🔍 Arena Model Debug:');
-    console.log('- Position:', this.arenaModel.position);
-    console.log('- Scale:', this.arenaModel.scale);
-    console.log('- Rotation:', this.arenaModel.rotation);
-    console.log('- Visible:', this.arenaModel.visible);
-    
-    // Calculer la bounding box
-    const box = new THREE.Box3().setFromObject(this.arenaModel);
-    console.log('- Bounding Box:', box);
-    console.log('- Size:', box.getSize(new THREE.Vector3()));
-    console.log('- Center:', box.getCenter(new THREE.Vector3()));
-    
-    // Analyser les enfants
-    let meshCount = 0;
-    let materialCount = 0;
+    let skyboxMesh = null;
+    let groundMeshes = [];
+    let buildingMeshes = [];
     
     this.arenaModel.traverse((child) => {
       if (child.isMesh) {
-        meshCount++;
-        console.log(`  - Mesh: ${child.name}, Material: ${child.material?.name || 'Unnamed'}`);
+        const name = child.name.toLowerCase();
         
-        if (child.material) {
-          materialCount++;
-          // S'assurer que le matériau est visible
-          child.material.visible = true;
-          if (child.material.transparent) {
-            child.material.opacity = Math.max(child.material.opacity, 0.5);
+        // 🚨 PROBLÈME PRINCIPAL: Supprimer ou ajuster la skybox
+        if (name.includes('skybox')) {
+          console.log('🌌 Found skybox:', child.name);
+          skyboxMesh = child;
+          
+          // Option 1: Supprimer complètement la skybox
+          // child.visible = false;
+          
+          // Option 2: Faire la skybox transparente
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = 0.3; // Semi-transparente
+            // ou child.material.opacity = 0; // Invisible
           }
+          
+          // Option 3: Inverser les faces pour voir de l'intérieur
+          if (child.geometry) {
+            // Inverser les normales pour voir l'intérieur
+            child.geometry.scale(-1, 1, 1);
+            child.material.side = THREE.BackSide;
+          }
+        }
+        
+        // Collecter les autres éléments
+        if (name.includes('ground')) {
+          groundMeshes.push(child);
+        }
+        if (name.includes('nha') || name.includes('bridge') || name.includes('king') || name.includes('archer')) {
+          buildingMeshes.push(child);
+        }
+        
+        // 🔧 Assurer que tous les matériaux sont visibles
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach(material => {
+            // Réduire l'émission excessive
+            if (material.emissive) {
+              material.emissive.multiplyScalar(0.1);
+            }
+            
+            // Ajuster pour de meilleurs rendus
+            if (material.isMeshStandardMaterial) {
+              material.envMapIntensity = 0.5;
+              material.metalness = Math.min(material.metalness, 0.3);
+              material.roughness = Math.max(material.roughness, 0.4);
+            }
+            
+            material.needsUpdate = true;
+          });
         }
       }
     });
     
-    console.log(`- Found ${meshCount} meshes with ${materialCount} materials`);
-  }
-
-  // 🚨 FALLBACK: Créer une arène simple si le GLB ne charge pas
-  createFallbackArena() {
-    console.log('🚨 Creating fallback arena...');
-    
-    // Sol de l'arène
-    const groundGeometry = new THREE.PlaneGeometry(20, 30);
-    const groundMaterial = new THREE.MeshLambertMaterial({ 
-      color: 0x4a9b4a, // Vert herbe
-      transparent: true,
-      opacity: 0.8
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.1;
-    ground.name = 'FallbackGround';
-    
-    // Rivière au centre
-    const riverGeometry = new THREE.PlaneGeometry(20, 2);
-    const riverMaterial = new THREE.MeshLambertMaterial({ 
-      color: 0x4a9bff, // Bleu eau
-      transparent: true,
-      opacity: 0.7
-    });
-    const river = new THREE.Mesh(riverGeometry, riverMaterial);
-    river.rotation.x = -Math.PI / 2;
-    river.position.y = 0;
-    river.name = 'FallbackRiver';
-    
-    // Tours de base (simple)
-    const createTower = (x, z, color) => {
-      const towerGeometry = new THREE.BoxGeometry(2, 3, 2);
-      const towerMaterial = new THREE.MeshLambertMaterial({ color });
-      const tower = new THREE.Mesh(towerGeometry, towerMaterial);
-      tower.position.set(x, 1.5, z);
-      tower.name = `FallbackTower_${x}_${z}`;
-      return tower;
-    };
-    
-    // Créer l'arène fallback
-    this.arenaModel = new THREE.Group();
-    this.arenaModel.name = 'FallbackArena';
-    
-    this.arenaModel.add(ground);
-    this.arenaModel.add(river);
-    this.arenaModel.add(createTower(-6, -12, 0xff4444)); // Tour rouge
-    this.arenaModel.add(createTower(6, -12, 0xff4444));  // Tour rouge
-    this.arenaModel.add(createTower(0, -12, 0xff4444));  // Roi rouge
-    this.arenaModel.add(createTower(-6, 12, 0x4444ff));  // Tour bleue
-    this.arenaModel.add(createTower(6, 12, 0x4444ff));   // Tour bleue
-    this.arenaModel.add(createTower(0, 12, 0x4444ff));   // Roi bleu
-    
-    console.log('✅ Fallback arena created');
+    console.log('🔧 Arena fixes applied:');
+    console.log(`- Skybox: ${skyboxMesh ? 'Fixed' : 'Not found'}`);
+    console.log(`- Ground meshes: ${groundMeshes.length}`);
+    console.log(`- Building meshes: ${buildingMeshes.length}`);
   }
 
   setupCamera() {
     const camera = this.gameEngine.getCamera();
     
-    // 🔧 CORRECTION: Caméra plus haute et plus reculeé pour voir toute l'arène
-    camera.position.set(0, 25, 20); // Plus haut et plus loin
-    camera.lookAt(0, 0, 0); // Regarder le centre
-    camera.fov = 60; // FOV un peu plus large
+    // 🔧 Position de caméra ajustée pour la taille réelle de l'arène
+    // L'arène fait 253 unités * 0.1 scale = 25.3 unités
+    camera.position.set(0, 15, 18); // Plus proche mais suffisamment haut
+    camera.lookAt(0, 2, 0); // Regarder légèrement au-dessus du centre
+    camera.fov = 75; // FOV plus large pour voir plus
     camera.updateProjectionMatrix();
     
-    // 🔧 Ajuster les plans near/far
+    // Ajuster les plans pour la bonne échelle
     camera.near = 0.1;
-    camera.far = 1000;
+    camera.far = 500; // Suffisant pour une arène de ~25 unités
     camera.updateProjectionMatrix();
     
-    console.log('📸 Camera positioned:', camera.position);
-    console.log('📸 Camera looking at:', {x: 0, y: 0, z: 0});
+    console.log('📸 Camera positioned for arena scale');
   }
 
   setupLighting() {
     const scene = this.gameEngine.getScene();
     const renderer = this.gameEngine.getRenderer();
     
-    // 🔧 CORRECTION: Retirer les lumières existantes d'abord
+    // 🔧 Sauvegarder le background original
+    this.originalBackground = scene.background;
+    
+    // 🔧 Retirer toutes les lumières existantes
     const existingLights = scene.children.filter(child => child.isLight);
     existingLights.forEach(light => scene.remove(light));
 
-    // 🔧 Lumière ambiante douce mais suffisante
-    const ambientLight = new THREE.AmbientLight(0x404060, 0.6); // Un peu plus fort
-    scene.add(ambientLight);
-
-    // 🔧 Lumière directionnelle principale (soleil)
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(10, 20, 10);
-    dirLight.target.position.set(0, 0, 0);
-    dirLight.castShadow = true;
-    
-    // Configuration des ombres
-    dirLight.shadow.mapSize.setScalar(2048);
-    dirLight.shadow.camera.near = 0.1;
-    dirLight.shadow.camera.far = 100;
-    dirLight.shadow.camera.left = -30;
-    dirLight.shadow.camera.right = 30;
-    dirLight.shadow.camera.top = 30;
-    dirLight.shadow.camera.bottom = -30;
-    
-    scene.add(dirLight);
-    scene.add(dirLight.target);
-
-    // 🔧 Lumière de remplissage pour éclairer les zones sombres
-    const fillLight = new THREE.DirectionalLight(0x8090ff, 0.3);
-    fillLight.position.set(-10, 15, -10);
-    fillLight.castShadow = false;
-    scene.add(fillLight);
-
-    // 🔧 Configuration du renderer
+    // 🔧 Configuration du renderer AVANT les lumières
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0; // Exposition normale
+    renderer.toneMappingExposure = 1.2; // Légèrement plus lumineux
     
-    // 🔧 Background color pour éviter le noir total
-    scene.background = new THREE.Color(0x87CEEB); // Bleu ciel
+    // 🔧 Background neutre (pas de conflit avec la skybox)
+    scene.background = new THREE.Color(0x87CEEB); // Bleu ciel clair
     
-    console.log('💡 Lighting setup complete');
+    // 🔧 Éclairage optimisé pour l'arène
+    
+    // Lumière ambiante douce
+    const ambientLight = new THREE.AmbientLight(0x404050, 0.4);
+    scene.add(ambientLight);
+
+    // Lumière directionnelle principale (soleil)
+    const sunLight = new THREE.DirectionalLight(0xffeaa7, 0.8); // Lumière dorée
+    sunLight.position.set(15, 20, 10);
+    sunLight.target.position.set(0, 0, 0);
+    sunLight.castShadow = true;
+    
+    // Configuration des ombres adaptée à l'échelle
+    sunLight.shadow.mapSize.setScalar(2048);
+    sunLight.shadow.camera.near = 0.1;
+    sunLight.shadow.camera.far = 100;
+    // Ajusté à la taille de l'arène (25 unités)
+    sunLight.shadow.camera.left = -15;
+    sunLight.shadow.camera.right = 15;
+    sunLight.shadow.camera.top = 15;
+    sunLight.shadow.camera.bottom = -15;
+    sunLight.shadow.radius = 5;
+    
+    scene.add(sunLight);
+    scene.add(sunLight.target);
+
+    // Lumière de remplissage (contre-jour)
+    const fillLight = new THREE.DirectionalLight(0x74b9ff, 0.3); // Lumière bleue douce
+    fillLight.position.set(-10, 10, -5);
+    fillLight.castShadow = false;
+    scene.add(fillLight);
+
+    // 🔧 Lumière d'appoint pour les détails
+    const detailLight = new THREE.PointLight(0xffffff, 0.5, 30);
+    detailLight.position.set(0, 10, 0);
+    detailLight.castShadow = true;
+    scene.add(detailLight);
+    
+    console.log('💡 Lighting optimized for arena with skybox');
   }
 
   async activate() {
-    console.log('🎮 Activating BattleScene...');
-    
-    if (!this.isLoaded) {
-      await this.initialize();
-    }
+    if (!this.isLoaded) await this.initialize();
     
     this.saveCameraState();
+    this.saveSceneState(); // 🔧 Nouveau
     this.isActive = true;
 
     // Masquer le menu
     const clashMenu = document.querySelector('.clash-menu-container');
-    if (clashMenu) {
-      clashMenu.style.display = 'none';
-      console.log('🎮 Menu hidden');
-    }
+    if (clashMenu) clashMenu.style.display = 'none';
     
-    // 🔧 DEBUG: Vérifier que l'arène est visible
-    if (this.arenaModel) {
-      console.log('🏟️ Arena visible:', this.arenaModel.visible);
-      console.log('🏟️ Arena in scene:', this.gameEngine.getScene().children.includes(this.rootObject));
-    }
-    
-    console.log('✅ BattleScene activated');
+    console.log('✅ BattleScene activated with skybox fixes');
+  }
+
+  // 🔧 NOUVEAU: Sauvegarder l'état de la scène
+  saveSceneState() {
+    const scene = this.gameEngine.getScene();
+    this.originalBackground = scene.background;
+    console.log('💾 Scene state saved');
   }
 
   saveCameraState() {
@@ -259,13 +227,12 @@ class BattleScene {
       near: cam.near,
       far: cam.far
     };
-    console.log('💾 Camera state saved');
   }
 
   deactivate() {
-    console.log('🎮 Deactivating BattleScene...');
     this.isActive = false;
 
+    // 🔧 Restaurer l'état de la caméra
     if (this.originalCameraState) {
       const cam = this.gameEngine.getCamera();
       cam.position.copy(this.originalCameraState.position);
@@ -274,47 +241,43 @@ class BattleScene {
       cam.near = this.originalCameraState.near;
       cam.far = this.originalCameraState.far;
       cam.updateProjectionMatrix();
-      console.log('📸 Camera state restored');
+    }
+
+    // 🔧 Restaurer le background de la scène
+    if (this.originalBackground !== null) {
+      this.gameEngine.getScene().background = this.originalBackground;
     }
 
     // Restaurer le menu
     const clashMenu = document.querySelector('.clash-menu-container');
-    if (clashMenu) {
-      clashMenu.style.display = '';
-      console.log('🎮 Menu restored');
-    }
+    if (clashMenu) clashMenu.style.display = '';
 
-    // 🔧 CORRECTION: Retirer proprement du scene
-    if (this.rootObject.parent) {
-      this.gameEngine.getScene().remove(this.rootObject);
-      console.log('🏟️ Arena removed from scene');
-    }
+    this.gameEngine.getScene().remove(this.rootObject);
     
-    console.log('✅ BattleScene deactivated');
+    console.log('✅ BattleScene deactivated, scene restored');
   }
 
   cleanup() {
-    console.log('🧹 Cleaning up BattleScene...');
-    
     this.deactivate();
+    
+    // Nettoyer les lumières ajoutées
+    const scene = this.gameEngine.getScene();
+    const lightsToRemove = scene.children.filter(child => 
+      child.isLight && !child.userData.isOriginal
+    );
+    lightsToRemove.forEach(light => scene.remove(light));
     
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
-        if (child.geometry) {
-          child.geometry.dispose();
-          console.log('🗑️ Disposed geometry:', child.name);
-        }
+        if (child.geometry) child.geometry.dispose();
         if (child.material) {
           const mats = Array.isArray(child.material) ? child.material : [child.material];
           mats.forEach((mat) => {
             ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'].forEach((mapType) => {
-              if (mat[mapType]) {
-                mat[mapType].dispose();
-              }
+              if (mat[mapType]) mat[mapType].dispose();
             });
             mat.dispose();
           });
-          console.log('🗑️ Disposed material:', child.name);
         }
       });
     }
@@ -323,27 +286,38 @@ class BattleScene {
     this.arenaModel = null;
     this.isLoaded = false;
     this.originalCameraState = null;
+    this.originalBackground = null;
     
     console.log('✅ BattleScene cleanup complete');
   }
 
-  // 🔧 NOUVEAU: Méthode de debug pour vérifier l'état
-  debugScene() {
-    console.log('🔍 Scene Debug:');
-    console.log('- Arena loaded:', this.isLoaded);
-    console.log('- Arena active:', this.isActive);
-    console.log('- Arena model:', this.arenaModel ? 'Present' : 'Missing');
-    console.log('- Root object children:', this.rootObject.children.length);
-    console.log('- Scene children:', this.gameEngine.getScene().children.length);
+  // 🔧 Méthodes de debug et contrôle
+  toggleSkybox(visible = null) {
+    if (!this.arenaModel) return;
     
-    const camera = this.gameEngine.getCamera();
-    console.log('- Camera position:', camera.position);
-    console.log('- Camera FOV:', camera.fov);
+    this.arenaModel.traverse((child) => {
+      if (child.name.toLowerCase().includes('skybox')) {
+        if (visible === null) {
+          child.visible = !child.visible;
+        } else {
+          child.visible = visible;
+        }
+        console.log('🌌 Skybox visibility:', child.visible);
+      }
+    });
+  }
+
+  setSkyboxOpacity(opacity = 0.3) {
+    if (!this.arenaModel) return;
     
-    if (this.arenaModel) {
-      const box = new THREE.Box3().setFromObject(this.arenaModel);
-      console.log('- Arena bounds:', box);
-    }
+    this.arenaModel.traverse((child) => {
+      if (child.name.toLowerCase().includes('skybox') && child.material) {
+        child.material.transparent = true;
+        child.material.opacity = opacity;
+        child.material.needsUpdate = true;
+        console.log('🌌 Skybox opacity set to:', opacity);
+      }
+    });
   }
 
   // Getters
