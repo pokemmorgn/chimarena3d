@@ -17,31 +17,32 @@ class BattleScene {
     this._lights = [];
     this._resizeHandler = null;
 
-    try {
-      THREE.ColorManagement && (THREE.ColorManagement.enabled = true);
-    } catch {}
+    try { THREE.ColorManagement && (THREE.ColorManagement.enabled = true); } catch {}
   }
 
-  // ====== PUBLIC ======
+  // ===== PUBLIC =====
   async initialize() {
-    await this.loadArena();
+    const gltf = await this.loadArena();
     this.setupRendererAndLights();
-    this.normalizeAndCenterModel();
-    this.frameCameraToArena({ padding: 1.2, tiltDeg: 55, azimuthDeg: 35 });
-    this.bindResize();
+
+    // ⚠️ Si on a une caméra embarquée, on NE recentre/scale pas le modèle,
+    // sinon la relation caméra↔scène serait cassée.
+    const hasEmbeddedCam = this.applyEmbeddedCamera(gltf);
+    if (!hasEmbeddedCam) {
+      this.normalizeAndCenterModel();
+      this.frameCameraToArena({ padding: 1.2, tiltDeg: 55, azimuthDeg: 35 });
+    }
+
+    this.bindResize(hasEmbeddedCam);
     this.isLoaded = true;
   }
 
   async activate() {
-    console.log('🎮 Activating BattleScene...');
     if (!this.isLoaded) await this.initialize();
     this.saveCameraState();
     this.isActive = true;
-
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) clashMenu.style.display = 'none';
-
-    console.log('✅ BattleScene ready.');
   }
 
   deactivate() {
@@ -51,7 +52,7 @@ class BattleScene {
     if (this.originalCameraState) {
       const cam = this.gameEngine.getCamera();
       cam.position.copy(this.originalCameraState.position);
-      cam.rotation.copy(this.originalCameraState.rotation);
+      cam.quaternion.copy(this.originalCameraState.rotation);
       cam.fov = this.originalCameraState.fov;
       cam.near = this.originalCameraState.near;
       cam.far = this.originalCameraState.far;
@@ -68,7 +69,6 @@ class BattleScene {
 
   cleanup() {
     this.deactivate();
-
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
         if (child.geometry) child.geometry.dispose();
@@ -89,10 +89,9 @@ class BattleScene {
     this.originalCameraState = null;
   }
 
-  // Helpers visibles
+  // ===== Helpers visibles =====
   showWireframe() {
     if (!this.arenaModel) return;
-    console.log('🔍 Enabling wireframe mode...');
     this.arenaModel.traverse((child) => {
       if (child.isMesh && child.material) {
         const arr = Array.isArray(child.material) ? child.material : [child.material];
@@ -102,7 +101,6 @@ class BattleScene {
   }
   hideWireframe() {
     if (!this.arenaModel) return;
-    console.log('🔍 Disabling wireframe mode...');
     this.arenaModel.traverse((child) => {
       if (child.isMesh && child.material) {
         const arr = Array.isArray(child.material) ? child.material : [child.material];
@@ -122,41 +120,30 @@ class BattleScene {
     });
   }
 
-  // Getters
-  getArenaModel() { return this.arenaModel; }
-  isSceneActive() { return this.isActive; }
-  isSceneLoaded() { return this.isLoaded; }
-
-  // ====== INTERNAL ======
-  async loadArena() {
+  // ===== INTERNAL =====
+  loadArena() {
     return new Promise((resolve, reject) => {
-      console.log('📦 Loading /maps/Arena01.glb ...');
       this.loader.load(
         '/maps/Arena01.glb',
         (gltf) => {
           this.arenaModel = gltf.scene;
           this.arenaModel.name = 'Arena';
 
-          // 🧹 Supprimer lights GLB
+          // Nettoyage lights + émissifs
           this.removeEmbeddedLights(this.arenaModel);
           this.tameEmissives(this.arenaModel);
 
           this.rootObject.add(this.arenaModel);
           this.gameEngine.getScene().add(this.rootObject);
 
+          // Logs
           const box = new THREE.Box3().setFromObject(this.arenaModel);
           const size = new THREE.Vector3(); box.getSize(size);
           const center = new THREE.Vector3(); box.getCenter(center);
-          console.log('🔍 Original box size:', size, 'center:', center);
-
-          resolve();
+          console.log('🔍 GLB size:', size, 'center:', center);
+          resolve(gltf);
         },
-        (ev) => {
-          if (ev && ev.total) {
-            const pct = Math.round((ev.loaded / ev.total) * 100);
-            if (pct % 10 === 0) console.log(`⏳ Loading: ${pct}%`);
-          }
-        },
+        undefined,
         (err) => reject(err)
       );
     });
@@ -165,15 +152,11 @@ class BattleScene {
   setupRendererAndLights() {
     const renderer = this.gameEngine.getRenderer();
     try {
-      if ('outputColorSpace' in renderer) {
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-      } else {
-        renderer.outputEncoding = THREE.sRGBEncoding;
-      }
+      if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+      else renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
     } catch {}
-
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -181,9 +164,7 @@ class BattleScene {
     scene.background = new THREE.Color(0x0f1220);
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x162033, 0.9);
-    hemi.position.set(0, 1, 0);
-
-    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+    const dir  = new THREE.DirectionalLight(0xffffff, 1.2);
     dir.position.set(50, 120, 70);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
@@ -192,18 +173,64 @@ class BattleScene {
     dir.shadow.bias = -0.0005;
     dir.shadow.normalBias = 0.02;
 
-    scene.add(hemi);
-    scene.add(dir);
+    scene.add(hemi, dir);
     this._lights.push(hemi, dir);
 
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
+        if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
       });
     }
+  }
+
+  // Utiliser la caméra contenue dans le GLB si disponible
+  applyEmbeddedCamera(gltf) {
+    const camNode =
+      (gltf.cameras && gltf.cameras[0]) // cameras exportés
+      || this.findNodeCamera(this.arenaModel); // node avec isCamera
+
+    if (!camNode) {
+      console.log('📷 No embedded camera found → fallback');
+      return false;
+    }
+
+    // Certains exporters mettent la Camera dans un Object3D parent.
+    // On récupère la world transform exacte du node camera.
+    const src = camNode;
+    src.updateWorldMatrix(true, true);
+
+    const worldPos = new THREE.Vector3();
+    const worldQuat = new THREE.Quaternion();
+    const worldScale = new THREE.Vector3();
+    src.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+
+    const dst = this.gameEngine.getCamera();
+    dst.position.copy(worldPos);
+    dst.quaternion.copy(worldQuat);
+
+    // Copier les paramètres optiques si présents
+    if (src.isPerspectiveCamera) {
+      dst.fov  = src.fov;
+      dst.near = src.near;
+      dst.far  = src.far;
+    }
+    if (dst.isPerspectiveCamera) dst.updateProjectionMatrix();
+
+    console.log('📷 Embedded camera applied:',
+      { pos: dst.position.toArray(), fov: dst.fov, near: dst.near, far: dst.far });
+
+    return true;
+  }
+
+  findNodeCamera(root) {
+    let found = null;
+    root.traverse((n) => {
+      if (found) return;
+      if (n.isCamera) { found = n; return; }
+      const nm = (n.name || '').toLowerCase();
+      if (nm.includes('camera') || nm === 'maincamera') { if (n.isObject3D) found = n; }
+    });
+    return found;
   }
 
   normalizeAndCenterModel() {
@@ -212,24 +239,20 @@ class BattleScene {
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
 
+    // Recentrer
     this.arenaModel.position.sub(center);
 
+    // Uniform scale vers ~60 unités en X/Z
     const maxXZ = Math.max(size.x, size.z);
     const target = 60;
     if (maxXZ > 0) {
       const scale = target / maxXZ;
       this.arenaModel.scale.multiplyScalar(scale);
     }
-
-    const newBox = new THREE.Box3().setFromObject(this.arenaModel);
-    const newSize = new THREE.Vector3(); newBox.getSize(newSize);
-    const newCenter = new THREE.Vector3(); newBox.getCenter(newCenter);
-    console.log('📐 Normalized size:', newSize, 'center:', newCenter);
   }
 
   frameCameraToArena({ padding = 1.2, tiltDeg = 55, azimuthDeg = 35 } = {}) {
     const cam = this.gameEngine.getCamera();
-
     const box = new THREE.Box3().setFromObject(this.arenaModel);
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
@@ -251,14 +274,13 @@ class BattleScene {
     cam.far = Math.max(500, radius * 10);
     cam.lookAt(center);
     cam.updateProjectionMatrix();
-
-    console.log('📸 Camera framed:', cam.position);
   }
 
-  bindResize() {
+  bindResize(keepEmbedded) {
     if (this._resizeHandler) return;
     this._resizeHandler = () => {
-      this.frameCameraToArena({ padding: 1.22, tiltDeg: 55, azimuthDeg: 35 });
+      // Si on suit la caméra du GLB, on ne recadre pas automatiquement.
+      if (!keepEmbedded) this.frameCameraToArena({ padding: 1.22, tiltDeg: 55, azimuthDeg: 35 });
     };
     window.addEventListener('resize', this._resizeHandler);
   }
@@ -272,14 +294,14 @@ class BattleScene {
     const cam = this.gameEngine.getCamera();
     this.originalCameraState = {
       position: cam.position.clone(),
-      rotation: cam.rotation.clone(),
+      rotation: cam.quaternion.clone(),
       fov: cam.fov,
       near: cam.near,
       far: cam.far
     };
   }
 
-  // ===== EXTRA CLEANUP =====
+  // ===== CLEANUP UTILS =====
   removeEmbeddedLights(root) {
     let count = 0;
     root.traverse((obj) => {
