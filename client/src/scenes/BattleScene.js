@@ -15,8 +15,10 @@ class BattleScene {
     this.isLoaded = false;
 
     this.originalCameraState = null;
-    this._lights = [];
+    this._lights = { hemi: null, dir: null };
     this._resizeHandler = null;
+
+    this.bounds = { box: new THREE.Box3(), size: new THREE.Vector3(), center: new THREE.Vector3(), radius: 1 };
 
     try { THREE.ColorManagement && (THREE.ColorManagement.enabled = true); } catch {}
   }
@@ -24,15 +26,23 @@ class BattleScene {
   // ========= PUBLIC =========
   async initialize() {
     const gltf = await this.loadArena();
-    this.setupRendererAndLights();
+    this.computeBounds(); // avant lumières
 
-    // Si la map fournit une camera, on l'utilise telle quelle (pos + rot).
+    this.setupRenderer();
+    this.createLights();  // sans config d’ombres pour l’instant
+
     const hasEmbeddedCam = this.applyEmbeddedCamera(gltf);
     if (!hasEmbeddedCam) {
-      // Sinon, on normalise / centre et on cadre automatiquement
       this.normalizeAndCenterModel();
+      this.computeBounds(); // bounds changent après normalisation
       this.frameCameraToArena({ padding: 1.2, tiltDeg: 55, azimuthDeg: 35 });
+    } else {
+      // Sécurise near/far si la map est grande
+      this.relaxCameraClippingUsingBounds();
     }
+
+    // Maintenant que bounds sont stables -> configure le shadow frustum proprement
+    this.fitDirectionalShadowToArena();
 
     this.bindResize(hasEmbeddedCam);
     this.isLoaded = true;
@@ -54,7 +64,7 @@ class BattleScene {
     if (this.originalCameraState) {
       const cam = this.gameEngine.getCamera();
       cam.position.copy(this.originalCameraState.position);
-      cam.quaternion.copy(this.originalCameraState.rotation); // ✅ restore rotation
+      cam.quaternion.copy(this.originalCameraState.rotation);
       cam.fov = this.originalCameraState.fov;
       cam.near = this.originalCameraState.near;
       cam.far = this.originalCameraState.far;
@@ -64,9 +74,11 @@ class BattleScene {
     const clashMenu = document.querySelector('.clash-menu-container');
     if (clashMenu) clashMenu.style.display = '';
 
-    this.gameEngine.getScene().remove(this.rootObject);
-    this._lights.forEach(l => this.gameEngine.getScene().remove(l));
-    this._lights = [];
+    const scene = this.gameEngine.getScene();
+    scene.remove(this.rootObject);
+    if (this._lights.hemi) scene.remove(this._lights.hemi);
+    if (this._lights.dir)  scene.remove(this._lights.dir);
+    this._lights = { hemi: null, dir: null };
   }
 
   cleanup() {
@@ -92,7 +104,7 @@ class BattleScene {
     this.originalCameraState = null;
   }
 
-  // ========= HELPERS VISIBLES =========
+  // ========= HELPERS (debug) =========
   showWireframe() {
     if (!this.arenaModel) return;
     console.log('🔍 Enabling wireframe...');
@@ -124,6 +136,12 @@ class BattleScene {
       }
     });
   }
+  debugBoundsHelper() {
+    const scene = this.gameEngine.getScene();
+    const helper = new THREE.Box3Helper(this.bounds.box, 0xffff00);
+    scene.add(helper);
+    setTimeout(() => scene.remove(helper), 4000);
+  }
 
   // ========= INTERNAL =========
   loadArena() {
@@ -142,12 +160,6 @@ class BattleScene {
           this.rootObject.add(this.arenaModel);
           this.gameEngine.getScene().add(this.rootObject);
 
-          // Log debug
-          const box = new THREE.Box3().setFromObject(this.arenaModel);
-          const size = new THREE.Vector3(); box.getSize(size);
-          const center = new THREE.Vector3(); box.getCenter(center);
-          console.log('🔍 GLB size:', size, 'center:', center);
-
           resolve(gltf);
         },
         (ev) => {
@@ -161,7 +173,7 @@ class BattleScene {
     });
   }
 
-  setupRendererAndLights() {
+  setupRenderer() {
     const renderer = this.gameEngine.getRenderer();
     try {
       if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -174,20 +186,30 @@ class BattleScene {
 
     const scene = this.gameEngine.getScene();
     scene.background = new THREE.Color(0x0f1220);
+  }
+
+  createLights() {
+    const scene = this.gameEngine.getScene();
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x162033, 0.9);
+    hemi.position.set(0, 1, 0);
+
     const dir  = new THREE.DirectionalLight(0xffffff, 1.2);
     dir.position.set(50, 120, 70);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
-    dir.shadow.camera.near = 10;
-    dir.shadow.camera.far = 300;
     dir.shadow.bias = -0.0005;
     dir.shadow.normalBias = 0.02;
 
-    scene.add(hemi, dir);
-    this._lights.push(hemi, dir);
+    // cible vers le centre de l’arène
+    dir.target.position.copy(this.bounds.center);
+    scene.add(dir.target);
 
+    scene.add(hemi, dir);
+    this._lights.hemi = hemi;
+    this._lights.dir  = dir;
+
+    // Activer les ombres sur les meshes
     if (this.arenaModel) {
       this.arenaModel.traverse((child) => {
         if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
@@ -195,9 +217,53 @@ class BattleScene {
     }
   }
 
+  // Dimensionne la zone d'ombres du DirectionalLight selon la taille de la map
+  fitDirectionalShadowToArena() {
+    const dir = this._lights.dir;
+    if (!dir) return;
+
+    const { size, center, radius } = this.bounds;
+    // On prend une marge confortable
+    const half = Math.max(size.x, size.z, size.y) * 0.65 + 20;
+
+    const cam = dir.shadow.camera; // orthographic
+    cam.left   = -half;
+    cam.right  =  half;
+    cam.top    =  half;
+    cam.bottom = -half;
+    cam.near   = 1;
+    cam.far    = radius * 4 + 200; // bien au-delà de l’arène
+
+    dir.position.set(center.x + half, center.y + half * 1.8, center.z + half);
+    dir.target.position.copy(center);
+    dir.target.updateMatrixWorld();
+
+    cam.updateProjectionMatrix();
+
+    console.log('💡 Shadow frustum fitted:', { half, far: cam.far, lightPos: dir.position.toArray() });
+  }
+
+  // Recalcule bounding box / taille / centre / rayon
+  computeBounds() {
+    if (!this.arenaModel) return;
+    this.bounds.box.setFromObject(this.arenaModel);
+    this.bounds.box.getSize(this.bounds.size);
+    this.bounds.box.getCenter(this.bounds.center);
+    this.bounds.radius = this.bounds.size.length() * 0.5;
+    console.log('📦 Bounds:', { size: this.bounds.size, center: this.bounds.center, radius: this.bounds.radius.toFixed(2) });
+  }
+
+  // Si la camera GLB existe : assouplit near/far pour éviter clips
+  relaxCameraClippingUsingBounds() {
+    const cam = this.gameEngine.getCamera();
+    const { radius } = this.bounds;
+    cam.near = Math.min(0.1, cam.near || 0.1);
+    cam.far  = Math.max(cam.far || 1000, radius * 6 + 500);
+    cam.updateProjectionMatrix();
+  }
+
   // Utilise la camera du GLB si disponible (position + rotation exactes)
   applyEmbeddedCamera(gltf) {
-    // Cherche une vraie Camera dans le graphe
     const camNode = this.findNodeCamera(this.arenaModel) || (gltf.cameras && gltf.cameras[0]);
     if (!camNode) { console.log('📷 No embedded camera → fallback'); return false; }
 
@@ -210,7 +276,7 @@ class BattleScene {
 
     const dst = this.gameEngine.getCamera();
     dst.position.copy(worldPos);
-    dst.quaternion.copy(worldQuat); // ✅ rotation copiée
+    dst.quaternion.copy(worldQuat); // rotation copiée
     if (camNode.isPerspectiveCamera) {
       dst.fov  = camNode.fov;
       dst.near = camNode.near;
@@ -218,7 +284,6 @@ class BattleScene {
     }
     dst.updateProjectionMatrix();
 
-    // Gestion d’un éventuel target/lookAt exporté
     const target = this.findCameraTarget(camNode);
     if (target) {
       const t = new THREE.Vector3();
@@ -267,8 +332,10 @@ class BattleScene {
     const size = new THREE.Vector3(); box.getSize(size);
     const center = new THREE.Vector3(); box.getCenter(center);
 
+    // Recentrer
     this.arenaModel.position.sub(center);
 
+    // Uniform scale vers ~60 unités en X/Z
     const maxXZ = Math.max(size.x, size.z);
     const target = 60;
     if (maxXZ > 0) {
@@ -306,8 +373,9 @@ class BattleScene {
   bindResize(keepEmbedded) {
     if (this._resizeHandler) return;
     this._resizeHandler = () => {
-      // Si on suit la camera GLB, on ne recadre pas automatiquement sur resize
       if (!keepEmbedded) this.frameCameraToArena({ padding: 1.22, tiltDeg: 55, azimuthDeg: 35 });
+      this.computeBounds();
+      this.fitDirectionalShadowToArena();
     };
     window.addEventListener('resize', this._resizeHandler);
   }
@@ -321,7 +389,7 @@ class BattleScene {
     const cam = this.gameEngine.getCamera();
     this.originalCameraState = {
       position: cam.position.clone(),
-      rotation: cam.quaternion.clone(), // ✅ quaternion stocké
+      rotation: cam.quaternion.clone(),
       fov: cam.fov,
       near: cam.near,
       far: cam.far
